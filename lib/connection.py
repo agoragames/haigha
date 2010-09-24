@@ -28,6 +28,10 @@ LIBRARY_PROPERTIES = {
   'library': 'Haigha',
   'library_version': '0.1',
 }
+LIBRARY_PROPERTIES = {
+  'library': 'Python amqplib',
+  'library_version': '0.5',
+}
 
 class Connection(object):
 
@@ -43,10 +47,14 @@ class Connection(object):
     self._logger = kwargs.get('logger', root_logger) # TODO: be sure that root logger is the one we want
 
     # TODO: make host and port dynamic enough to handle a list.
-    self._user = kwargs.get('user', 'guest')
-    self._password = kwargs.get('user', 'guest')
+    #self._user = kwargs.get('user', 'guest')
+    #self._password = kwargs.get('user', 'guest')
+    #self._host = kwargs.get('host', 'localhost')
+    #self._vhost = kwargs.get('vhost', '/')
+    self._user = kwargs.get('user', 'hydra')
+    self._password = kwargs.get('user', 'hydra')
     self._host = kwargs.get('host', 'localhost')
-    self._vhost = kwargs.get('vhost', '/')
+    self._vhost = kwargs.get('vhost', '/hydra')
 
     self._connect_timeout = kwargs.get('connect_timeout', 5)
     self._sock_opts = kwargs.get('sock_opts')
@@ -156,7 +164,8 @@ class Connection(object):
     # closure and the strategy is trying to reconnect.  In that case, we might
     # not have a socket anymore but the channels are still around.  
     for channel_id in self._channels.keys():
-      if channel_id != self.channel_id: 
+      #if channel_id != self.channel_id: 
+      if channel_id != 0:
         self.log("removing channel with id %s" % channel_id)
         del self._channels[channel_id]
   
@@ -451,7 +460,8 @@ class Connection(object):
     self.log("--------- frame write --------")
     self.log( str(frame) )
     self.log("--------- END ----------") 
-    
+  
+    self.logger.info( "SENDING %s", stream.getvalue().encode('string_escape') )  
     self._sock.write(stream.getvalue())
     
     

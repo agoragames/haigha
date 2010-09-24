@@ -8,6 +8,12 @@ sys.path.append(os.path.abspath(".."))
 import logging
 from haigha import Connection
 from haigha import event
+import signal
+
+def sigint_cb(*args):
+  """callback when we get a SIGINT."""
+  event.abort()
+event.signal( signal.SIGINT, sigint_cb )
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)

@@ -38,9 +38,45 @@ class MethodFrame(Frame):
   
   def write_frame(self, stream):
     writer = Writer()
-    writer.write_short(self.method_id)
+    writer.write_octet( 1 )
+    writer.write_short( self.channel_id )
+    writer.flush( stream )
+
+
+    stream_args_len_pos = stream.tell()
+    writer = Writer()
+    writer.write_long(0)
+    writer.flush( stream )
+
+    stream_method_pos = stream.tell()
+    print 'stream method at ', stream_method_pos
+
+    #if args==None:
+    #  pkt.write_long(4)
+    #else:
+    #  pkt.write_long(len(args)+4)  # 4 = length of class_id and method_id
+                                     # in payload
+
+    writer = Writer()
     writer.write_short(self.class_id)
+    writer.write_short(self.method_id)
     writer.flush(stream)
+    stream_end_method_pos = stream.tell()
+
     self._args.flush(stream)
+    stream_end_args_pos = stream.tell()
+    stream_len = stream_end_args_pos - stream_method_pos
+    print 'stream arg length ', stream_len
+
+    stream.seek( stream_method_pos )
+    
+    writer = Writer()
+    writer.write_long( stream_len )
+    stream.seek( stream_args_len_pos )
+    writer.flush( stream )
+
+    stream.seek( 0, 2 )
+    stream.write('\xce')
+    
   
 MethodFrame.register()
