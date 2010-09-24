@@ -28,6 +28,10 @@ class ProtocolClass(object):
   def channel(self):
     return self._channel
 
+  @property
+  def channel_id(self):
+    return self._channel.channel_id
+
   def dispatch(self, method_frame, *content_frames):
     '''
     Dispatch a method for this protocol.
@@ -43,3 +47,10 @@ class ProtocolClass(object):
 #      raise cls.MethodBindingError("a method is alread bound to id: %d" % id)
 #    cls.dispatch_map[id] = function
     pass
+
+  def send_frame(self, frame):
+    '''
+    Send a frame
+    '''
+    # TODO: actually implement this.
+    self.channel.send_frame( frame )

@@ -35,15 +35,15 @@ class Frame(object):
     raise NotImplementedError()
 
   @classmethod
-  def read_frames(cls, buffer):
+  def read_frames(cls, stream):
     '''
-    Read one or more frames from an IO buffer.  Buffer must support file object
+    Read one or more frames from an IO stream.  Buffer must support file object
     interface.
 
     After reading, caller will need to check if there are bytes remaining in the
-    buffer.  If there are, then that implies that there is one or more incomplete
+    stream.  If there are, then that implies that there is one or more incomplete
     frames and more data needs to be read.  The position of the cursor in the
-    frame buffer will mark the point at which the last good frame was read.  If
+    frame stream will mark the point at which the last good frame was read.  If
     the caller is expecting a sequence of frames and only received a part of that
     sequence, they are responsible for buffering those frames until the rest of
     the frames in the sequence have arrived.
@@ -51,14 +51,14 @@ class Frame(object):
     rval = []
 
     while True:
-      frame_start_pos = buffer.tell()
+      frame_start_pos = stream.tell()
       try:
-        frame = cls._read_frame(buffer)
+        frame = cls._read_frame(stream)
       except struct.error, e:
-        # No more data in the buffer
+        # No more data in the stream
         frame = None
       if frame is None: 
-        buffer.seek( frame_start_pos )
+        stream.seek( frame_start_pos )
         break
 
       rval.append( frame )
@@ -66,26 +66,21 @@ class Frame(object):
     return rval
 
   @classmethod
-  def _read_frame(cls, buffer):
+  def _read_frame(cls, stream):
     '''
-    Read a single frame from a buffer.  Will return None if there is an incomplete
-    frame in the buffer.
+    Read a single frame from a stream.  Will return None if there is an incomplete
+    frame in the stream.
 
     Raise MissingFooter if there's a problem reading the footer byte.
     '''
     # TODO: Do we implement a reader here, or stick all the writing and reading
     # interfaces right into this class?
     
-    reader = Reader(buffer)
+    reader = Reader(stream)
     frame_type = reader.read_octet()
     channel = reader.read_short()
     size = reader.read_long()
     payload = reader.read( size )
-    
-#    frame_type = cls.read_octet( buffer )
-#    channel = cls.read_short( buffer )
-#    size = cls.read_long( buffer )
-#    payload = cls.read_string( buffer, size )
 
     if len(payload) != size:
       #raise AMQPIncompletePayloadError('Payload length %d did not match expected size %d' % \
@@ -101,43 +96,27 @@ class Frame(object):
     frame_class = cls._frame_type_map.get( frame_type )
     if not frame_class:
       raise Frame.InvalidFrameType("Unknown frame type %x", frame_type)
-    return frame_class( payload=payload )
+    return frame_class.parse( channel_id, payload )
 
-
-# These are handled by the reader  
-#  @classmethod
-#  def read_octet(cls, buffer):
-#    pass
-
-#  @classmethod
-#  def read_short(cls, buffer):
-#    pass
-
-#  @classmethod
-#  def read_long(cls, buffer):
-#    pass
-
-#  @classmethod
-#  def read_string(cls, buffer, size):
-#    pass
 
 
   # Instance methods
-  def __init__(self, channel_id=-1, size=0, payload=None ):
-    '''
-    Initialize this frame.
-    '''
+  def __init__(self, channel_id=-1):
     self._channel_id = channel_id
-    self._size = size
-    self._payload = payload
 
-    # TODO: assert that len(payload)==size ?
+  @classmethod
+  def parse(cls, channel_id, payload):
+    '''
+    Subclasses need to implement parsing of their frames.  Should return a new
+    instance of their type.
+    '''
+    raise NotImplementedError()
 
   @property
   def channel_id(self):
     return self._channel_id
 
-  @property
+  '''@property
   def size(self):
     if self._size==0 and self._payload != None: 
       return len(self._payload)
@@ -145,7 +124,7 @@ class Frame(object):
 
   @property
   def payload(self):
-    return self._payload
+    return self._payload'''
 
   def __str__(self):
     if self.size > 0:
@@ -153,7 +132,7 @@ class Frame(object):
         self.channel_id, self.size, self.payload.encode('string_escape'))
     return "%s[channel: %d]"
 
-  def write_frame(self, buffer):
+  def write_frame(self, stream):
     '''
     Write this frame.
     '''
