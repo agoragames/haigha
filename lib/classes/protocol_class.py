@@ -19,6 +19,10 @@ class ProtocolClass(object):
   def channel(self):
     return self._channel
 
+  @property
+  def channel_id(self):
+    return self._channel.channel_id
+
   def dispatch(self, method_frame, *content_frames):
     '''
     Dispatch a method for this protocol.
