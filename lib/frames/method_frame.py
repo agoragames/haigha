@@ -1,6 +1,7 @@
 import struct
 from haigha.lib.frames.frame import Frame
 from haigha.lib.reader import Reader
+from haigha.lib.writer import Writer
 
 class MethodFrame(Frame):
   '''
@@ -34,5 +35,12 @@ class MethodFrame(Frame):
     self._class_id = class_id
     self._method_id = method_id
     self._args = args
+  
+  def write(self, stream):
+    writer = Writer()
+    writer.write_short(self.method_id)
+    writer.write_short(self.class_id)
+    writer.flush(stream)
+    self._args.flush(sream)
   
 MethodFrame.register()
