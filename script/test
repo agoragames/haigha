@@ -10,5 +10,5 @@ sys.path.append(os.path.abspath("."))
 loader = unittest.TestLoader()
 suite = loader.discover('test', pattern='*_test.py')
 
-unittest.TextTestRunner(verbosity=2).run(suite)
+unittest.TextTestRunner(verbosity=1).run(suite)
 
