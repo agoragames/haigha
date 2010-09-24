@@ -23,9 +23,16 @@ class MethodFrame(Frame):
   def args(self):
     return self._args
 
-  def __init__(self, *args, **kwargs):
-    Frame.__init__(self, *args, **kwargs)
-    self._class_id, self._method_id = struct.unpack( '>HH', self.payload[:4] )
-    self._args = Reader( self.payload[4:] )
+  @classmethod
+  def parse(self, channel_id, payload):
+    class_id, method_id = struct.unpack( '>HH', self.payload[:4] )
+    args = Reader( self.payload[4:] )
+    return MethodFrame( channel_id, class_id, method_id, args )
+
+  def __init__(self, channel_id, class_id, method_id, args):
+    Frame.__init__(self, channel_id)
+    self._class_id = class_id
+    self._method_id = method_id
+    self._args = args
   
 MethodFrame.register()

@@ -29,3 +29,10 @@ class ProtocolClass(object):
     '''
     # TODO: Can we do an automatic scheme, or do we have to leave this
     # up to each subclass?  Automatic would be soooo much nicer
+
+  def send_frame(self, frame):
+    '''
+    Send a frame
+    '''
+    # TODO: actually implement this.
+    self.channel.send_frame( frame )

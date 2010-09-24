@@ -283,7 +283,8 @@ class Connection(object):
     '''
     self._closed = False
     # channel does the rest
-    self.send_start_ok( self.properties, self.login_method, self.login_response, self.locale )
+    self._channels[0].connection.send_start_ok( 
+      self.properties, self.login_method, self.login_response, self.locale )
 
   def close(self):
     '''

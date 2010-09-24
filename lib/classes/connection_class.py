@@ -1,3 +1,6 @@
+
+from haigha.writer import Writer
+from haigha.frames import MethodFrame
 from protocol_class import ProtocolClass
 
 class ConnectionClass(ProtocolClass):
@@ -15,9 +18,11 @@ class ConnectionClass(ProtocolClass):
     # so we can get direct access.
     self.channel.connection.start()
 
-  def start_ok(self, 
+  def start_ok(self, properties, login_method, login_response, locale):
     '''Called by client to indicate that we're ready.'''
-    
-
-  dispatch_map = {
-  }
+    args = Writer()
+    args.write_table(props)
+    args.write_shortstr(mechanism)
+    args.write_longstr(response)
+    args.write_shortstr(locale)
+    self.send_frame( MethodFrame(self.channel_id, 10, 11, args) )
