@@ -1,4 +1,3 @@
-
 from protocol_class import ProtocolClass
 
 class ConnectionClass(ProtocolClass):

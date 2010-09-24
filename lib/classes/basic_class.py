@@ -1,5 +1,6 @@
+from haigha.lib.classes import ProtocolClass
 
-class BasicClass(object):
+class BasicClass(ProtocolClass):
   '''
   Implements the AMQP Basic class
   '''

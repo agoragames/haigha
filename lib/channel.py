@@ -1,5 +1,4 @@
-
-from haigha.classes import *
+from haigha.lib.classes import *
 
 class Channel(object):
   '''
@@ -7,8 +6,8 @@ class Channel(object):
   '''
 
   class ChannelError(Exception): '''Base class for all channel errors'''
-  class InvalidClass(ChannelException): '''The method frame referenced an invalid class.  Non-fatal.'''
-  class InvalidMethod(ChannelException): '''The method frame referenced an invalid method.  Non-fatal.'''
+  class InvalidClass(ChannelError): '''The method frame referenced an invalid class.  Non-fatal.'''
+  class InvalidMethod(ChannelError): '''The method frame referenced an invalid method.  Non-fatal.'''
 
   # TODO: If there is such a thing as extended classes for method frames, then
   # allow user to pass in a mapping.
@@ -16,14 +15,21 @@ class Channel(object):
     '''Initialize with a handle to the connection and an id.'''
     self._connection = connection
     self._channel_id = channel_id
+    
+    self._bind_as_property('channel', ChannelClass( self ))
+    self._bind_as_property('exchange', ExchangeClass( self ))
+    self._bind_as_property('queue', QueueClass( self ))
+    self._bind_as_property('basic', BasicClass( self ))
+    self._bind_as_property('tx', TransactionClass( self ))
 
     self._class_map = {
-      20 : ChannelClass( self ),
-      40 : ExchangeClass( self ),
-      50 : QueueClass( self ),
-      60 : BasicClass( self ),
-      90 : TransactionClass( self ),
+      20 : self.channel,
+      40 : self.exchange,
+      50 : self.queue,
+      60 : self.basic,
+      90 : self.tx,
     }
+
     if( channel_id==0 ):
       self._class_map[ 10 ] = ConnectionClass( self )
 
@@ -49,3 +55,8 @@ class Channel(object):
     else:
       raise InvalidClass( "class %d is not support on channel %d", 
         method_frame.class_id, self.channel_id )
+  
+  def _bind_as_property(self, name, obj):
+    setattr(self, name, property(lambda: obj))
+  
+    

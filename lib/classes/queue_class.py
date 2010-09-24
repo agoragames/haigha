@@ -1,5 +1,6 @@
+from haigha.lib.classes import ProtocolClass
 
-class QueueClass(object):
+class QueueClass(ProtocolClass):
   '''
   Implements the AMQP Queue class
   '''

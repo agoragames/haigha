@@ -1,4 +1,4 @@
-from haigha.channel import Channel
+from haigha import Channel
 #from haigha.message import Message
 from haigha.lib.connection_strategy import ConnectionStrategy
 from haigha.lib.event_socket import EventSocket
@@ -73,7 +73,7 @@ class Connection(object):
     }
     
     self._channels = {
-      0 : self.channel(0)
+      0 : Channel(self, 0)
     } 
     
     self._channel_counter = 0

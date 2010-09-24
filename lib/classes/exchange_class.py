@@ -1,5 +1,6 @@
+from haigha.lib.classes import ProtocolClass
 
-class ExchangeClass(object):
+class ExchangeClass(ProtocolClass):
   '''
   Implements the AMQP Exchange class
   '''
