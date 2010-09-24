@@ -186,7 +186,7 @@ class Connection(object):
     Callback when socket closed.  This is intended to be the callback when the
     closure is unexpected.
     """
-    self.logger.warning( 'socket to %s closed unexpectedly', self.host )
+    self.logger.warning( 'socket to %s closed unexpectedly', self._host )
     self._close_info = {
       'reply_code'    : -1,
       'reply_text'    : 'socket closed unexpectedly',
@@ -209,13 +209,13 @@ class Connection(object):
     # you haven't configured permissions and that's why the socket is closing,
     # at least it will only try to reconnect every few seconds.
     self._strategy.fail()
-    self._strategy.next_host()
+#    self._strategy.next_host()
   
   def _sock_error_cb(self, sock, msg, exception=None):
     """
     Callback when there's an error on the socket.
     """
-    self.logger.error( 'error on connection to %s', self._host )
+    self.logger.error( 'error on connection to %s - %s', self._host, msg)
     self._close_info = {
       'reply_code'    : -1,
       'reply_text'    : "socket error: %s"%(msg),
@@ -231,15 +231,15 @@ class Connection(object):
     # disconnects, or at least not of the nature that we've encountered at TM.
     # So for now, callback to our close callback handler which we know will raise
     # a SystemExit.
-#    self._close_cb()
-#    
-#    # Removed check for `self.connected==True` because the strategy does the
-#    # right job in letting us reconnect when there's a transient error.  If
-#    # you haven't configured permissions and that's why the socket is closing,
-#    # at least it will only try to reconnect every few seconds.
-#    self._strategy.fail()
-#    self._strategy.next_host()
-#  
+    self._close_cb and self._close_cb()
+
+    # Removed check for `self.connected==True` because the strategy does the
+    # right job in letting us reconnect when there's a transient error.  If
+    # you haven't configured permissions and that's why the socket is closing,
+    # at least it will only try to reconnect every few seconds.
+    self._strategy.fail()
+    self._strategy.next_host()
+
   ###
   ### Connection methods
   ###
@@ -285,59 +285,66 @@ class Connection(object):
     '''
     Read frames from the socket.
     '''
-    # TODO: old implementation had a wrapper to handle errors.  Consider if that's
-    # still needed, and if so, consider a decorator for much happiness @AW
-
-    # Because of the timer callback to dataRead when we re-buffered, there's a
-    # chance that in between we've lost the socket.  If that's the case, just
-    # silently return as some code elsewhere would have already notified us.
-    # That bug could be fixed by improving the message reading so that we consume
-    # all possible messages and ensure that only a partial message was rebuffered,
-    # so that we can rely on the next read event to read the subsequent message.
-    # TODO: Re-parse that comment and figure out if it still applies. @AW
-    if self._sock is None:
-      return
-    buffer = self.sock.read()     # StringIO buffer
-
     try:
-      self._input_frame_buffer.extend( Frame.read_frames(buffer) )
-    except Frame.FrameError as e:
-      self.logger.exception( "Framing error", exc_info=True )
-      # TODO:
+      # TODO: old implementation had a wrapper to handle errors.  Consider if that's
+      # still needed, and if so, consider a decorator for much happiness @AW
 
-    # HACK: read the buffer contents and re-buffer.  Would prefer to pass
-    # buffer back, but there's no good way of asking the total size of the
-    # buffer, comparing to tell(), and then re-buffering.  There's also no
-    # ability to clear the buffer up to the current position.
-    # TODO: resolve this so there's much less copying going on
-    remaining = buffer.read()
-    if len(remaining)>0:
-      self.sock.buffer( remaining )
+      # Because of the timer callback to dataRead when we re-buffered, there's a
+      # chance that in between we've lost the socket.  If that's the case, just
+      # silently return as some code elsewhere would have already notified us.
+      # That bug could be fixed by improving the message reading so that we consume
+      # all possible messages and ensure that only a partial message was rebuffered,
+      # so that we can rely on the next read event to read the subsequent message.
+      # TODO: Re-parse that comment and figure out if it still applies. @AW
+      if self._sock is None:
+        return
+      
+      self.log("ready to read frames")
+      buffer = self._sock.read()     # StringIO buffer
+      
+      try:
+        self._input_frame_buffer.extend( Frame.read_frames(buffer) )
+      except Frame.FrameError as e:
+        self.logger.exception( "Framing error", exc_info=True )
+        # TODO:
 
-      # If data remaining and no read error, re-schedule to continue processing
-      # the buffer.
-      # TODO: Consider not putting this on a delay, but rather calling it after
-      # processMessage().  Need to consider what affect this might have on IO.
-      # It would mandate that the client process as quickly as incoming data,
-      # else the broker might drop the connection.  In the end, it would likely
-      # be the case that only a few messages would be in the buffer at any one
-      # time.
-      # NOTE: I don't think this applies now because of the way Frame.read_frames()
-      # is implemented.  If there's anything remaining, it's because there is a
-      # single, partial frame remaining and the only way it will complete is if
-      # new data comes in on the socket, at which point we'll get an event and
-      # try this method again. @AW
-      #if not read_error:
-      #  event.timeout( 0, self._read_frames )
+      # HACK: read the buffer contents and re-buffer.  Would prefer to pass
+      # buffer back, but there's no good way of asking the total size of the
+      # buffer, comparing to tell(), and then re-buffering.  There's also no
+      # ability to clear the buffer up to the current position.
+      # TODO: resolve this so there's much less copying going on
+      remaining = buffer.read()
+      if len(remaining)>0:
+        self._sock.buffer( remaining )
 
-    # DEBUG:
-    log.info("buffered frame list --------")
-    for frame in self._input_frame_buffer:
-      log.info( str(frame) )
-    log.info("----------") 
+        # If data remaining and no read error, re-schedule to continue processing
+        # the buffer.
+        # TODO: Consider not putting this on a delay, but rather calling it after
+        # processMessage().  Need to consider what affect this might have on IO.
+        # It would mandate that the client process as quickly as incoming data,
+        # else the broker might drop the connection.  In the end, it would likely
+        # be the case that only a few messages would be in the buffer at any one
+        # time.
+        # NOTE: I don't think this applies now because of the way Frame.read_frames()
+        # is implemented.  If there's anything remaining, it's because there is a
+        # single, partial frame remaining and the only way it will complete is if
+        # new data comes in on the socket, at which point we'll get an event and
+        # try this method again. @AW
+        #if not read_error:
+        #  event.timeout( 0, self._read_frames )
 
-    # Even if there was a frame error, process whatever is on the input buffer.
-    _process_input_frames()
+      # DEBUG:
+      self.log("--------- buffered frame list --------")
+      for frame in self._input_frame_buffer:
+        self.log( str(frame) )
+      self.log("--------- END ----------") 
+
+      # Even if there was a frame error, process whatever is on the input buffer.
+      self._process_input_frames()
+    except Exception, e:
+      traceback.print_exc()
+      print (type(e))
+      print e
 
   def _process_input_frames(self):
     pass

@@ -11,7 +11,7 @@ class MethodFrame(Frame):
     return 1
 
 
-  def __init__(selfi):
+  def __init__(self, *args, **kwargs):
     Frame.__init__(self, *args, **kwargs)
 
 MethodFrame.register()

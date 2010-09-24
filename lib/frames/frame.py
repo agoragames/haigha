@@ -1,3 +1,4 @@
+import struct
 from haigha.lib.reader import Reader
 
 class Frame(object):
@@ -51,13 +52,16 @@ class Frame(object):
 
     while True:
       frame_start_pos = buffer.tell()
-
-      frame = _read_frame(buffer)
+      try:
+        frame = cls._read_frame(buffer)
+      except struct.error, e:
+        # No more data in the buffer
+        frame = None
       if frame is None: 
         buffer.seek( frame_start_pos )
         break
 
-      rval.add( frame )
+      rval.append( frame )
 
     return rval
 
@@ -94,28 +98,28 @@ class Frame(object):
       raise Frame.MissingFooter('Framing error, unexpected byte: %x.  frame type %x. channel %d, payload size %d',
         ch, frame_type, channel, size )
 
-    frame_class = _frame_type_map.get( frame_type )
+    frame_class = cls._frame_type_map.get( frame_type )
     if not frame_class:
       raise Frame.InvalidFrameType("Unknown frame type %x", frame_type)
-
     return frame_class( payload=payload )
 
-  
-  @classmethod
-  def read_octet(cls, buffer):
-    pass
 
-  @classmethod
-  def read_short(cls, buffer):
-    pass
+# These are handled by the reader  
+#  @classmethod
+#  def read_octet(cls, buffer):
+#    pass
 
-  @classmethod
-  def read_long(cls, buffer):
-    pass
+#  @classmethod
+#  def read_short(cls, buffer):
+#    pass
 
-  @classmethod
-  def read_string(cls, buffer, size):
-    pass
+#  @classmethod
+#  def read_long(cls, buffer):
+#    pass
+
+#  @classmethod
+#  def read_string(cls, buffer, size):
+#    pass
 
 
   # Instance methods
