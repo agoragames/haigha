@@ -1,4 +1,4 @@
-#from haigha.channel import Channel Not yet implemented
+from haigha.channel import Channel
 #from haigha.message import Message
 from haigha.lib.connection_strategy import ConnectionStrategy
 from haigha.lib.event_socket import EventSocket
@@ -72,7 +72,10 @@ class Connection(object):
       'method_id'     : -1
     }
     
-    self._channels = {} # TODO: initialize channel 0
+    self._channels = {
+      0 : self.channel(0)
+    } 
+    
     self._channel_counter = 0
     self._channel_max = 65535
 
@@ -347,4 +350,13 @@ class Connection(object):
       print e
 
   def _process_input_frames(self):
-    pass
+    while True:
+      try:
+        frame = self._input_frame_buffer.pop()
+        
+        if isinstance(frame, HeartbeatFrame):
+          # TODO: Respond
+          pass
+
+      except IndexError:
+        break;
