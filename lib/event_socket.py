@@ -17,7 +17,7 @@ import traceback
 #   https://agora.lighthouseapp.com/projects/47111/tickets/628-odd-amqp-error
 from cStringIO import StringIO
 
-class EventedSocket(object):
+class EventSocket(object):
   """
   A socket wrapper which uses libevent.
   """
