@@ -1,5 +1,4 @@
-
-from lib.classes import *
+from haigha.lib.classes import *
 
 class Channel(object):
   '''
