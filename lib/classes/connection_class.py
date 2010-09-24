@@ -1,4 +1,3 @@
-
 from haigha.lib.writer import Writer
 from haigha.lib.frames import MethodFrame
 from protocol_class import ProtocolClass
