@@ -1,3 +1,4 @@
+
 from haigha.lib.classes import *
 
 class Channel(object):
@@ -16,11 +17,11 @@ class Channel(object):
     self._connection = connection
     self._channel_id = channel_id
     
-    self._bind_as_property('channel', ChannelClass( self ))
-    self._bind_as_property('exchange', ExchangeClass( self ))
-    self._bind_as_property('queue', QueueClass( self ))
-    self._bind_as_property('basic', BasicClass( self ))
-    self._bind_as_property('tx', TransactionClass( self ))
+    self.channel = ChannelClass( self )
+    self.exchange = ExchangeClass( self )
+    self.queue = QueueClass( self )
+    self.basic = BasicClass( self )
+    self.tx = TransactionClass( self )
 
     self._class_map = {
       20 : self.channel,
@@ -55,8 +56,3 @@ class Channel(object):
     else:
       raise InvalidClass( "class %d is not support on channel %d", 
         method_frame.class_id, self.channel_id )
-  
-  def _bind_as_property(self, name, obj):
-    setattr(self, name, property(lambda: obj))
-  
-    
