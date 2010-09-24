@@ -127,10 +127,8 @@ class Frame(object):
     return self._payload'''
 
   def __str__(self):
-    if self.size > 0:
-      return "%s[channel: %d, size: %d, payload: %s]"%( self.__class__.__name__, \
-        self.channel_id, self.size, self.payload.encode('string_escape'))
-    return "%s[channel: %d]"
+    return "%s[channel: %d, method_id: %d, args: %s]"%( self.__class__.__name__, \
+        self.channel_id, self.method_id, self.args.input.getvalue().encode('string_escape'))
 
   def write_frame(self, stream):
     '''

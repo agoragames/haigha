@@ -26,8 +26,8 @@ class MethodFrame(Frame):
 
   @classmethod
   def parse(self, channel_id, payload):
-    class_id, method_id = struct.unpack( '>HH', self.payload[:4] )
-    args = Reader( self.payload[4:] )
+    class_id, method_id = struct.unpack( '>HH', payload[:4] )
+    args = Reader( payload[4:] )
     return MethodFrame( channel_id, class_id, method_id, args )
 
   def __init__(self, channel_id, class_id, method_id, args):
