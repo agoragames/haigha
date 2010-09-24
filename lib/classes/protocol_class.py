@@ -3,9 +3,19 @@ class ProtocolClass(object):
   '''
   The base class of all protocol classes.
   '''
+  
+  class ProtocolError(Exception): pass
+  class MethodBindingError(ProtocolError): pass
+  
+  # decorator to registor dispatch
+  class register(object):
+    def __init__(self, id):
+      self._id = id
+    
+    def __call__(self, function):
+      ProtocolClass._bind_method(self._id, function)
+      return function
 
-  # subclasses should re-define this
-  # TODO: do something awesome with decorators?
   dispatch_map = {}
 
   def __init__(self, channel):
@@ -13,7 +23,6 @@ class ProtocolClass(object):
     Construct this protocol class on a channel.
     '''
     self._channel = channel
-    self._method_map = {}
 
   @property
   def channel(self):
@@ -23,5 +32,14 @@ class ProtocolClass(object):
     '''
     Dispatch a method for this protocol.
     '''
-    # TODO: Can we do an automatic scheme, or do we have to leave this
-    # up to each subclass?  Automatic would be soooo much nicer
+    try:
+      self.dispatch_map[method_frame.method_id](self)
+    except IndexError:
+      raise self.NoMethodRegistered("no method is registered with id: %d" % method_frame.method_id)
+
+  @classmethod
+  def _bind_method(cls, id, function):
+#    if cls.dispatch_map.has_key(id):
+#      raise cls.MethodBindingError("a method is alread bound to id: %d" % id)
+#    cls.dispatch_map[id] = function
+    pass
