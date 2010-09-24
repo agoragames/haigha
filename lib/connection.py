@@ -340,4 +340,4 @@ class Connection(object):
     _process_input_frames()
 
   def _process_input_frames(self):
-    
+    pass
