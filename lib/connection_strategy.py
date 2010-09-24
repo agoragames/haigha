@@ -4,7 +4,6 @@ Defines the ConnectionStrategy class for a Connection.
 
 import event
 import socket
-from connection import AMQP_PORT
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 AMQP_PORT = 5672
