@@ -12,4 +12,4 @@ class HeartbeatFrame(Frame):
   register()
 
   def __init__(self):
-    pass
+    Frame.__init__(self, *args, **kwargs)

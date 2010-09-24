@@ -6,6 +6,7 @@ class Frame(object):
 
   # Exceptions
   class FrameError(Exception): '''Base class for all frame errors'''
+  class InvalidFrameType(FrameError): '''The frame type is unknown.'''
   class MissingFooter(FrameError): '''Could not find the footer to the frame.'''
 
   # Class data
@@ -20,8 +21,16 @@ class Frame(object):
     # TODO is there a better way to do this?  Order of class declaration matters
     # here.  There's probably a way to tap into when a subclass is declared.  Could
     # write a decorator 'register_type()` that subclasses classmethod?  Would like
-    # to clean up initialization pattern
+    # to clean up initialization pattern  Cleanup of how subclasses register is
+    # definitely in order
     _frame_type_map[ cls.type() ] = cls
+
+  @classmethod
+  def type(self):
+    '''
+    Fetch the type of this frame.  Should be an octet.
+    '''
+    raise NotImplementedError()
 
   @classmethod
   def read_frames(cls, buffer):
@@ -36,8 +45,6 @@ class Frame(object):
     the caller is expecting a sequence of frames and only received a part of that
     sequence, they are responsible for buffering those frames until the rest of
     the frames in the sequence have arrived.
-
-    Note: no effort is made in this function to determine 
     '''
     rval = []
 
@@ -63,10 +70,15 @@ class Frame(object):
     '''
     # TODO: Do we implement a reader here, or stick all the writing and reading
     # interfaces right into this class?
-    frame_type = reader.read_octet()
-    channel = reader.read_short()
-    size = reader.read_long()
-    payload = reader.read( size )
+    #frame_type = reader.read_octet()
+    #channel = reader.read_short()
+    #size = reader.read_long()
+    #payload = reader.read( size )
+    
+    frame_type = cls.read_octet( buffer )
+    channel = cls.read_short( buffer )
+    size = cls.read_long( buffer )
+    payload = cls.read_string( buffer, size )
 
     if len(payload) != size:
       #raise AMQPIncompletePayloadError('Payload length %d did not match expected size %d' % \
@@ -76,19 +88,61 @@ class Frame(object):
     # TODO: In the edge case where we're missing just this one byte, return None
     ch = reader.read_octet()  # footer
     if ch != 0xce:
-      raise MissingFooter('Framing error, unexpected byte: %x.  frame type %x. channel %d, payload size %d' % \
-        (ch, frame_type, channel, size) )
+      raise Frame.MissingFooter('Framing error, unexpected byte: %x.  frame type %x. channel %d, payload size %d',
+        ch, frame_type, channel, size )
+
+    frame_class = _frame_type_map.get( frame_type )
+    if not frame_class:
+      raise Frame.InvalidFrameType("Unknown frame type %x", frame_type)
+
+    return frame_class( payload=payload )
 
   
   @classmethod
   def read_octet(cls, buffer):
     pass
 
+  @classmethod
+  def read_short(cls, buffer):
+    pass
+
+  @classmethod
+  def read_long(cls, buffer):
+    pass
+
+  @clasmethod
+  def read_string(cls, buffer, size):
+    pass
+
 
   # Instance methods
-  def type(self):
+  def __init__(self, channel_id=-1, size=0, payload=None ):
     '''
-    Fetch the type of this frame.  Should be an octet.
+    Initialize this frame.
     '''
-    raise NotImplementedError()
+    self._channel_id = channel_id
+    self._size = size
+    self._payload = payload
 
+  #channel_id = property( fget=lambda self: self._channel_id )
+  @property
+  def channel_id(self):
+    return self._channel_id
+
+  @property
+  def size(self):
+    if self._size==0 and self._payload != None: 
+      return len(self._payload)
+    return self._size
+
+  @property
+  def payload(self):
+    return self._payload
+
+  def write_frame(self, buffer):
+    '''
+    Write this frame.
+    '''
+    # TODO: Whomever is calling this, please put a TODO in your code about wanting to write
+    # directly to a buffer in EventSocket.
+    raise NotImplementedError()
