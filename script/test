@@ -2,6 +2,10 @@
 #-*- coding:utf-8 -*-
 import unittest2 as unittest
 import os
+import sys
+
+# Hack: we should make this more generic
+sys.path.append(os.path.abspath("."))
 
 loader = unittest.TestLoader()
 suite = loader.discover('test', pattern='*_test.py')
