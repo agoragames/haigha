@@ -3,6 +3,7 @@ from haigha import Channel
 from haigha.lib.connection_strategy import ConnectionStrategy
 from haigha.lib.event_socket import EventSocket
 from haigha.lib.frames import *
+from haigha.lib.writer import Writer
 
 import event                        # http://code.google.com/p/pyevent/
 import socket
@@ -75,6 +76,13 @@ class Connection(object):
     self._channels = {
       0 : Channel(self, 0)
     } 
+    
+    login_response = Writer()
+    login_response.write_table({'LOGIN': self._user, 'PASSWORD': self._password})
+    stream = StringIO()
+    login_response.flush(stream)
+    self._login_response = stream.getvalue()[4:]  #Skip the length
+                                                      #at the beginning
     
     self._channel_counter = 0
     self._channel_max = 65535
@@ -284,8 +292,8 @@ class Connection(object):
     # HACK
     self._closed = False
     # channel does the rest
-    self._channels[0].connection.send_start_ok( 
-      self.properties, self.login_method, self.login_response, self.locale )
+    self._channels[0].connection.start_ok( 
+      self._properties, self._login_method, self._login_response, self._locale )
 
   def close(self):
     '''
@@ -427,9 +435,23 @@ class Connection(object):
       try:
         frame = self._input_frame_buffer.pop()
         
+        self.channel(frame.channel_id).dispatch(frame)
+        
         if isinstance(frame, HeartbeatFrame):
           # TODO: Respond
           pass
 
       except IndexError:
         break;
+  
+  def send_frame(self, frame):
+    stream = StringIO()
+    frame.write_frame(stream)
+    
+    self.log("--------- frame write --------")
+    self.log( str(frame) )
+    self.log("--------- END ----------") 
+    
+    self._sock.write(stream.getvalue())
+    
+    

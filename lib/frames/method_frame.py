@@ -36,11 +36,11 @@ class MethodFrame(Frame):
     self._method_id = method_id
     self._args = args
   
-  def write(self, stream):
+  def write_frame(self, stream):
     writer = Writer()
     writer.write_short(self.method_id)
     writer.write_short(self.class_id)
     writer.flush(stream)
-    self._args.flush(sream)
+    self._args.flush(stream)
   
 MethodFrame.register()

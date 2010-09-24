@@ -7,6 +7,12 @@ class ConnectionClass(ProtocolClass):
   Implements the AMQP Connection class
   '''
 
+  def __init__(self, *args, **kwargs):
+    super(ConnectionClass, self).__init__(*args, **kwargs)
+    self.dispatch_map = {
+      10 : self.start
+    }
+
   @ProtocolClass.register(10)
   def start(self, method_frame):
     '''Called by broker when initialzing the connection.'''
@@ -15,16 +21,16 @@ class ConnectionClass(ProtocolClass):
     # TODO: think about how to make this protected in Connection.  May need
     # to implement such that the channel it's on is private to Connection and
     # so we can get direct access.
-    self.channel.connection.start()
+    self.channel.conn.start()
 
   def start_ok(self, properties, login_method, login_response, locale):
     '''Called by connection to indicate that we're ready.  Connection must supply
     all this important data.'''
     # TODO: Figure out a better plan than that.
     args = Writer()
-    args.write_table(props)
-    args.write_shortstr(mechanism)
-    args.write_longstr(response)
+    args.write_table(properties)
+    args.write_shortstr(login_method)
+    args.write_longstr(login_response)
     args.write_shortstr(locale)
     self.send_frame( MethodFrame(self.channel_id, 10, 11, args) )
 
@@ -78,7 +84,7 @@ class ConnectionClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 10, 61, None) )
 
     # Tell the connection
-    self.channel.connection.handle_close( method_frame.args )
+    self.channel.conn.handle_close( method_frame.args )
     
   def close(self, reply_code=0, reply_text='', class_id=0, method_id=0):
     '''Send the close command.  If this was due to an error, class and method 
@@ -93,7 +99,7 @@ class ConnectionClass(ProtocolClass):
   @ProtocolClass.register(61) # TODO: 0.9.1 should be 51
   def close_ok(self, method_frame):
     '''Called by broker to acknowledge that connection is done.'''
-    self.channel.connection.handle_close_ok( method_frame.args )
+    self.channel.conn.handle_close_ok( method_frame.args )
 
 
   ###
@@ -102,7 +108,7 @@ class ConnectionClass(ProtocolClass):
   def _send_open(self):
     # TODO: similar, figure out how to make this better in Connection
     args = Writer()
-    args.write_shortstr( self.channel.connection._vhost )
+    args.write_shortstr( self.channel.conn._vhost )
     args.write_shortstr('') # capabilities
     args.write_bit(insist)  # TODO: 0.9.1 ???
     self.send_frame( MethodFrame(self.channel_id, 10, 40, args) )

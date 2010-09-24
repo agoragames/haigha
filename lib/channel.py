@@ -31,10 +31,11 @@ class Channel(object):
     }
 
     if( channel_id==0 ):
-      self._class_map[ 10 ] = ConnectionClass( self )
+      self.connection = ConnectionClass( self )
+      self._class_map[ 10 ] = self.connection
 
   @property
-  def connection(self):
+  def conn(self):
     return self._connection
 
   @property
@@ -51,7 +52,11 @@ class Channel(object):
     '''
     klass = self._class_map.get( method_frame.class_id )
     if klass:
+      self.logger.info("Dispatching class_id : %s " % method_frame.class_id)
       klass.dispatch( method_frame, *content_frames)
     else:
       raise InvalidClass( "class %d is not support on channel %d", 
         method_frame.class_id, self.channel_id )
+        
+  def send_frame(self, frame):
+    self._connection.send_frame(frame)

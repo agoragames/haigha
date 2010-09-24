@@ -37,8 +37,9 @@ class ProtocolClass(object):
     Dispatch a method for this protocol.
     '''
     try:
+      self.channel.logger.info("Dispatching to method_id : %s", method_frame.method_id)
       self.dispatch_map[method_frame.method_id](self)
-    except IndexError:
+    except KeyError:
       raise self.NoMethodRegistered("no method is registered with id: %d" % method_frame.method_id)
 
   @classmethod
