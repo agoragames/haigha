@@ -124,7 +124,8 @@ class Frame(object):
     self._size = size
     self._payload = payload
 
-  #channel_id = property( fget=lambda self: self._channel_id )
+    # TODO: assert that len(payload)==size ?
+
   @property
   def channel_id(self):
     return self._channel_id
@@ -138,6 +139,12 @@ class Frame(object):
   @property
   def payload(self):
     return self._payload
+
+  def __str__(self):
+    if self.size > 0:
+      return "%s[channel: %d, size: %d, payload: %s]"%( self.__class__.__name__, \
+        self.channel_id, self.size, self.payload.encode('string_escape'))
+    return "%s[channel: %d]"
 
   def write_frame(self, buffer):
     '''
