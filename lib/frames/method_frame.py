@@ -1,5 +1,5 @@
 
-from haigha.frames.frame import Frame
+from haigha.lib.frames.frame import Frame
 
 class MethodFrame(Frame):
   '''
@@ -9,7 +9,9 @@ class MethodFrame(Frame):
   @classmethod
   def type(cls):
     return 1
-  register()
+
 
   def __init__(selfi):
     Frame.__init__(self, *args, **kwargs)
+
+MethodFrame.register()

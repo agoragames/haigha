@@ -1,3 +1,4 @@
+from haigha.lib.reader import Reader
 
 class Frame(object):
   '''
@@ -23,7 +24,7 @@ class Frame(object):
     # write a decorator 'register_type()` that subclasses classmethod?  Would like
     # to clean up initialization pattern  Cleanup of how subclasses register is
     # definitely in order
-    _frame_type_map[ cls.type() ] = cls
+    cls._frame_type_map[ cls.type() ] = cls
 
   @classmethod
   def type(self):
@@ -70,15 +71,17 @@ class Frame(object):
     '''
     # TODO: Do we implement a reader here, or stick all the writing and reading
     # interfaces right into this class?
-    #frame_type = reader.read_octet()
-    #channel = reader.read_short()
-    #size = reader.read_long()
-    #payload = reader.read( size )
     
-    frame_type = cls.read_octet( buffer )
-    channel = cls.read_short( buffer )
-    size = cls.read_long( buffer )
-    payload = cls.read_string( buffer, size )
+    reader = Reader(buffer)
+    frame_type = reader.read_octet()
+    channel = reader.read_short()
+    size = reader.read_long()
+    payload = reader.read( size )
+    
+#    frame_type = cls.read_octet( buffer )
+#    channel = cls.read_short( buffer )
+#    size = cls.read_long( buffer )
+#    payload = cls.read_string( buffer, size )
 
     if len(payload) != size:
       #raise AMQPIncompletePayloadError('Payload length %d did not match expected size %d' % \
@@ -110,7 +113,7 @@ class Frame(object):
   def read_long(cls, buffer):
     pass
 
-  @clasmethod
+  @classmethod
   def read_string(cls, buffer, size):
     pass
 

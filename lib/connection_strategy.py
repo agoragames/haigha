@@ -108,17 +108,21 @@ class ConnectionStrategy(object):
     # Ensure that the connection has cleaned up old resources.  Do it immediately
     # to be sure that output is buffered and no errors are raised.
     try:
+      self._connection.log("disconnecting connection")
       self._connection.disconnect()
     except:
       self._connection.log( "error while disconnecting", ERROR )
 
+    self._connection.log("Pending connect: %s" % str(self._pending_connect))
     if not self._pending_connect:
+      self._connection.log("Scheduling a connection in %s" % delay)
       self._pending_connect = event.timeout(delay, self._connect_cb)
 
   def _connect_cb(self):
     '''Async connect.'''
     self._pending_connect = None
     try:
+      self._connection.log("Connecting to %s on %s" % (self._cur_host.host, self._cur_host.port))
       self._connection.connect( self._cur_host.host, self._cur_host.port )
       self._cur_host.state = CONNECTED
       if self._reconnecting:

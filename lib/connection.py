@@ -1,15 +1,15 @@
+#from haigha.channel import Channel Not yet implemented
+#from haigha.message import Message
+from haigha.lib.connection_strategy import ConnectionStrategy
+from haigha.lib.event_socket import EventSocket
+from haigha.lib.frames import *
 
-from haigha.channel import Channel
-from haigha.connection_strategy import ConnectionStrategy
-from haigha.message import Message
-from haigha.event_socket import EventSocket
-from haigha.frames import *
-
-import socket
 import event                        # http://code.google.com/p/pyevent/
-from cStringIO import StringIO      # TODO: find suitable alternative
+import socket
 import struct
 import traceback
+
+from cStringIO import StringIO      # TODO: find suitable alternative
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from logging import root as root_logger
 
@@ -18,7 +18,7 @@ from logging import root as root_logger
 # AMQP1109 = 0-9
 # AMQP0091 = 0-9-1
 # http://lists.rabbitmq.com/pipermail/rabbitmq-discuss/2010-July/008231.html
-PROTOCOL_HEADER = 'AMQP\x00\x00\x09\x01'
+PROTOCOL_HEADER = 'AMQP\x01\x01\x09\x01'
 
 #
 # Client property info that gets sent to the server on connection startup
@@ -78,11 +78,11 @@ class Connection(object):
 
     self._strategy = kwargs.get('connection_strategy')
     if not self._strategy:
-      self._strategy = ConnectionStrategy( self, host, reconnect_cb = self._reconnect_cb )
+      self._strategy = ConnectionStrategy( self, self._host, reconnect_cb = self._reconnect_cb )
     self._strategy.connect()
 
     self._input_frame_buffer = []
-
+    
   @property
   def logger(self):
     return self._logger
@@ -107,7 +107,6 @@ class Connection(object):
       close_cb=self._sock_close_cb, error_cb=self._sock_error_cb,
       debug=self._debug, logger=self._logger )
     self._sock.settimeout( self._connect_timeout )
-    
     if self._sock_opts:
       for k,v in self._sock_opts.iteritems():
         family,type = k
@@ -136,17 +135,19 @@ class Connection(object):
     they'll be useless when we reconnect.
     '''
     self.connected = False
-    if self.sock!=None:
-      self.sock.close_cb = None
-      self.sock.close()
-      self.sock = None
+    if self._sock!=None:
+      self.log("disconnect and we have a socket")
+      self._sock.close_cb = None
+      self._sock.close()
+      self._sock = None
     
     # It's possible that this is being called after we've done a standard socket
     # closure and the strategy is trying to reconnect.  In that case, we might
     # not have a socket anymore but the channels are still around.  
-    for channel_id in self.channels.keys():
-      if channel_id != self.channel_id:
-        del self.channels[channel_id]
+    for channel_id in self._channels.keys():
+      if channel_id != self.channel_id: 
+        self.log("removing channel with id %s" % channel_id)
+        del self._channels[channel_id]
   
   def add_reconnect_callback(self, callback):
     '''Adds a reconnect callback to the strategy.  This can be used to
@@ -162,11 +163,11 @@ class Connection(object):
 
   # NOTE: not sure I want to keep this message, technically logging with (str, *args) should
   # be faster in cases where the logs aren't going to be output.
-  def log(self, msg, level=logging.INFO):
+  def log(self, msg, level=INFO):
     '''
     Log a message.  If it's an exception, a stack trace will be included.
     '''
-    if level!=logging.ERROR and level!=logging.CRITICAL:
+    if level!=ERROR and level!=CRITICAL:
       self.logger.log( level, msg )
     else:
       self.logger.log( level, msg, exc_info=True )
@@ -201,7 +202,7 @@ class Connection(object):
     # disconnects, or at least not of the nature that we've encountered at TM.
     # So for now, callback to our close callback handler which we know will raise
     # a SystemExit.
-    self._close_cb()
+    self._close_cb and self._close_cb()
 
     # Removed check for `self.connected==True` because the strategy does the
     # right job in letting us reconnect when there's a transient error.  If
@@ -214,7 +215,7 @@ class Connection(object):
     """
     Callback when there's an error on the socket.
     """
-    self.logger.error( 'error on connection to %s', self.host )
+    self.logger.error( 'error on connection to %s', self._host )
     self._close_info = {
       'reply_code'    : -1,
       'reply_text'    : "socket error: %s"%(msg),
@@ -230,15 +231,15 @@ class Connection(object):
     # disconnects, or at least not of the nature that we've encountered at TM.
     # So for now, callback to our close callback handler which we know will raise
     # a SystemExit.
-    self._close_cb()
-    
-    # Removed check for `self.connected==True` because the strategy does the
-    # right job in letting us reconnect when there's a transient error.  If
-    # you haven't configured permissions and that's why the socket is closing,
-    # at least it will only try to reconnect every few seconds.
-    self._strategy.fail()
-    self._strategy.next_host()
-  
+#    self._close_cb()
+#    
+#    # Removed check for `self.connected==True` because the strategy does the
+#    # right job in letting us reconnect when there's a transient error.  If
+#    # you haven't configured permissions and that's why the socket is closing,
+#    # at least it will only try to reconnect every few seconds.
+#    self._strategy.fail()
+#    self._strategy.next_host()
+#  
   ###
   ### Connection methods
   ###
@@ -296,7 +297,6 @@ class Connection(object):
     # TODO: Re-parse that comment and figure out if it still applies. @AW
     if self._sock is None:
       return
-
     buffer = self.sock.read()     # StringIO buffer
 
     try:

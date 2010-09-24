@@ -1,5 +1,5 @@
 
-from haigha.frames.frame import Frame
+from haigha.lib.frames.frame import Frame
 
 class ContentFrame(Frame):
   '''
@@ -9,7 +9,9 @@ class ContentFrame(Frame):
   @classmethod
   def type(cls):
     return 3
-  register()
 
   def __init__(self, *args, **kwargs):
     Frame.__init__(self, *args, **kwargs)
+
+ContentFrame.register()
+

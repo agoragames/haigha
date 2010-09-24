@@ -1,5 +1,5 @@
 
-from haigha.frames.frame import Frame
+from haigha.lib.frames.frame import Frame
 
 class HeaderFrame(Frame):
   '''
@@ -7,6 +7,7 @@ class HeaderFrame(Frame):
   '''
 
   @classmethod
-  def type():
+  def type(cls):
     return 2
-  register()
+
+HeaderFrame.register()

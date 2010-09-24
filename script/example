@@ -3,13 +3,16 @@
 # FIXME: this should use the egg once its complete for now we are doing some sys.path
 # changes, make this work
 import sys, os
-sys.path.append(os.path.abspath("."))
+sys.path.append(os.path.abspath(".."))
 
 import logging
-from lib.connection import Connection
+from haigha import Connection
+from haigha import event
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Create a connection
-c = connection(logger=logging.getLogger("haigha"))
+c = Connection(logger=logging.getLogger("haigha"))
+
+event.dispatch()
