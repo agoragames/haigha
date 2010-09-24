@@ -273,7 +273,7 @@ class Connection(object):
     else:
       raise Connect.InvalidChannel("%s is not a valid channel id", channel_id )
 
-    rval = Channel(self, channel_id, logger=self.logger)
+    rval = Channel(self, channel_id)
     self._channels[ channel_id ] = rval
     return rval
 
