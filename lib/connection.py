@@ -264,7 +264,7 @@ class Connection(object):
       # adjust for channel 0
       if len(self._channels)-1 >= self._channel_max:
         raise Connection.TooManyChannels( "%d channels already open, max %d",
-          len(self._channels), self._channel_max )
+          len(self._channels)-1, self._channel_max )
       channel_id = self._next_channel_id()
       while channel_id in self._channels:
         channel_id = self._next_channel_id()
@@ -276,6 +276,14 @@ class Connection(object):
     rval = Channel(self, channel_id)
     self._channels[ channel_id ] = rval
     return rval
+
+  def start(self):
+    '''
+    Called by channel 0 when the connection is ready.
+    '''
+    self._closed = False
+    # channel does the rest
+    self.send_start_ok( self.properties, self.login_method, self.login_response, self.locale )
 
   def close(self):
     '''
