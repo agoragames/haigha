@@ -14,17 +14,7 @@ class Writer(object):
   """
 
   def __init__(self):
-    #self.out = StringIO()
-    #self.bits = []
-    #self.bitcount = 0
     self._output_buffer = []
-
-  #def _flushbits(self):
-  #  if self.bits:
-  #    for b in self.bits:
-  #      self.out.write(pack('B', b))
-  #    self.bits = []
-  #    self.bitcount = 0
 
   def flush(self, stream):
     '''Flush the output to the stream. Stream must be a file object.'''
@@ -197,10 +187,8 @@ class Writer(object):
     # data.  Generally speaking, I'm not a fan of the AMQP encoding scheme, it
     # could be much faster.
     table_len_pos = stream.tell()
-    print "table len at ", table_len_pos
     self._write_long( 0, stream )
     table_data_pos = stream.tell()
-    print "table data at ", table_data_pos
     
     for k, v in d.items():
       # 6 April 09 aaron - Don't send table key unless the data type is
@@ -235,17 +223,12 @@ class Writer(object):
         self._write_shortstr(k, stream)
         stream.write('F')
         self._write_table(v, stream)
-    #table_data = table_data.getvalue()
     table_end_pos = stream.tell()
     table_len = table_end_pos - table_data_pos
-    print "table end at ", table_end_pos, " len ", table_len
     stream.seek( table_len_pos )
-    print "writing table len at ", stream.tell()
 
     self._write_long( table_len, stream )
-    print "finished writing table len at ", stream.tell()
     stream.seek( 0, 2 )
-    print "stream back at pos ", stream.tell()
 
   def write_timestamp(self, t):
     """
