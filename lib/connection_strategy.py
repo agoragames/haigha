@@ -17,7 +17,7 @@ class ConnectionStrategy(object):
   designed to handle failover in a clustered environment.
   """
 
-  def __init__(self, connection, addr, reconnect_callback = None):
+  def __init__(self, connection, addr, reconnect_cb = None):
     '''Initialize the strategy to a host.  No matter what additional
     hosts are learned about, the original will be maintained as the fallback.
     This is most useful when all hosts in a cluster are DNS aliased.'''
@@ -29,8 +29,8 @@ class ConnectionStrategy(object):
     
     self._reconnecting = False
     self.reconnect_callbacks = []
-    if reconnect_callback:
-      self.reconnect_callbacks.append(reconnect_callback)
+    if reconnect_cb:
+      self.reconnect_callbacks.append(reconnect_cb)
 
   def set_known_hosts(self, hosts):
     '''Set the list of known hosts.  Can be an empty string or a list of comma
