@@ -13,6 +13,6 @@ from haigha import event
 logging.basicConfig(level=logging.DEBUG)
 
 # Create a connection
-c = Connection(logger=logging.getLogger("haigha"))
+c = Connection(logger=logging.getLogger("haigha"), debug=2)
 
 event.dispatch()
