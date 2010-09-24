@@ -281,6 +281,7 @@ class Connection(object):
     '''
     Called by channel 0 when the connection is ready.
     '''
+    # HACK
     self._closed = False
     # channel does the rest
     self._channels[0].connection.send_start_ok( 
@@ -291,7 +292,70 @@ class Connection(object):
     Close this connection.
     '''
     # TODO: confirm this matches the channel interface
-    self._channels[0].connection.close()
+    # TODO: supply the additional expected paramters
+    self.close_info = {
+      'reply_code'    : 0,  #reply_code,
+      'reply_text'    : '', #reply_text,
+      'class_id'      : 0,  #method_sig[0],
+      'method_id'     : 0,  #method_sig[1]
+    }
+    self._channels[0].connection.close(0, '', 0, 0)
+
+  def handle_open_ok(self):
+    '''Callback from protocol when connection has been opened.'''
+    self._connected = True
+    # TODO: once we have an output buffer setup, flush it
+    #for (pkt,channel_id) in self.output_buffer:
+    #  if channel_id in self.channels:
+    #    self.writePacket( pkt, channel_id )
+    #self.output_buffer = []
+
+  def handle_close_ok(self, args):
+    '''Callback from protocol.'''
+    self._close_info = {\
+      'reply_code'    : args.read_short(),\
+      'reply_text'    : args.read_shortstr(),\
+      'class_id'      : args.read_short(),\
+      'method_id'     : args.read_short()\
+    }
+
+    # Clear the socket close callback because we should be expecting it.  The fact
+    # that it is called in practice means that we flush the data, rabbit processes
+    # and then closes the socket before the timer below fires.  I don't know what
+    # this means, but it is surprising. - AW
+    if self._sock != None:
+      self._sock.close_cb = None
+
+    # TODO: 
+    # Schedule the actual close for later so that handshake IO can take place.
+    event.timeout(0, self._close_socket)
+
+    # Likewise, call any potential close callback on a delay
+    event.timeout( 0, self._close_cb )
+
+  def _close_socket(self):
+    '''Close the socket.'''
+    # The assumption here is that we don't want auto-reconnect to kick in if
+    # the socket is purposefully closed.
+    self._closed = True
+
+    # By the time we hear about the protocol-level closure, the socket may
+    # have already gone away.
+    if self._sock != None:
+      self._sock.close_cb = None
+      try:
+        self._sock.close()
+      except:
+        self.logger.error( 'error closing socket' )
+      self._sock = None
+
+  def _close_cb(self):
+    '''Callback to any close handler.'''
+    if self._close_cb:
+      try: self._close_cb( self )
+      except SystemExit: raise
+      except: self.logger.error( 'error calling close callback' )
+
 
   def _read_frames(self):
     '''
