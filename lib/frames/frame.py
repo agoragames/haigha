@@ -78,7 +78,7 @@ class Frame(object):
     
     reader = Reader(stream)
     frame_type = reader.read_octet()
-    channel = reader.read_short()
+    channel_id = reader.read_short()
     size = reader.read_long()
     payload = reader.read( size )
 

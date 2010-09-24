@@ -1,6 +1,6 @@
 
-from haigha.writer import Writer
-from haigha.frames import MethodFrame
+from haigha.lib.writer import Writer
+from haigha.lib.frames import MethodFrame
 from protocol_class import ProtocolClass
 
 class ConnectionClass(ProtocolClass):
@@ -61,7 +61,7 @@ class ConnectionClass(ProtocolClass):
 
     self._send_open()
 
-  @ProtocolClass.register(41):
+  @ProtocolClass.register(41)
   def open_ok(self, method_frame):
     '''Called by broker when connection is ready'''
     # 
