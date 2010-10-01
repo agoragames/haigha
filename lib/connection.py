@@ -81,6 +81,9 @@ class Connection(object):
       'method_id'     : -1
     }
     
+    # TODO: Create a Channel subclass so that the connection protocol doesn't
+    # conflict with the conneciton property accessor that we want in all our
+    # Channel implementations.
     self._channels = {
       0 : Channel(self, 0)
     } 

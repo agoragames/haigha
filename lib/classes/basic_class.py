@@ -4,6 +4,13 @@ class BasicClass(ProtocolClass):
   '''
   Implements the AMQP Basic class
   '''
+
+  # TODO: Add a concept of number of pending transactions when we re-implement
+  # public_synchronous.  May be something that goes into the Channel object,
+  # or that it will walk all the pending frames in the Channel sync buffer and
+  # determine how many transaction commits there are
+
+  # TODO: Also include an optional callback method when a transaction is committed.
   
   @ProtocolClass.register(10)
   def qos(self):
