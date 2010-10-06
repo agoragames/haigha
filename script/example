@@ -21,4 +21,6 @@ logging.basicConfig(level=logging.DEBUG)
 # Create a connection
 c = Connection(logger=logging.getLogger("haigha"), debug=2)
 
+ch = c.channel()
+
 event.dispatch()

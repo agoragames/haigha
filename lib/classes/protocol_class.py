@@ -32,6 +32,10 @@ class ProtocolClass(object):
   def channel_id(self):
     return self._channel.channel_id
 
+  @property
+  def logger(self):
+    return self._channel.logger
+
   def dispatch(self, method_frame, *content_frames):
     '''
     Dispatch a method for this protocol.

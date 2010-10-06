@@ -48,7 +48,7 @@ class Channel(object):
     '''
     klass = self._class_map.get( method_frame.class_id )
     if klass:
-      self.logger.info("Dispatching class_id : %s " % method_frame.class_id)
+      self.logger.debug("Channel %d dispatching class_id : %s ", self.channel_id, method_frame.class_id)
       klass.dispatch( method_frame, *content_frames)
     else:
       raise Channel.InvalidClass( "class %d is not support on channel %d", 

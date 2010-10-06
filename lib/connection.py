@@ -38,6 +38,7 @@ class Connection(object):
   class ConnectionError(Exception): '''Base class for all connection exceptions'''
   class TooManyChannels(ConnectionError): '''This connection has too many channels open.  Non-fatal.'''
   class InvalidChannel(ConnectionError): '''The channel id does not correspond to an existing channel.  Non-fatal.'''
+  class Closed(ConnectionError): '''The operation is invalid because the connection is closed.'''
 
   def __init__(self, **kwargs):
     '''
@@ -104,6 +105,7 @@ class Connection(object):
     self._strategy.connect()
 
     self._input_frame_buffer = []
+    self._output_frame_buffer = []
     
   @property
   def logger(self):
@@ -268,10 +270,10 @@ class Connection(object):
   ###
   def _next_channel_id(self):
     '''Return the next possible channel id.  Is a circular enumeration.'''
-    self.channel_counter += 1
-    if self.channel_counter >= self.channel_max:
-      self.channel_counter = 1
-    return self.channel_counter
+    self._channel_counter += 1
+    if self._channel_counter >= self._channel_max:
+      self._channel_counter = 1
+    return self._channel_counter
 
   def channel(self, channel_id=None):
     """
@@ -293,8 +295,11 @@ class Connection(object):
     else:
       raise Connect.InvalidChannel("%s is not a valid channel id", channel_id )
 
+    # Call open() here so that ConnectionChannel doesn't have it called.  Could
+    # also solve this other ways, but it's a HACK regardless.
     rval = Channel(self, channel_id)
     self._channels[ channel_id ] = rval
+    rval.channel.open()
     return rval
 
   def close(self):
@@ -452,6 +457,16 @@ class Connection(object):
         break;
   
   def send_frame(self, frame):
+    if self._closed:
+      if self._close_info and len(self._close_info['reply_text'])>0:
+        raise Connection.Closed("connection is closed: %s : %s"%\
+          (self._close_info['reply_code'],self._close_info['reply_text']) )
+      raise Connection.Closed("connection is closed")
+
+    if self._sock==None or (not self._connected and frame.channel_id!=0):
+      self._output_frame_buffer.append( frame )
+      return
+
     stream = StringIO()
     frame.write_frame(stream)
     
@@ -463,7 +478,6 @@ class Connection(object):
     self.log('')
     self.log('')
   
-    #self.logger.info( "SENDING %s", stream.getvalue().encode('string_escape') )  
     self._sock.write(stream.getvalue())
     
 
@@ -570,6 +584,10 @@ class ConnectionChannel(Channel):
     # TODO: re-implement the frame buffering scheme and flush now that connection
     # is ready.
     self.connection._connected = True
+    for frame in self.connection._output_frame_buffer:
+      self.connection.send_frame( frame )
+
+    self.connection._output_frame_buffer = []
     #for (pkt,channel_id) in self.output_buffer:
     #  if channel_id in self.channels:
     #    self.writePacket( pkt, channel_id )

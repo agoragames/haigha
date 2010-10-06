@@ -1,32 +1,38 @@
 import functools
 from haigha.lib.classes import ProtocolClass
-
+from haigha.lib.frames import MethodFrame
+from haigha.lib.writer import Writer
 
 class ChannelClass(ProtocolClass):
   '''
   Implements the AMQP Channel class
   '''
   
-  @ProtocolClass.register(10)
+  def __init__(self, *args, **kwargs):
+    super(ChannelClass, self).__init__(*args, **kwargs)
+    self.dispatch_map = {
+      11 : self._recv_open_ok
+    }
+  
   def open(self):
-    pass
+    self._send_open()
 
-  @ProtocolClass.register(11)
-  def open_ok(self):
-    pass
-    
-  @ProtocolClass.register(20)
   def flow(self):
     pass
 
-  @ProtocolClass.register(21)
   def flow_ok(self):
     pass
 
-  @ProtocolClass.register(40)
   def close(self):
     pass
 
-  @ProtocolClass.register(41)
   def close_ok(self):
     pass
+
+  def _send_open(self):
+    args = Writer()
+    args.write_shortstr('')   # TODO: support out-of-band.  check on 0.9.1 compatability
+    self.send_frame( MethodFrame(self.channel_id, 20, 10, args) )
+
+  def _recv_open_ok(self, method_frame):
+    self.is_open = True
