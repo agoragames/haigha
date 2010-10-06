@@ -27,6 +27,10 @@ class Reader(object):
 
     self.bitcount = self.bits = 0
 
+  def __str__(self):
+    # TODO: make this portable if someone passed a non-StringIO into the ctor
+    return ''.join( ['\\x%s'%(c.encode('hex')) for c in self.input.getvalue()] )
+
   def close(self):
     self.input.close()
 

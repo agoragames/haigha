@@ -23,6 +23,8 @@ class Writer(object):
     for cb,data in self._output_buffer:
       cb( data, stream )
 
+    self._flush_bits( stream )
+
   # NOTE: This is no longer needed, but we need to rethink how Message._serialize_properties
   # and Channel frame/method/content sending is done.  If necessary:
   #   stream = StringIO()
@@ -84,13 +86,13 @@ class Writer(object):
     Write an integer as an unsigned 8-bit value.
     """
     if (n < 0) or (n > 255):
-      raise ValueError('Octet out of range 0..255')
+      raise ValueError('Octet %d out of range 0..255', n)
     self._output_buffer.append( (self._write_octet, n) )
 
   def _write_octet(self, n, stream):
     '''Write an octet to the output stream.'''
     if (n < 0) or (n > 255):
-      raise ValueError('Octet out of range 0..255')
+      raise ValueError('Octet %d out of range 0..255', n)
     self._flush_bits( stream )
     stream.write(pack('B', n))
 
@@ -99,13 +101,13 @@ class Writer(object):
     Write an integer as an unsigned 16-bit value.
     """
     if (n < 0) or (n > 65535):
-      raise ValueError('Octet out of range 0..65535')
+      raise ValueError('Octet %d out of range 0..65535', n)
     self._output_buffer.append( (self._write_short, n) )
 
   def _write_short(self, n, stream):
     '''Write the short to the output stream.'''
     if (n < 0) or (n > 65535):
-      raise ValueError('Octet out of range 0..65535')
+      raise ValueError('Octet %d out of range 0..65535', n)
     self._flush_bits( stream )
     stream.write(pack('>H', n))
 
@@ -114,13 +116,13 @@ class Writer(object):
     Write an integer as an unsigned2 32-bit value.
     """
     if (n < 0) or (n >= (2**32)):
-      raise ValueError('Octet out of range 0..2**31-1')
+      raise ValueError('Octet %d out of range 0..2**31-1', n)
     self._output_buffer.append( (self._write_long, n) )
 
   def _write_long(self, n, stream):
     '''Write the long to a stream.'''    
     if (n < 0) or (n >= (2**32)):
-      raise ValueError('Octet out of range 0..2**31-1')
+      raise ValueError('Octet %d out of range 0..2**31-1', n)
     self._flush_bits( stream )
     stream.write(pack('>I', n))
 
@@ -129,13 +131,13 @@ class Writer(object):
     Write an integer as an unsigned 64-bit value.
     """
     if (n < 0) or (n >= (2**64)):
-      raise ValueError('Octet out of range 0..2**64-1')
+      raise ValueError('Octet %d out of range 0..2**64-1', n)
     self._output_buffer.append( (self._write_longlong, n) )
 
   def _write_longlong(self, n, stream):
     '''Write the longlong to a stream.'''
     if (n < 0) or (n >= (2**64)):
-      raise ValueError('Octet out of range 0..2**64-1')
+      raise ValueError('Octet %d out of range 0..2**64-1', n)
     self._flush_bits( stream )
     stream.write(pack('>Q', n))
 

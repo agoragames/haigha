@@ -85,7 +85,7 @@ class Connection(object):
     # conflict with the conneciton property accessor that we want in all our
     # Channel implementations.
     self._channels = {
-      0 : Channel(self, 0)
+      0 : ConnectionChannel(self, 0)
     } 
     
     login_response = Writer()
@@ -297,29 +297,20 @@ class Connection(object):
     self._channels[ channel_id ] = rval
     return rval
 
-  def start(self):
-    '''
-    Called by channel 0 when the connection is ready.
-    '''
-    # HACK
-    self._closed = False
-    # channel does the rest
-    self._channels[0].connection.start_ok( 
-      self._properties, self._login_method, self._login_response, self._locale )
-
   def close(self):
     '''
     Close this connection.
     '''
-    # TODO: confirm this matches the channel interface
-    # TODO: supply the additional expected paramters
-    self.close_info = {
+    # TODO: Allow caller to specify why closing
+    # TODO: Let channel keep track of the current method being executed,
+    # and use that for class and method ids here.
+    self._close_info = {
       'reply_code'    : 0,  #reply_code,
       'reply_text'    : '', #reply_text,
       'class_id'      : 0,  #method_sig[0],
       'method_id'     : 0,  #method_sig[1]
     }
-    self._channels[0].connection.close(0, '', 0, 0)
+    self._channels[0].close()
 
   def handle_open_ok(self):
     '''Callback from protocol when connection has been opened.'''
@@ -395,7 +386,6 @@ class Connection(object):
       if self._sock is None:
         return
       
-      self.log("ready to read frames")
       buffer = self._sock.read()     # StringIO buffer
       
       try:
@@ -430,10 +420,14 @@ class Connection(object):
         #  event.timeout( 0, self._read_frames )
 
       # DEBUG:
-      self.log("--------- buffered frame list --------")
+      self.log('')
+      self.log('')
+      self.log("--------- FRAME INPUT LIST --------")
       for frame in self._input_frame_buffer:
         self.log( str(frame) )
       self.log("--------- END ----------") 
+      self.log('')
+      self.log('')
 
       # Even if there was a frame error, process whatever is on the input buffer.
       self._process_input_frames()
@@ -451,6 +445,7 @@ class Connection(object):
         
         if isinstance(frame, HeartbeatFrame):
           # TODO: Respond
+          # TODO: This should actually be implemented in a Channel (sub)class
           pass
 
       except IndexError:
@@ -460,11 +455,159 @@ class Connection(object):
     stream = StringIO()
     frame.write_frame(stream)
     
-    self.log("--------- frame write --------")
+    self.log('')
+    self.log('')
+    self.log("--------- FRAME WRITE --------")
     self.log( str(frame) )
     self.log("--------- END ----------") 
+    self.log('')
+    self.log('')
   
-    self.logger.info( "SENDING %s", stream.getvalue().encode('string_escape') )  
+    #self.logger.info( "SENDING %s", stream.getvalue().encode('string_escape') )  
     self._sock.write(stream.getvalue())
     
+
+class ConnectionChannel(Channel):
+  '''
+  A special channel for the Connection class.  It's used for performing the special
+  methods only available on the main connection channel.  It's also partly used to
+  hide the 'connection' protocol implementation, which would show up as a property,
+  from the more useful 'connection' property that is a handle to a Channel's 
+  Connection object.
+  '''
+
+  def __init__(self, *args):
+    super(ConnectionChannel,self).__init__(*args)
+
+    self._method_map = {
+      10 : self._recv_start,
+      20 : self._recv_secure,
+      30 : self._recv_tune,
+      41 : self._recv_open_ok,
+      50 : self._recv_close,
+      51 : self._recv_close_ok,
+
+      # HACK: for older AMQP protocols:
+      60 : self._recv_close,
+      61 : self._recv_close_ok,
+    }
+
+  def dispatch(self, method_frame, *content_frames):
+    '''
+    Override the default dispatch since we don't need the rest of the stack.
+    '''
+    if method_frame.class_id==10:
+      cb = self._method_map.get( method_frame.method_id )
+      if cb:
+        self.logger.debug('DEBUG: connection callback %s:%s to %s', method_frame.class_id, method_frame.method_id, cb)
+        cb( method_frame )
+      else:
+        self.logger.warning("WARNING: TODO: RAISE INVALIDMETHOD EXCEPTION for %s", method_frame.method_id)
+    else:
+      raise Channel.InvalidClass( "class %d is not support on channel %d", 
+        method_frame.class_id, self.channel_id )
+
+  def close(self):
+    '''
+    Close the main connection connection channel.
+    '''
+    self._send_close()
+
+
+  def _recv_start(self, method_frame):
+    self.connection._closed = False
+    self._send_start_ok()
+
+  def _send_start_ok(self):
+    '''Send the start_ok message.'''
+    args = Writer()
+    args.write_table(self.connection._properties)
+    args.write_shortstr(self.connection._login_method)
+    args.write_longstr(self.connection._login_response)
+    args.write_shortstr(self.connection._locale)
+    self.send_frame( MethodFrame(self.channel_id, 10, 11, args) )
+
+  def _recv_tune(self, method_frame):
+    # TODO: make this a bit smarter, such that if the client defines a value
+    # which is smaller than the broker, that we adhere to that.  Confirm with
+    # spec that client has an equal role in defining this.
+    self.connection._channel_max = method_frame.args.read_short() or self.connection._channel_max
+    self.connection._frame_max = method_frame.args.read_long() or self.connection._frame_max
+
+    # Note that 'is' test is required here, as 0 and None are distinct
+    if self.connection._heartbeat is None:
+      self.connection.heartbeat = method_frame.args.read_short()
+
+    self._send_tune_ok()
+    self._send_open()
+
+  def _send_tune_ok(self):
+    args = Writer()
+    args.write_short( self.connection._channel_max )
+    args.write_long( self.connection._frame_max )
     
+    if self.connection._heartbeat:
+      args.write_short( self.connection._heartbeat )
+    else:
+      args.write_short( 0 )
+
+    self.logger.debug( 'channel max %d, frame max %d, heartbeat %s', self.connection._channel_max, self.connection._frame_max, self.connection._heartbeat )
+    self.send_frame( MethodFrame(self.channel_id, 10, 31, args) )
+
+  def _recv_secure(self, method_frame):
+    self._send_open()
+
+  def _send_open(self):
+    args = Writer()
+    args.write_shortstr(self.connection._vhost)
+    #args.write_shortstr(self.connection._capabilities)
+    args.write_shortstr('') # TODO: Implement capabilites for connection
+    args.write_bit(True)  # HACK: insist flag for older amqp
+    
+    self.send_frame( MethodFrame(self.channel_id, 10, 40, args) )
+
+  def _recv_open_ok(self, method_frame):
+    # TODO: re-implement the frame buffering scheme and flush now that connection
+    # is ready.
+    self.connection._connected = True
+    #for (pkt,channel_id) in self.output_buffer:
+    #  if channel_id in self.channels:
+    #    self.writePacket( pkt, channel_id )
+    #self.output_buffer = []
+
+  def _send_close(self):
+    args = Writer()
+    args.write_short( self.connection._close_info['reply_code'] )
+    args.write_shortstr( self.connection._close_info['reply_text'] )
+    args.write_short( self.connection._close_info['class_id'] )
+    args.write_short( self.connection._close_info['method_id'] )
+    self.send_frame( MethodFrame(10, 60, args) )    # TODO: HACK: Use 50 for newer AMQP
+
+  def _recv_close(self, method_frame):
+    self.connection._close_info = {
+      'reply_code'    : method_frame.args.read_short(),
+      'reply_text'    : method_frame.args.read_shortstr(),
+      'class_id'      : method_frame.args.read_short(),
+      'method_id'     : method_frame.args.read_short()
+    }
+
+    self._send_close_ok()
+
+    # Clear the socket close callback because we should be expecting it.  The fact
+    # that it is called in practice means that we flush the data, rabbit processes
+    # and then closes the socket before the timer below fires.  I don't know what
+    # this means, but it is surprising. - AW
+    if self.connection._sock != None:
+      self.connection._sock.close_cb = None
+
+    # Schedule the actual close for later so that handshake IO can take place.
+    event.timeout(0, self.connection._close_socket)
+
+    # Likewise, call any potential close callback on a delay
+    event.timeout( 0, self.connection._close_cb )
+
+  def _send_close_ok(self):
+    self.send_frame( MethodFrame(self.channel_id, 10, 61) )
+
+  def _recv_close_ok(self, method_frame):
+    self.connection._close_socket()

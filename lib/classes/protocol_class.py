@@ -5,7 +5,7 @@ class ProtocolClass(object):
   '''
   
   class ProtocolError(Exception): pass
-  class MethodBindingError(ProtocolError): pass
+  class InvalidMethod(ProtocolError): pass
   
   # decorator to registor dispatch
   class register(object):
@@ -37,10 +37,12 @@ class ProtocolClass(object):
     Dispatch a method for this protocol.
     '''
     try:
+      # TODO: get rid of this try-catch.  The stack inside the method callback
+      # could be quite large, as it might callback to a user's application stack.
       self.channel.logger.info("Dispatching to method_id : %s", method_frame.method_id)
       self.dispatch_map[method_frame.method_id](self)
     except KeyError:
-      raise self.NoMethodRegistered("no method is registered with id: %d" % method_frame.method_id)
+      raise self.InvalidMethod("no method is registered with id: %d" % method_frame.method_id)
 
   @classmethod
   def _bind_method(cls, id, function):
