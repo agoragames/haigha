@@ -442,19 +442,23 @@ class Connection(object):
       print e
 
   def _process_input_frames(self):
-    while True:
-      try:
-        frame = self._input_frame_buffer.pop()
-        
-        self.channel(frame.channel_id).dispatch(frame)
-        
-        if isinstance(frame, HeartbeatFrame):
-          # TODO: Respond
-          # TODO: This should actually be implemented in a Channel (sub)class
-          pass
+    content_frames = None
+    while len(self._input_frame_buffer):
+      frame = self._input_frame_buffer.pop(0)
 
-      except IndexError:
-        break;
+      if len( self._input_frame_buffer ) and isinstance(self._input_frame_buffer[0],HeaderFrame):
+        header = self._input_frame_buffer.pop(0)
+        content_frames = []
+        while sum( [len(cf.payload) for cf in content_frames] ) < header.size:
+          content_frames.append( self._input_frame_buffer.pop(0) )
+          if not isinstance( content_frames[-1], ContentFrame ):
+            raise Exception("TODO: Invalid content frame %s", content_frames[-1])
+      
+      if content_frames:
+        self.channel(frame.channel_id).dispatch(frame, *content_frames)
+      else:
+        self.channel(frame.channel_id).dispatch(frame)
+      
   
   def send_frame(self, frame):
     if self._closed:
@@ -510,6 +514,7 @@ class ConnectionChannel(Channel):
     '''
     Override the default dispatch since we don't need the rest of the stack.
     '''
+    # TODO: support heartbeat frames
     if method_frame.class_id==10:
       cb = self._method_map.get( method_frame.method_id )
       if cb:
