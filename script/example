@@ -23,6 +23,10 @@ c = Connection(logger=logging.getLogger("haigha"), debug=2)
 
 ch = c.channel()
 ch.exchange.declare( 'foo', 'topic' )
+ch.queue.declare( 'bar' )
+ch.queue.bind(  'bar', 'foo', 'hello.world' )
+
+ch.queue.delete( 'bar' )
 ch.exchange.delete( 'foo' )
 
 event.dispatch()

@@ -1,6 +1,5 @@
 import struct
 from haigha.lib.reader import Reader
-from cStringIO import StringIO      # TODO: find suitable alternative
 
 class Frame(object):
   '''
@@ -128,17 +127,7 @@ class Frame(object):
     return self._payload'''
 
   def __str__(self):
-    if isinstance(self.args, Reader):
-      return "%s[channel: %d, method_id: %d, args: %s]"%( self.__class__.__name__, \
-          self.channel_id, self.method_id, self.args.input.getvalue().encode('string_escape'))
-    elif self.args!=None:
-      stream = StringIO()
-      self.args.flush(stream)
-      return "%s[channel: %d, method_id: %d, args: %s]"%( self.__class__.__name__, \
-          self.channel_id, self.method_id, stream.getvalue().encode('string_escape'))
-    else:
-      return "%s[channel: %d, method_id: %d, args: None]"%( self.__class__.__name__, \
-          self.channel_id, self.method_id)
+    return "%s[channel: %d]"%( self.__class__.__name__, self.channel_id )
 
   def write_frame(self, stream):
     '''

@@ -2,6 +2,7 @@ import struct
 from haigha.lib.frames.frame import Frame
 from haigha.lib.reader import Reader
 from haigha.lib.writer import Writer
+from cStringIO import StringIO      # TODO: find suitable alternative
 
 class MethodFrame(Frame):
   '''
@@ -35,6 +36,19 @@ class MethodFrame(Frame):
     self._class_id = class_id
     self._method_id = method_id
     self._args = args
+
+  def __str__(self):
+    if isinstance(self.args, Reader):
+      return "%s[channel: %d, class_id: %d, method_id: %d, args: %s]"%( self.__class__.__name__, \
+          self.channel_id, self.class_id, self.method_id, self.args.input.getvalue().encode('string_escape'))
+    elif self.args!=None:
+      stream = StringIO()
+      self.args.flush(stream)
+      return "%s[channel: %d, class_id : %d, method_id: %d, args: %s]"%( self.__class__.__name__, \
+          self.channel_id, self.class_id, self.method_id, stream.getvalue().encode('string_escape'))
+    else:
+      return "%s[channel: %d, class_id : %d, method_id: %d, args: None]"%( self.__class__.__name__, \
+          self.channel_id, self.class_id, self.method_id)
   
   def write_frame(self, stream):
     writer = Writer()

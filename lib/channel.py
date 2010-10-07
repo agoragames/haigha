@@ -75,10 +75,11 @@ class Channel(object):
     synchronous transactions on this connection.
     '''
     if not len(self._pending_events) or isinstance(self._pending_events[0],Frame):
-      #self.logger.debug( 'no pending synch events, sending %s', frame )
+      self.logger.debug( 'no pending synch events, sending %s', frame )
       self._connection.send_frame(frame)
     else:
-      #self.logger.debug( 'waiting for synch event %s', self._pending_events[0] )
+      self.logger.debug( 'waiting for synch event before %s', frame )
+      self.logger.debug( str(self._pending_events) )
       self._pending_events.append( frame )
 
   def add_synchronous_cb(self, cb):
@@ -97,16 +98,16 @@ class Channel(object):
       ev = self._pending_events[0]
       if not isinstance(ev,Frame):
         if ev==cb:
-          #self.logger.debug("Clearing synch cb %s", ev)
+          self.logger.debug("Clearing synch cb %s", ev)
           self._pending_events.pop(0)
           self._flush_pending_events()
         else:
-          raise ChannelError("Expected synchronous callback %s, called %s", ev, cb)
+          raise Channel.ChannelError("Expected synchronous callback %s, called %s", ev, cb)
 
   def _flush_pending_events(self):
     '''
     Send pending frames that are in the event queue.
     '''
     while len(self._pending_events) and isinstance(self._pending_events[0],Frame):
-      #self.logger.debug("Flusing pending frame %s", self._pending_events[0])
+      self.logger.debug("Flusing pending frame %s", self._pending_events[0])
       self._connection.send_frame( self._pending_events.pop(0) )
