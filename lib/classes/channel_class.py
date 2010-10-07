@@ -33,6 +33,7 @@ class ChannelClass(ProtocolClass):
     args = Writer()
     args.write_shortstr('')   # TODO: support out-of-band.  check on 0.9.1 compatability
     self.send_frame( MethodFrame(self.channel_id, 20, 10, args) )
+    self.channel.add_synchronous_cb( self._recv_open_ok )
 
   def _recv_open_ok(self, method_frame):
     self.is_open = True

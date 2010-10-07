@@ -22,5 +22,7 @@ logging.basicConfig(level=logging.DEBUG)
 c = Connection(logger=logging.getLogger("haigha"), debug=2)
 
 ch = c.channel()
+ch.exchange.declare( 'foo', 'topic' )
+ch.exchange.delete( 'foo' )
 
 event.dispatch()

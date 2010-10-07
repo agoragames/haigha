@@ -299,7 +299,7 @@ class Connection(object):
     # also solve this other ways, but it's a HACK regardless.
     rval = Channel(self, channel_id)
     self._channels[ channel_id ] = rval
-    rval.channel.open()
+    rval.open()
     return rval
 
   def close(self):
@@ -526,7 +526,6 @@ class ConnectionChannel(Channel):
     Close the main connection connection channel.
     '''
     self._send_close()
-
 
   def _recv_start(self, method_frame):
     self.connection._closed = False

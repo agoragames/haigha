@@ -1,4 +1,5 @@
 from haigha.lib.classes import *
+from haigha.lib.frames import Frame
 
 class Channel(object):
   '''
@@ -30,6 +31,8 @@ class Channel(object):
       90 : self.tx,
     }
 
+    self._pending_events = []
+
   @property
   def connection(self):
     return self._connection
@@ -41,6 +44,18 @@ class Channel(object):
   @property
   def logger(self):
     return self._connection.logger
+
+  def open(self):
+    '''
+    Open this channel.  Routes to channel.open.
+    '''
+    self.channel.open()
+
+  def close(self):
+    '''
+    Close this channel.  Routes to channel.close.
+    '''
+    self.channel.close()
 
   def dispatch(self, method_frame, *content_frames):
     '''
@@ -55,4 +70,43 @@ class Channel(object):
         method_frame.class_id, self.channel_id )
         
   def send_frame(self, frame):
-    self._connection.send_frame(frame)
+    '''
+    Queue a frame for sending.  Will send immediately if there are no pending
+    synchronous transactions on this connection.
+    '''
+    if not len(self._pending_events) or isinstance(self._pending_events[0],Frame):
+      #self.logger.debug( 'no pending synch events, sending %s', frame )
+      self._connection.send_frame(frame)
+    else:
+      #self.logger.debug( 'waiting for synch event %s', self._pending_events[0] )
+      self._pending_events.append( frame )
+
+  def add_synchronous_cb(self, cb):
+    '''
+    Add an expectation of a callback to release a synchronous transaction.
+    '''
+    self._pending_events.append( cb )
+
+  def clear_synchronous_cb(self, cb):
+    '''
+    If the callback is the current expected callback, will clear it off the
+    stack.  Else will raise in exception if there's an expectation but this
+    doesn't satisfy it.
+    '''
+    if len(self._pending_events):
+      ev = self._pending_events[0]
+      if not isinstance(ev,Frame):
+        if ev==cb:
+          #self.logger.debug("Clearing synch cb %s", ev)
+          self._pending_events.pop(0)
+          self._flush_pending_events()
+        else:
+          raise ChannelError("Expected synchronous callback %s, called %s", ev, cb)
+
+  def _flush_pending_events(self):
+    '''
+    Send pending frames that are in the event queue.
+    '''
+    while len(self._pending_events) and isinstance(self._pending_events[0],Frame):
+      #self.logger.debug("Flusing pending frame %s", self._pending_events[0])
+      self._connection.send_frame( self._pending_events.pop(0) )

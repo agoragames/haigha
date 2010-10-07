@@ -7,15 +7,6 @@ class ProtocolClass(object):
   class ProtocolError(Exception): pass
   class InvalidMethod(ProtocolError): pass
   
-  # decorator to registor dispatch
-  class register(object):
-    def __init__(self, id):
-      self._id = id
-    
-    def __call__(self, function):
-      ProtocolClass._bind_method(self._id, function)
-      return function
-
   dispatch_map = {}
 
   def __init__(self, channel):
@@ -36,28 +27,34 @@ class ProtocolClass(object):
   def logger(self):
     return self._channel.logger
 
+  @property
+  def default_ticket(self):
+    return 0
+
   def dispatch(self, method_frame, *content_frames):
     '''
     Dispatch a method for this protocol.
     '''
-    try:
-      # TODO: get rid of this try-catch.  The stack inside the method callback
-      # could be quite large, as it might callback to a user's application stack.
-      self.channel.logger.info("Dispatching to method_id : %s", method_frame.method_id)
-      self.dispatch_map[method_frame.method_id](self)
-    except KeyError:
-      raise self.InvalidMethod("no method is registered with id: %d" % method_frame.method_id)
+    # HACK: because the synch callback stack will be based on instance methods,
+    # we need to take what's currently registered and turn that into an instance
+    # attr.
+    # TODO: FIXME this craziness
+    method = self.dispatch_map.get( method_frame.method_id )
+    if method:
+      self.channel.logger.debug("Dispatching method_id : %s", method_frame.method_id)
 
-  @classmethod
-  def _bind_method(cls, id, function):
-#    if cls.dispatch_map.has_key(id):
-#      raise cls.MethodBindingError("a method is alread bound to id: %d" % id)
-#    cls.dispatch_map[id] = function
-    pass
+      method = getattr(self, method.im_func.__name__)
+      
+      self.channel.clear_synchronous_cb( method )
+      if len(content_frames):
+        method(method_frame, *content_frames )
+      else:
+        method(method_frame)
+    else:
+      raise self.InvalidMethod("no method is registered with id: %d" % method_frame.method_id)
 
   def send_frame(self, frame):
     '''
     Send a frame
     '''
-    # TODO: actually implement this.
     self.channel.send_frame( frame )
