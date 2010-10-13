@@ -75,10 +75,8 @@ class Channel(object):
     synchronous transactions on this connection.
     '''
     if not len(self._pending_events) or isinstance(self._pending_events[0],Frame):
-      self.logger.debug( 'no pending synch events, sending %s', frame )
       self._connection.send_frame(frame)
     else:
-      self.logger.debug( 'waiting for synch event before %s', frame )
       self.logger.debug( str(self._pending_events) )
       self._pending_events.append( frame )
 
@@ -97,11 +95,17 @@ class Channel(object):
     if len(self._pending_events):
       ev = self._pending_events[0]
       if not isinstance(ev,Frame):
+        # We can't have a strict check using this simple mechanism, because we
+        # could be waiting for a synch response while messages are being published.
+        # So for now, if it's not in the list, do a check to see if the callback
+        # is in the pending list, and if so, then raise, because it means we
+        # received stuff out of order.  Else just pass it through.
+        # Note that this situation could happen on any broker-initiated message.
+        # TODO: Consider what situations this doesn't scale well, and fix as needed.
         if ev==cb:
-          self.logger.debug("Clearing synch cb %s", ev)
           self._pending_events.pop(0)
           self._flush_pending_events()
-        else:
+        elif cb in self._pending_events:
           raise Channel.ChannelError("Expected synchronous callback %s, called %s", ev, cb)
 
   def _flush_pending_events(self):
@@ -109,5 +113,4 @@ class Channel(object):
     Send pending frames that are in the event queue.
     '''
     while len(self._pending_events) and isinstance(self._pending_events[0],Frame):
-      self.logger.debug("Flusing pending frame %s", self._pending_events[0])
       self._connection.send_frame( self._pending_events.pop(0) )

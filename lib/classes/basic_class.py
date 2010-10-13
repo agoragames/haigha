@@ -18,14 +18,16 @@ class BasicClass(ProtocolClass):
       31 : self._recv_cancel_ok,
       50 : self._recv_return,
       60 : self._recv_deliver,
-      71 : self._recv_get_ok,
-      72 : self._recv_get_empty,
+      71 : self._recv_get_response,   # see impl
+      72 : self._recv_get_response,   # see impl
       111 : self._recv_recover_ok,
     }
 
     self._consumer_tag_id = 0
     self._pending_consumers = []
     self._consumer_cb = {}
+    self._get_cb = []
+    self._recover_cb = []
 
   def _generate_consumer_tag(self):
     '''
@@ -61,7 +63,7 @@ class BasicClass(ProtocolClass):
     pass
     
   def consume(self, queue, consumer, consumer_tag='', no_local=False,
-        no_ack=False, exclusive=False, nowait=True, ticket=None):
+        no_ack=True, exclusive=False, nowait=True, ticket=None):
     '''
     start a queue consumer.
     '''
@@ -132,7 +134,7 @@ class BasicClass(ProtocolClass):
     except KeyError:
       self.logger.warning( 'no callback registered for consumer tag " %s "', consumer_tag )
     
-  def publish(self, msg, exchange='', routing_key='', mandatory=False, immediate=False, ticket=None):
+  def publish(self, msg, exchange, routing_key, mandatory=False, immediate=False, ticket=None):
     '''
     publish a message.
     '''
@@ -163,6 +165,21 @@ class BasicClass(ProtocolClass):
       self.send_frame( ContentFrame(self.channel_id, msg.body[start:end]) )
       idx = end
 
+  def return_msg(self, reply_code, reply_text, exchange, routing_key):
+    '''
+    Return a failed message.  Not named "return" because python interpreter
+    can't deal with that.
+    '''
+    args = Writer()
+    args.write_short( reply_code )
+    args.write_shortstr( reply_text )
+    args.write_shortstr( exchange )
+    args.write_shortstr( routing_key )
+
+    self.send_frame( MethodFrame(self.channel_id, 60, 50, args) )
+    # TODO: Where's the callback to _recv_return?  Seeing it at the top of spec doc,
+    # but not on page 53 ....
+
   def _recv_return(self):
     pass
 
@@ -173,10 +190,6 @@ class BasicClass(ProtocolClass):
     exchange = method_frame.args.read_shortstr()
     routing_key = method_frame.args.read_shortstr()
 
-    buffer = StringIO()
-    for frame in content_frames:
-      buffer.write( frame.payload )
-
     delivery_info = {
       'channel': self,
       'consumer_tag': consumer_tag,
@@ -185,32 +198,122 @@ class BasicClass(ProtocolClass):
       'exchange': exchange,
       'routing_key': routing_key,
     }
-    msg = Message( body=buffer, delivery_info=delivery_info )
+    msg = self._message_from_frames( content_frames, delivery_info )
 
     func = self._consumer_cb.get(consumer_tag, None)
     if func is not None:
       func(msg)
 
-  def get(self):
-    pass
+  def get(self, queue, consumer, no_ack=True, ticket=None):
+    '''
+    Ask to fetch a single message from a queue.  The consumer will be called
+    if an actual message exists, but if not, the consumer will not be called.
+    '''
+    args = Writer()
+    if ticket is not None:
+      args.write_short(ticket)
+    else:
+      args.write_short(self.default_ticket)
+    args.write_shortstr(queue)
+    args.write_bit(no_ack)
 
-  def _recv_get_ok(self):
-    pass
+    self._get_cb.append( consumer )
+    self.send_frame( MethodFrame(self.channel_id, 60, 70, args) )
+    self.channel.add_synchronous_cb( self._recv_get_response )
+
+  def _recv_get_response(self, method_frame, *content_frames):
+    '''
+    Handle either get_ok or get_empty.  This is a hack because the synchronous
+    callback stack is expecting one method to satisfy the expectation.  To
+    keep that loop as tight as possible, work within those constraints. Use
+    of get is not recommended anyway.
+    '''
+    if method_frame.method_id==71:
+      self._recv_get_ok( method_frame, *content_frames )
+    elif method_frame.method_id==72:
+      self._recv_get_empty( method_frame )
+    # else TODO: raise Error
+
+  def _recv_get_ok(self, method_frame, *content_frames):
+    delivery_tag = method_frame.args.read_longlong()
+    redelivered = method_frame.args.read_bit()
+    exchange = method_frame.args.read_shortstr()
+    routing_key = method_frame.args.read_shortstr()
+    message_count = method_frame.args.read_long()
+    
+    delivery_info = {
+      'channel': self,
+      'delivery_tag': delivery_tag,
+      'redelivered': redelivered,
+      'exchange': exchange,
+      'routing_key': routing_key,
+      'message_count' : message_count,
+    }
+    msg = self._message_from_frames( content_frames, delivery_info )
+
+    cb = self._get_cb.pop(0)
+    if cb is not None:
+      cb( msg )
 
   def _recv_get_empty(self):
-    pass
+    self._get_cb.pop(0)
 
-  def ack(self):
-    pass
+  def ack(self, delivery_tag, multiple=False):
+    '''
+    Acknowledge delivery of a message.  If multiple=True, acknowledge up-to
+    and including delivery_tag.
+    '''
+    args = Writer()
+    args.write_longlong(delivery_tag)
+    args.write_bit(multiple)
+
+    self.send_frame( MethodFrame(self.channel_id, 60, 80, args) )
     
-  def reject(self):
-    pass
+  def reject(self, delivery_tag, requeue=False):
+    '''
+    Reject a message.
+    '''
+    args = Writer()
+    args.write_longlong( delivery_tag )
+    args.write_bit( requeue )
 
-  def recover_async(self):
-    pass
+    self.send_frame( MethodFrame(self.channel_id, 60, 90, args) )
 
-  def recover(self):
-    pass
+  def recover_async(self, requeue=False):
+    '''
+    Redeliver all unacknowledged messaages on this channel.
+    
+    DEPRECATED
+    TODO: decide if we should support this method
+    '''
+    args = Writer()
+    args.write_bit( requeue )
+
+    self.send_frame( MethodFrame(self.channel_id, 60, 100, args) )
+
+  def recover(self, requeue=False, cb=None):
+    '''
+    Ask server to redeliver all unacknowledged messages.
+    '''
+    args = Writer()
+    args.write_bit( requeue )
+
+    self._recover_cb.append( cb )
+    self.send_frame( MethodFrame(self.channel_id, 60, 110, args) )
 
   def _recv_recover_ok(self):
-    pass
+    cb = self._recover_cb.pop(0)
+    if cb: cb()
+
+  def _message_from_frames(self, content_frames, delivery_info=None):
+    # NOTE: Using a buffer here for joining to reduce space, but also to set
+    # the stage for Message.body being an IO stream.  The plan is for ContentFrame
+    # payload to be a slice of a buffer as received by the socket, and to use
+    # "MultiIO" object to join them back together, so that the Message body
+    # will be a handle to a seemless read of bytes directly out of memory that
+    # the socket data was read into.
+    buffer = StringIO()
+    for frame in content_frames:
+      buffer.write( frame.payload )
+
+    return Message( body=buffer, delivery_info=delivery_info )

@@ -142,7 +142,6 @@ class HeaderFrame(Frame):
 
     # Now go back and write the current length
     stream_len = stream_end_args_pos - stream_method_pos
-    print 'stream arg length ', stream_len
 
     # Seek all the way back to when we started writing the arguments and
     # write the total length of the bytes we wrote.

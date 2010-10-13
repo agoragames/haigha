@@ -26,7 +26,7 @@ def consumer(msg):
   global ch
   ch.basic.cancel( consumer=consumer )
 
-  ch.basic.publish( Message(body='hello'), exchange='foo', routing_key='no.matter' )
+  ch.basic.publish( Message(body='haigha sez hello'), exchange='foo', routing_key='no.matter' )
 
 ch = c.channel()
 ch.exchange.declare( 'foo', 'topic' )
