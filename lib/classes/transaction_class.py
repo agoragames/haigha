@@ -43,8 +43,8 @@ class TransactionClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 90, 20) )
     self.channel.add_synchronous_cb( self._recv_commit_ok )
 
-  def _recv_commit_ok(self):
-    cb = self._commit_cb.append( cb )
+  def _recv_commit_ok(self, method_frame):
+    cb = self._commit_cb.pop(0)
     if cb is not None: cb()
 
   def rollback(self):
@@ -54,6 +54,6 @@ class TransactionClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 90, 30) )
     self.channel.add_synchronous_cb( self._recv_rollback_ok )
 
-  def _recv_rollback_ok(self):
+  def _recv_rollback_ok(self, method_frame):
     # nothing to do
     pass

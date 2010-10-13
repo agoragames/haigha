@@ -10,29 +10,48 @@ from haigha import Connection, Message
 from haigha import event
 import signal
 
+debug = 0
+level = logging.DEBUG if debug else logging.INFO
+
+# Setup logging
+logging.basicConfig(level=level, format="[%(levelname)s %(asctime)s] %(message)s" )
+logger = logging.getLogger('haigha')
+
 def sigint_cb(*args):
   """callback when we get a SIGINT."""
+  logger.info( 'canceling consumer ...' )
+  ch.basic.cancel( consumer=consumer, cb=consume_cancelled )
+
+def consume_cancelled():
+  logger.info( 'cancelled' )
+
+
   event.abort()
 event.signal( signal.SIGINT, sigint_cb )
 
-# Setup logging
-logging.basicConfig(level=logging.DEBUG)
 
 # Create a connection
-c = Connection(logger=logging.getLogger("haigha"), debug=2)
+logger.info( 'connecting ...' )
+c = Connection(logger=logger, debug=0)
 
 def consumer(msg):
-  print "CONSUMING ", str(msg)
-  global ch
-  ch.basic.cancel( consumer=consumer )
+  logger.info( 'consuming %s', msg )
+  #ch.basic.cancel( consumer=consumer )
 
-  ch.basic.publish( Message(body='haigha sez hello'), exchange='foo', routing_key='no.matter' )
+  #ch.basic.publish( Message(body='haigha sez hello'), exchange='foo', routing_key='no.matter' )
+  #ch.publish_synchronous( Message(body='haigha sez hello'), exchange='foo', routing_key='no.matter', cb=msg_published )
+
+def msg_published():
+  logger.info( 'message published' )
 
 ch = c.channel()
 ch.exchange.declare( 'foo', 'topic' )
 ch.queue.declare( 'bar' )
 ch.queue.bind(  'bar', 'foo', 'hello.world' )
 ch.basic.consume( 'bar', consumer )
+
+
+ch.publish_synchronous( Message(body='haigha sez hello', application_headers={'cat':'dog'}), exchange='foo', routing_key='hello.world', cb=msg_published )
 
 #ch.queue.delete( 'bar' )
 #ch.exchange.delete( 'foo' )

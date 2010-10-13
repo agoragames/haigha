@@ -28,4 +28,6 @@ class Message(object):
     return self._properties
 
   def __str__(self):
+    if isinstance( self._body, (str,unicode) ):
+      return "Message[body: %s, delivery_info: %s, properties: %s]"%( self._body, self._delivery_info, self._properties )
     return "Message[body: %s, delivery_info: %s, properties: %s]"%( self._body.getvalue(), self._delivery_info, self._properties )

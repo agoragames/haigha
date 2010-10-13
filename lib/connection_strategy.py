@@ -4,7 +4,6 @@ Defines the ConnectionStrategy class for a Connection.
 
 import event
 import socket
-from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 AMQP_PORT = 5672
 
@@ -48,8 +47,9 @@ class ConnectionStrategy(object):
     # config from breaking it.
     if not self._cur_host in self._known_hosts:
       delay = 5
-      self._connection.log( "current host %s not in known hosts %s, reconnecting to %s in %ds!"%\
-        (self._cur_host, self._known_hosts, self._orig_host, delay), WARNING )
+      self._connection.logger.warning( 
+        "current host %s not in known hosts %s, reconnecting to %s in %ds!", 
+        self._cur_host, self._known_hosts, self._orig_host, delay )
       self._known_hosts = [ self._orig_host ]
       self._cur_host = self._orig_host
       self.connect( delay )
@@ -91,9 +91,9 @@ class ConnectionStrategy(object):
     else:
       delay = 5
       self._cur_host = self._orig_host
-      self._connection.log( \
-        "Failed to connect to any of %s, will retry %s in %d seconds" % \
-        (self._known_hosts, self._cur_host, delay), WARNING )
+      self._connection.logger.warning(
+        "Failed to connect to any of %s, will retry %s in %d seconds",
+        self._known_hosts, self._cur_host, delay )
       self._reconnecting = True
       self.connect( delay )
 
@@ -108,27 +108,27 @@ class ConnectionStrategy(object):
     # Ensure that the connection has cleaned up old resources.  Do it immediately
     # to be sure that output is buffered and no errors are raised.
     try:
-      self._connection.log("disconnecting connection")
+      self._connection.logger.debug("disconnecting connection")
       self._connection.disconnect()
     except:
-      self._connection.log( "error while disconnecting", ERROR )
+      self._connection.logger.exception( "error while disconnecting" )
 
-    self._connection.log("Pending connect: %s" % str(self._pending_connect))
+    self._connection.logger.debug("Pending connect: %s", self._pending_connect)
     if not self._pending_connect:
-      self._connection.log("Scheduling a connection in %s" % delay)
+      self._connection.logger.debug("Scheduling a connection in %s", delay)
       self._pending_connect = event.timeout(delay, self._connect_cb)
 
   def _connect_cb(self):
     '''Async connect.'''
     self._pending_connect = None
     try:
-      self._connection.log("Connecting to %s on %s" % (self._cur_host.host, self._cur_host.port))
+      self._connection.logger.debug("Connecting to %s on %s", self._cur_host.host, self._cur_host.port)
       self._connection.connect( self._cur_host.host, self._cur_host.port )
       self._cur_host.state = CONNECTED
       if self._reconnecting:
-        self._connection.log( "Connected to %s"%(self._cur_host), INFO )
+        self._connection.logger.info( "Connected to %s", self._cur_host )
       else:
-        self._connection.log( "Connected to %s"%(self._cur_host), DEBUG )
+        self._connection.logger.debug( "Connected to %s", self._cur_host )
       
       if self._reconnecting:
         for callback in self.reconnect_callbacks:
@@ -136,13 +136,13 @@ class ConnectionStrategy(object):
         self._reconnecting = False
     except:
       if self._cur_host.state == FAILED:
-        self._connection.log( \
-          "Failed to connect to %s"%(self._cur_host), CRITICAL )
+        self._connection.logger.critical(
+          "Failed to connect to %s", self._cur_host )
         self.next_host()
       else:
         delay = 2
-        self._connection.log( \
-          "Failed to connect to %s, will try again in %d seconds"%(self._cur_host,delay), ERROR )
+        self._connection.logger.exception(
+          "Failed to connect to %s, will try again in %d seconds", self._cur_host, delay )
         self._cur_host.state = FAILED
         self.connect( delay )
 

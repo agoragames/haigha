@@ -28,6 +28,7 @@ class BasicClass(ProtocolClass):
     self._consumer_cb = {}
     self._get_cb = []
     self._recover_cb = []
+    self._cancel_cb = []
 
   def _generate_consumer_tag(self):
     '''
@@ -102,15 +103,15 @@ class BasicClass(ProtocolClass):
     consumer_tag = method_frame.args.read_shortstr()
     self._consumer_cb[ consumer_tag ] = self._pending_consumers.pop(0)
 
-  def cancel(self, consumer_tag='', nowait=False, consumer=None):
+  def cancel(self, consumer_tag='', nowait=False, consumer=None, cb=None):
     '''
     Cancel a consumer. Can choose to delete based on a consumer tag or the
     function which is consuming.  If deleting by function, take care to only
     use a consumer once per channel.
     '''
     if consumer:
-      for (tag,cb) in self._consumer_cb.iteritems():
-        if cb==consumer:
+      for (tag,func) in self._consumer_cb.iteritems():
+        if func==consumer:
           consumer_tag = tag
           break
 
@@ -118,6 +119,8 @@ class BasicClass(ProtocolClass):
     args.write_shortstr(consumer_tag)
     args.write_bit(nowait)
     self.send_frame( MethodFrame(self.channel_id, 60, 30, args) )
+
+    self._cancel_cb.append( cb )
 
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_cancel_ok )
@@ -133,6 +136,9 @@ class BasicClass(ProtocolClass):
       del self._consumer_cb[consumer_tag]
     except KeyError:
       self.logger.warning( 'no callback registered for consumer tag " %s "', consumer_tag )
+
+    cb = self._cancel_cb.pop(0)
+    if cb is not None: cb()
     
   def publish(self, msg, exchange, routing_key, mandatory=False, immediate=False, ticket=None):
     '''
@@ -198,7 +204,8 @@ class BasicClass(ProtocolClass):
       'exchange': exchange,
       'routing_key': routing_key,
     }
-    msg = self._message_from_frames( content_frames, delivery_info )
+    header = content_frames[0]
+    msg = self._message_from_frames( content_frames[1:], delivery_info, **header.properties )
 
     func = self._consumer_cb.get(consumer_tag, None)
     if func is not None:
@@ -249,7 +256,8 @@ class BasicClass(ProtocolClass):
       'routing_key': routing_key,
       'message_count' : message_count,
     }
-    msg = self._message_from_frames( content_frames, delivery_info )
+    header = content_frames[0]
+    msg = self._message_from_frames( content_frames[1:], delivery_info )
 
     cb = self._get_cb.pop(0)
     if cb is not None:
@@ -305,7 +313,7 @@ class BasicClass(ProtocolClass):
     cb = self._recover_cb.pop(0)
     if cb: cb()
 
-  def _message_from_frames(self, content_frames, delivery_info=None):
+  def _message_from_frames(self, content_frames, delivery_info=None, **properties):
     # NOTE: Using a buffer here for joining to reduce space, but also to set
     # the stage for Message.body being an IO stream.  The plan is for ContentFrame
     # payload to be a slice of a buffer as received by the socket, and to use
@@ -316,4 +324,4 @@ class BasicClass(ProtocolClass):
     for frame in content_frames:
       buffer.write( frame.payload )
 
-    return Message( body=buffer, delivery_info=delivery_info )
+    return Message( body=buffer, delivery_info=delivery_info, **properties )

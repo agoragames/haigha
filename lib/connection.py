@@ -110,6 +110,10 @@ class Connection(object):
   @property
   def logger(self):
     return self._logger
+
+  @property
+  def debug(self):
+    return self._debug
   
   def reconnect(self):
     '''Reconnect to the configured host and port.'''
@@ -186,7 +190,7 @@ class Connection(object):
     if not self.closed:
       self.close()
 
-  # NOTE: not sure I want to keep this message, technically logging with (str, *args) should
+  # NOTE: not sure I want to keep this method, technically logging with (str, *args) should
   # be faster in cases where the logs aren't going to be output.
   def log(self, msg, level=INFO):
     '''
@@ -424,15 +428,9 @@ class Connection(object):
         #if not read_error:
         #  event.timeout( 0, self._read_frames )
 
-      # DEBUG:
-      self.log('')
-      self.log('')
-      self.log("--------- FRAME INPUT LIST --------")
-      for frame in self._input_frame_buffer:
-        self.log( str(frame) )
-      self.log("--------- END ----------") 
-      self.log('')
-      self.log('')
+      if self._debug > 1:
+        for frame in self._input_frame_buffer:
+          self.log( "READ: %s", frame )
 
       # Even if there was a frame error, process whatever is on the input buffer.
       self._process_input_frames()
@@ -453,6 +451,7 @@ class Connection(object):
           content_frames.append( self._input_frame_buffer.pop(0) )
           if not isinstance( content_frames[-1], ContentFrame ):
             raise Exception("TODO: Invalid content frame %s", content_frames[-1])
+        content_frames.insert(0, header)
       
       if content_frames:
         self.channel(frame.channel_id).dispatch(frame, *content_frames)
@@ -474,13 +473,8 @@ class Connection(object):
     stream = StringIO()
     frame.write_frame(stream)
     
-    self.log('')
-    self.log('')
-    self.log("--------- FRAME WRITE --------")
-    self.log( str(frame) )
-    self.log("--------- END ----------") 
-    self.log('')
-    self.log('')
+    if self._debug > 1:
+      self.log( "WRITE: %s", frame )
   
     self._sock.write(stream.getvalue())
     

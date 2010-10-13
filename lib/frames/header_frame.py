@@ -41,6 +41,10 @@ class HeaderFrame(Frame):
   @property
   def size(self):
     return self._size
+
+  @property
+  def properties(self):
+    return self._properties
   
   @classmethod
   def parse(self, channel_id, payload):
