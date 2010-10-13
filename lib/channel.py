@@ -57,6 +57,23 @@ class Channel(object):
     '''
     self.channel.close()
 
+  def publish(self, *args, **kwargs):
+    '''
+    Standard publish.  See basic.publish.
+    '''
+    self.basic.publish( *args, **kwargs )
+
+  def publish_synchronous(self, *args, **kwargs):
+    '''
+    Helper for publishing a message using transactions.  If 'cb' keyword arg
+    is supplied, will be called when the transaction is committed.
+    '''
+    cb = kwargs.pop('cb', None)
+    if not self.tx.enabled:
+      self.tx.select()
+    self.basic.publish( *args, **kwargs )
+    self.tx.commit( cb=cb )
+
   def dispatch(self, method_frame, *content_frames):
     '''
     Dispatch a method.
@@ -77,7 +94,6 @@ class Channel(object):
     if not len(self._pending_events) or isinstance(self._pending_events[0],Frame):
       self._connection.send_frame(frame)
     else:
-      self.logger.debug( str(self._pending_events) )
       self._pending_events.append( frame )
 
   def add_synchronous_cb(self, cb):
