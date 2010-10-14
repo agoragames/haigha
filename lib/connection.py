@@ -190,17 +190,6 @@ class Connection(object):
     if not self.closed:
       self.close()
 
-  # NOTE: not sure I want to keep this method, technically logging with (str, *args) should
-  # be faster in cases where the logs aren't going to be output.
-  def log(self, msg, level=INFO):
-    '''
-    Log a message.  If it's an exception, a stack trace will be included.
-    '''
-    if level!=ERROR and level!=CRITICAL:
-      self.logger.log( level, msg )
-    else:
-      self.logger.log( level, msg, exc_info=True )
-
   ###
   ### EventSocket callbacks
   ###
