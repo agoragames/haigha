@@ -346,7 +346,6 @@ class Connection(object):
     if self._sock != None:
       self._sock.close_cb = None
 
-    # TODO: 
     # Schedule the actual close for later so that handshake IO can take place.
     event.timeout(0, self._close_socket)
 

@@ -1,5 +1,5 @@
 from haigha.lib.classes import *
-from haigha.lib.frames import Frame
+from haigha.lib.frames import Frame, HeaderFrame, ContentFrame
 
 class Channel(object):
   '''
@@ -9,6 +9,7 @@ class Channel(object):
   class ChannelError(Exception): '''Base class for all channel errors'''
   class InvalidClass(ChannelError): '''The method frame referenced an invalid class.  Non-fatal.'''
   class InvalidMethod(ChannelError): '''The method frame referenced an invalid method.  Non-fatal.'''
+  class Inactive(ChannelError): '''Tried to send a content frame while the channel was inactive. Non-fatal.'''
 
   # TODO: If there is such a thing as extended classes for method frames, then
   # allow user to pass in a mapping.
@@ -92,6 +93,8 @@ class Channel(object):
     synchronous transactions on this connection.
     '''
     if not len(self._pending_events) or isinstance(self._pending_events[0],Frame):
+      if not self.channel.active and isinstance( frame, (ContentFrame,HeaderFrame) ):
+        raise Inactive( "Channel %s flow control activated", self.channel_id )
       self._connection.send_frame(frame)
     else:
       self._pending_events.append( frame )
