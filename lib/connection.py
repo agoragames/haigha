@@ -1,5 +1,4 @@
-from haigha import Channel
-#from haigha.message import Message
+from haigha.lib.channel import Channel
 from haigha.lib.connection_strategy import ConnectionStrategy
 from haigha.lib.event_socket import EventSocket
 from haigha.lib.frames import *
@@ -26,11 +25,7 @@ PROTOCOL_HEADER = 'AMQP\x01\x01\x09\x01'
 #
 LIBRARY_PROPERTIES = {
   'library': 'Haigha',
-  'library_version': '0.1',
-}
-LIBRARY_PROPERTIES = {
-  'library': 'Python amqplib',
-  'library_version': '0.5',
+  'library_version': '0.0.1',
 }
 
 class Connection(object):
@@ -45,17 +40,13 @@ class Connection(object):
     Initialize the connection.
     '''
     self._debug = kwargs.get('debug', False)
-    self._logger = kwargs.get('logger', root_logger) # TODO: be sure that root logger is the one we want
+    self._logger = kwargs.get('logger', root_logger)
 
     # TODO: make host and port dynamic enough to handle a list.
-    #self._user = kwargs.get('user', 'guest')
-    #self._password = kwargs.get('user', 'guest')
-    #self._host = kwargs.get('host', 'localhost')
-    #self._vhost = kwargs.get('vhost', '/')
-    self._user = kwargs.get('user', 'hydra')
-    self._password = kwargs.get('user', 'hydra')
+    self._user = kwargs.get('user', 'guest')
+    self._password = kwargs.get('user', 'guest')
     self._host = kwargs.get('host', 'localhost')
-    self._vhost = kwargs.get('vhost', '/hydra')
+    self._vhost = kwargs.get('vhost', '/')
 
     self._connect_timeout = kwargs.get('connect_timeout', 5)
     self._sock_opts = kwargs.get('sock_opts')
@@ -74,7 +65,7 @@ class Connection(object):
 
     self._closed = False
     self._connected = False
-    self._output_buffer = []  # TODO: confirm that this still applies
+    self._output_buffer = []
     self._close_info = {
       'reply_code'    : -1,
       'reply_text'    : 'first connect',
@@ -82,9 +73,6 @@ class Connection(object):
       'method_id'     : -1
     }
     
-    # TODO: Create a Channel subclass so that the connection protocol doesn't
-    # conflict with the conneciton property accessor that we want in all our
-    # Channel implementations.
     self._channels = {
       0 : ConnectionChannel(self, 0)
     } 
@@ -98,6 +86,7 @@ class Connection(object):
     
     self._channel_counter = 0
     self._channel_max = 65535
+    self._frame_max = 65535
 
     self._strategy = kwargs.get('connection_strategy')
     if not self._strategy:
@@ -182,13 +171,6 @@ class Connection(object):
     '''Adds a reconnect callback to the strategy.  This can be used to
     resubscribe to exchanges, etc.'''
     self.strategy.reconnect_callbacks.append(callback)
-
-  def __del__(self):
-    '''
-    When the connection goes out of scope, close it.
-    '''
-    if not self.closed:
-      self.close()
 
   ###
   ### EventSocket callbacks

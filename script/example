@@ -32,7 +32,7 @@ event.signal( signal.SIGINT, sigint_cb )
 
 # Create a connection
 logger.info( 'connecting ...' )
-c = Connection(logger=logger, debug=0)
+c = Connection(logger=logger, debug=0, user='hydra', password='hydra', vhost='/hydra')
 
 def consumer(msg):
   logger.info( 'consuming %s', msg )

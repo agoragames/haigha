@@ -5,7 +5,7 @@ import os
 import sys
 
 # Hack: we should make this more generic
-sys.path.append(os.path.abspath("."))
+sys.path.append(os.path.abspath(".."))
 
 loader = unittest.TestLoader()
 suite = loader.discover('test', pattern='*_test.py')
