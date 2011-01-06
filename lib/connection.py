@@ -479,12 +479,12 @@ class ConnectionChannel(Channel):
     '''
     Override the default dispatch since we don't need the rest of the stack.
     '''
-    # TODO: support heartbeat frames
-    if frame.type()==HeartbeatFrame.type():
-      if len(content_frames):
-        raise Frame.FrameError("heartbeat followed by content frames on channel %d",
-          self.channel_id)
+    if len(content_frames):
+      # TODO: raise connection exception with 504 code (per spec)
+      raise Frame.FrameError("heartbeat followed by content frames on channel %d",
+        self.channel_id)
 
+    if frame.type()==HeartbeatFrame.type():
       self._send_heartbeat()
 
     elif frame.type()==MethodFrame.type():
