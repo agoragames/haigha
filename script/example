@@ -10,7 +10,11 @@ from haigha import Connection, Message
 from haigha import event
 import signal
 
-debug = 0
+if len(sys.argv)!=4:
+  print 'Usage: example <user> <password> <vhost>'
+  sys.exit(1)
+
+debug = 2
 level = logging.DEBUG if debug else logging.INFO
 
 # Setup logging
@@ -21,18 +25,22 @@ def sigint_cb(*args):
   """callback when we get a SIGINT."""
   logger.info( 'canceling consumer ...' )
   ch.basic.cancel( consumer=consumer, cb=consume_cancelled )
+  event.timeout( 2, consume_cancel_fail )
+
+def consume_cancel_fail():
+  logger.error( 'failed to cancel consumer' )
+  event.abort()
 
 def consume_cancelled():
   logger.info( 'cancelled' )
-
-
   event.abort()
+
 event.signal( signal.SIGINT, sigint_cb )
 
 
 # Create a connection
 logger.info( 'connecting ...' )
-c = Connection(logger=logger, debug=0, user='hydra', password='hydra', vhost='/hydra')
+c = Connection(logger=logger, debug=debug, user=sys.argv[1], password=sys.argv[2], vhost=sys.argv[3], heartbeat=3)
 
 def consumer(msg):
   logger.info( 'consuming %s', msg )

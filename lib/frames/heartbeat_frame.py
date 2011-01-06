@@ -1,5 +1,6 @@
 
 from haigha.lib.frames.frame import Frame
+from haigha.lib.writer import Writer
 
 class HeartbeatFrame(Frame):
   '''
@@ -9,11 +10,25 @@ class HeartbeatFrame(Frame):
   @classmethod
   def type(cls):
     # NOTE: The PDF spec say this should be 4 but the xml spec say it should be 8
+    #       RabbitMQ seems to implement this as 8, but maybe that's a difference
+    #       between 0.8 and 0.9 protocols
     # PDF spec: http://www.amqp.org/confluence/download/attachments/720900/amqp0-9-1.pdf?version=1&modificationDate=1227526523000
     # XML spec: http://www.amqp.org/confluence/download/attachments/720900/amqp0-9-1.xml?version=1&modificationDate=1227526672000
     return 8
+  
+  @classmethod
+  def parse(self, channel_id, payload):
+    return HeartbeatFrame( channel_id )
 
-  def __init__(self):
+  def write_frame(self, stream):
+    writer = Writer()
+    writer.write_octet( self.type() )
+    writer.write_short( self.channel_id )
+    writer.write_long( 0 )
+    writer.write_octet( 0xce )
+    writer.flush( stream )
+
+  def __init__(self, *args, **kwargs):
     Frame.__init__(self, *args, **kwargs)
 
 HeartbeatFrame.register()

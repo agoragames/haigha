@@ -52,14 +52,14 @@ class MethodFrame(Frame):
   
   def write_frame(self, stream):
     writer = Writer()
-    writer.write_octet( 1 )
+    writer.write_octet( self.type() )
     writer.write_short( self.channel_id )
     writer.flush( stream )
 
 
     stream_args_len_pos = stream.tell()
     writer = Writer()
-    writer.write_long(0)
+    writer.write_long(0)  # temporary storage of total length
     writer.flush( stream )
 
     # Mark the point in the stream where we start writing arguments, *including*

@@ -153,7 +153,6 @@ class Connection(object):
     '''
     self.connected = False
     if self._sock!=None:
-      self.log("disconnect and we have a socket")
       self._sock.close_cb = None
       self._sock.close()
       self._sock = None
@@ -164,7 +163,6 @@ class Connection(object):
     for channel_id in self._channels.keys():
       #if channel_id != self.channel_id: 
       if channel_id != 0:
-        self.log("removing channel with id %s" % channel_id)
         del self._channels[channel_id]
   
   def add_reconnect_callback(self, callback):
@@ -400,11 +398,14 @@ class Connection(object):
 
       if self._debug > 1:
         for frame in self._input_frame_buffer:
-          self.log( "READ: %s", frame )
+          self.logger.debug( "READ: %s", frame )
 
       # Even if there was a frame error, process whatever is on the input buffer.
       self._process_input_frames()
     except Exception, e:
+      # TODO: log the exception
+      # TODO: if there was an exception, but there's still input frames, try
+      #       to recover
       traceback.print_exc()
       print (type(e))
       print e
@@ -444,7 +445,7 @@ class Connection(object):
     frame.write_frame(stream)
     
     if self._debug > 1:
-      self.log( "WRITE: %s", frame )
+      self.logger.debug( "WRITE: %s", frame )
   
     self._sock.write(stream.getvalue())
     
@@ -474,27 +475,42 @@ class ConnectionChannel(Channel):
       61 : self._recv_close_ok,
     }
 
-  def dispatch(self, method_frame, *content_frames):
+  def dispatch(self, frame, *content_frames):
     '''
     Override the default dispatch since we don't need the rest of the stack.
     '''
     # TODO: support heartbeat frames
-    if method_frame.class_id==10:
-      cb = self._method_map.get( method_frame.method_id )
-      if cb:
-        self.logger.debug('DEBUG: connection callback %s:%s to %s', method_frame.class_id, method_frame.method_id, cb)
-        cb( method_frame )
+    if frame.type()==HeartbeatFrame.type():
+      if len(content_frames):
+        raise Frame.FrameError("heartbeat followed by content frames on channel %d",
+          self.channel_id)
+
+      self._send_heartbeat()
+
+    elif frame.type()==MethodFrame.type():
+      if frame.class_id==10:
+        cb = self._method_map.get( frame.method_id )
+        if cb:
+          #self.logger.debug('DEBUG: connection callback %s:%s to %s', frame.class_id, frame.method_id, cb)
+          cb( frame )
+        else:
+          self.logger.warning("WARNING: TODO: RAISE INVALIDMETHOD EXCEPTION for %s", frame.method_id)
       else:
-        self.logger.warning("WARNING: TODO: RAISE INVALIDMETHOD EXCEPTION for %s", method_frame.method_id)
+        raise Channel.InvalidClass( "class %d is not supported on channel %d", 
+          frame.class_id, self.channel_id )
+
     else:
-      raise Channel.InvalidClass( "class %d is not support on channel %d", 
-        method_frame.class_id, self.channel_id )
+      raise Frame.InvalidFrameType("frame type %d is not supported on channel %d",
+        frame.type(), self.channel_id)
 
   def close(self):
     '''
     Close the main connection connection channel.
     '''
     self._send_close()
+
+  def _send_heartbeat(self):
+    self.send_frame( HeartbeatFrame(self.channel_id) )
 
   def _recv_start(self, method_frame):
     self.connection._closed = False
@@ -533,7 +549,7 @@ class ConnectionChannel(Channel):
     else:
       args.write_short( 0 )
 
-    self.logger.debug( 'channel max %d, frame max %d, heartbeat %s', self.connection._channel_max, self.connection._frame_max, self.connection._heartbeat )
+    #self.logger.debug( 'channel max %d, frame max %d, heartbeat %s', self.connection._channel_max, self.connection._frame_max, self.connection._heartbeat )
     self.send_frame( MethodFrame(self.channel_id, 10, 31, args) )
 
   def _recv_secure(self, method_frame):

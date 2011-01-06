@@ -28,7 +28,7 @@ class ContentFrame(Frame):
   def write_frame(self, stream):
     writer = Writer()
 
-    writer.write_octet(3)
+    writer.write_octet( self.type() )
     writer.write_short(self.channel_id)
     writer.write_long( len(self._payload) )
 
