@@ -9,7 +9,7 @@ import socket
 import struct
 import traceback
 
-from cStringIO import StringIO      # TODO: find suitable alternative
+from cStringIO import StringIO
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from logging import root as root_logger
 
@@ -43,7 +43,6 @@ class Connection(object):
     self._debug = kwargs.get('debug', False)
     self._logger = kwargs.get('logger', root_logger)
 
-    # TODO: make host and port dynamic enough to handle a list.
     self._user = kwargs.get('user', 'guest')
     self._password = kwargs.get('user', 'guest')
     self._host = kwargs.get('host', 'localhost')
@@ -117,7 +116,7 @@ class Connection(object):
     # at this point.
     self._connected = False
     
-    # NOTE: purposefully leave output_buffer alone so that pending writes can
+    # NOTE: purposefully leave output_frame_buffer alone so that pending writes can
     # still occur.  this allows the reconnect to occur silently without
     # completely breaking any pending data on, say, a channel that was just
     # opened.
@@ -280,9 +279,6 @@ class Connection(object):
     '''
     Close this connection.
     '''
-    # TODO: Allow caller to specify why closing
-    # TODO: Let channel keep track of the current method being executed,
-    # and use that for class and method ids here.
     self._close_info = {
       'reply_code'    : 0,  #reply_code,
       'reply_text'    : '', #reply_text,
@@ -290,37 +286,6 @@ class Connection(object):
       'method_id'     : 0,  #method_sig[1]
     }
     self._channels[0].close()
-
-  def handle_open_ok(self):
-    '''Callback from protocol when connection has been opened.'''
-    self._connected = True
-    # TODO: once we have an output buffer setup, flush it
-    #for (pkt,channel_id) in self.output_buffer:
-    #  if channel_id in self.channels:
-    #    self.writePacket( pkt, channel_id )
-    #self.output_buffer = []
-
-  def handle_close_ok(self, args):
-    '''Callback from protocol.'''
-    self._close_info = {\
-      'reply_code'    : args.read_short(),\
-      'reply_text'    : args.read_shortstr(),\
-      'class_id'      : args.read_short(),\
-      'method_id'     : args.read_short()\
-    }
-
-    # Clear the socket close callback because we should be expecting it.  The fact
-    # that it is called in practice means that we flush the data, rabbit processes
-    # and then closes the socket before the timer below fires.  I don't know what
-    # this means, but it is surprising. - AW
-    if self._sock != None:
-      self._sock.close_cb = None
-
-    # Schedule the actual close for later so that handshake IO can take place.
-    event.timeout(0, self._close_socket)
-
-    # Likewise, call any potential close callback on a delay
-    event.timeout( 0, self._close_cb )
 
   def _close_socket(self):
     '''Close the socket.'''
@@ -351,16 +316,12 @@ class Connection(object):
     Read frames from the socket.
     '''
     try:
-      # TODO: old implementation had a wrapper to handle errors.  Consider if that's
-      # still needed, and if so, consider a decorator for much happiness @AW
-
       # Because of the timer callback to dataRead when we re-buffered, there's a
       # chance that in between we've lost the socket.  If that's the case, just
       # silently return as some code elsewhere would have already notified us.
       # That bug could be fixed by improving the message reading so that we consume
       # all possible messages and ensure that only a partial message was rebuffered,
       # so that we can rely on the next read event to read the subsequent message.
-      # TODO: Re-parse that comment and figure out if it still applies. @AW
       if self._sock is None:
         return
       
@@ -370,20 +331,20 @@ class Connection(object):
         self._input_frame_buffer.extend( Frame.read_frames(buffer) )
       except Frame.FrameError as e:
         self.logger.exception( "Framing error", exc_info=True )
-        # TODO:
 
       # HACK: read the buffer contents and re-buffer.  Would prefer to pass
       # buffer back, but there's no good way of asking the total size of the
       # buffer, comparing to tell(), and then re-buffering.  There's also no
       # ability to clear the buffer up to the current position.
-      # TODO: resolve this so there's much less copying going on
+      # NOTE: This will be cleared up once eventsocket supports the 
+      # uber-awesome buffering scheme that will utilize mmap.
       remaining = buffer.read()
       if len(remaining)>0:
         self._sock.buffer( remaining )
 
         # If data remaining and no read error, re-schedule to continue processing
         # the buffer.
-        # TODO: Consider not putting this on a delay, but rather calling it after
+        # Consider not putting this on a delay, but rather calling it after
         # processMessage().  Need to consider what affect this might have on IO.
         # It would mandate that the client process as quickly as incoming data,
         # else the broker might drop the connection.  In the end, it would likely
@@ -394,6 +355,7 @@ class Connection(object):
         # single, partial frame remaining and the only way it will complete is if
         # new data comes in on the socket, at which point we'll get an event and
         # try this method again. @AW
+        # I created a ticket to sort this out @AW
         #if not read_error:
         #  event.timeout( 0, self._read_frames )
 
@@ -404,12 +366,7 @@ class Connection(object):
       # Even if there was a frame error, process whatever is on the input buffer.
       self._process_input_frames()
     except Exception, e:
-      # TODO: log the exception
-      # TODO: if there was an exception, but there's still input frames, try
-      #       to recover
-      traceback.print_exc()
-      print (type(e))
-      print e
+      self.logger.error( "read_frame error", exc_info=True )
 
   def _process_input_frames(self):
     content_frames = None
@@ -422,14 +379,21 @@ class Connection(object):
         while sum( [len(cf.payload) for cf in content_frames] ) < header.size:
           content_frames.append( self._input_frame_buffer.pop(0) )
           if not isinstance( content_frames[-1], ContentFrame ):
-            raise Exception("TODO: Invalid content frame %s", content_frames[-1])
+            raise Exception("Invalid content frame %s", content_frames[-1])
         content_frames.insert(0, header)
       
       if content_frames:
         self.channel(frame.channel_id).dispatch(frame, *content_frames)
       else:
         self.channel(frame.channel_id).dispatch(frame)
-      
+
+  def _flush_buffered_frames(self):
+    # In the rare case (a bug) where this is called but send_frame thinks
+    # they should be buffered, don't clobber.
+    frames = self._output_frame_buffer
+    self._output_frame_buffer = []
+    for frame in frames:
+      self.send_frame( frame )
   
   def send_frame(self, frame):
     if self._closed:
@@ -470,10 +434,6 @@ class ConnectionChannel(Channel):
       41 : self._recv_open_ok,
       50 : self._recv_close,
       51 : self._recv_close_ok,
-
-      # HACK: for older AMQP protocols:
-      60 : self._recv_close,
-      61 : self._recv_close_ok,
     }
 
   def dispatch(self, frame, *content_frames):
@@ -481,9 +441,7 @@ class ConnectionChannel(Channel):
     Override the default dispatch since we don't need the rest of the stack.
     '''
     if len(content_frames):
-      # TODO: raise connection exception with 504 code (per spec)
-      raise Frame.FrameError("heartbeat followed by content frames on channel %d",
-        self.channel_id)
+      raise Frame.FrameError("504: content frames on channel %d", self.channel_id)
 
     if frame.type()==HeartbeatFrame.type():
       self._send_heartbeat()
@@ -492,10 +450,10 @@ class ConnectionChannel(Channel):
       if frame.class_id==10:
         cb = self._method_map.get( frame.method_id )
         if cb:
-          #self.logger.debug('DEBUG: connection callback %s:%s to %s', frame.class_id, frame.method_id, cb)
           cb( frame )
         else:
-          self.logger.warning("WARNING: TODO: RAISE INVALIDMETHOD EXCEPTION for %s", frame.method_id)
+          raise Channel.InvalidMethod("unsupported method %d on channel %d", 
+            frame.method_id, self.channel_id )
       else:
         raise Channel.InvalidClass( "class %d is not supported on channel %d", 
           frame.class_id, self.channel_id )
@@ -527,9 +485,6 @@ class ConnectionChannel(Channel):
     self.send_frame( MethodFrame(self.channel_id, 10, 11, args) )
 
   def _recv_tune(self, method_frame):
-    # TODO: make this a bit smarter, such that if the client defines a value
-    # which is smaller than the broker, that we adhere to that.  Confirm with
-    # spec that client has an equal role in defining this.
     self.connection._channel_max = method_frame.args.read_short() or self.connection._channel_max
     self.connection._frame_max = method_frame.args.read_long() or self.connection._frame_max
 
@@ -559,24 +514,14 @@ class ConnectionChannel(Channel):
   def _send_open(self):
     args = Writer()
     args.write_shortstr(self.connection._vhost)
-    #args.write_shortstr(self.connection._capabilities)
-    args.write_shortstr('') # TODO: Implement capabilites for connection
-    args.write_bit(True)  # HACK: insist flag for older amqp
+    args.write_shortstr('')
+    args.write_bit(True)  # insist flag for older amqp, not used in 0.9.1
     
     self.send_frame( MethodFrame(self.channel_id, 10, 40, args) )
 
   def _recv_open_ok(self, method_frame):
-    # TODO: re-implement the frame buffering scheme and flush now that connection
-    # is ready.
     self.connection._connected = True
-    for frame in self.connection._output_frame_buffer:
-      self.connection.send_frame( frame )
-
-    self.connection._output_frame_buffer = []
-    #for (pkt,channel_id) in self.output_buffer:
-    #  if channel_id in self.channels:
-    #    self.writePacket( pkt, channel_id )
-    #self.output_buffer = []
+    self.connection._flush_buffered_frames()
 
   def _send_close(self):
     args = Writer()
@@ -584,7 +529,7 @@ class ConnectionChannel(Channel):
     args.write_shortstr( self.connection._close_info['reply_text'] )
     args.write_short( self.connection._close_info['class_id'] )
     args.write_short( self.connection._close_info['method_id'] )
-    self.send_frame( MethodFrame(10, 60, args) )    # TODO: HACK: Use 50 for newer AMQP
+    self.send_frame( MethodFrame(10, 50, args) )
 
   def _recv_close(self, method_frame):
     self.connection._close_info = {
