@@ -38,7 +38,6 @@ class ProtocolClass(object):
     # HACK: because the synch callback stack will be based on instance methods,
     # we need to take what's currently registered and turn that into an instance
     # attr.
-    # TODO: FIXME this craziness
     method = self.dispatch_map.get( method_frame.method_id )
     if method:
       self.channel.logger.debug("Dispatching method_id : %s %s", method_frame.method_id, method)
