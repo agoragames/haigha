@@ -2,7 +2,6 @@
 Definition of the Writer class.
 """
 
-#from cStringIO import StringIO  # TODO: make 2.6 and 3.0 compatible
 from struct import pack
 from time import mktime
 from datetime import datetime
@@ -10,7 +9,11 @@ from decimal import Decimal
 
 class Writer(object):
   """
-  A StringIO like object for building up encoded AMQP data.
+  Implements writing of structured data.  Operates as in 2 passes; first a write
+  which buffers the objects and their format, and a second which flushes the
+  structured data to a stream.  This setup allows for classes to make use of the
+  Writer without needing to have a direct handle to an output buffer, or in cases
+  where it's necessary to have finite control over the stream cursor.
   """
 
   def __init__(self):
@@ -37,9 +40,6 @@ class Writer(object):
   #  self._flushbits()
   #  return self.out.getvalue()
 
-
-  # TODO: There's a copy of a bunch of type checks so that both the public and 
-  # private uses get a local, meaningful exception. Re-think how that works.
 
   def write(self, s):
     """
@@ -194,7 +194,7 @@ class Writer(object):
     
     for k, v in d.items():
       # 6 April 09 aaron - Don't send table key unless the data type is
-      # supported. TODO: an OO way of doing this.
+      # supported.
       if isinstance(v, basestring):
         if isinstance(v, unicode):
           v = v.encode('utf-8')
@@ -220,7 +220,6 @@ class Writer(object):
         self._write_shortstr(k, stream)
         stream.write('T')
         self._write_timestamp(v, stream)
-        ## FIXME: timezone ?  
       elif isinstance(v, dict):
         self._write_shortstr(k, stream)
         stream.write('F')
