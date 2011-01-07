@@ -132,6 +132,7 @@ class Reader(object):
         val = table_data.read_timestamp()
       elif ftype == 'F':
         val = table_data.read_table() # recurse
+      # TODO: else raise exception
       result[name] = val
     return result
 

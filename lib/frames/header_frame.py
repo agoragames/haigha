@@ -8,21 +8,21 @@ class HeaderFrame(Frame):
   '''
   Header frame for content.
   '''
-  PROPERTIES = [                      \
-    ('content_type', 'shortstr'),     \
-    ('content_encoding', 'shortstr'), \
-    ('application_headers', 'table'), \
-    ('delivery_mode', 'octet'),       \
-    ('priority', 'octet'),            \
-    ('correlation_id', 'shortstr'),   \
-    ('reply_to', 'shortstr'),         \
-    ('expiration', 'shortstr'),       \
-    ('message_id', 'shortstr'),       \
-    ('timestamp', 'timestamp'),       \
-    ('type', 'shortstr'),             \
-    ('user_id', 'shortstr'),          \
-    ('app_id', 'shortstr'),           \
-    ('cluster_id', 'shortstr')        \
+  PROPERTIES = [
+    ('content_type', 'shortstr'),
+    ('content_encoding', 'shortstr'),
+    ('application_headers', 'table'),
+    ('delivery_mode', 'octet'),
+    ('priority', 'octet'),
+    ('correlation_id', 'shortstr'),
+    ('reply_to', 'shortstr'),
+    ('expiration', 'shortstr'),
+    ('message_id', 'shortstr'),
+    ('timestamp', 'timestamp'),
+    ('type', 'shortstr'),
+    ('user_id', 'shortstr'),
+    ('app_id', 'shortstr'),
+    ('cluster_id', 'shortstr')
   ]
 
 
@@ -52,10 +52,12 @@ class HeaderFrame(Frame):
 
     r = Reader(payload[12:])
 
-    #
-    # Read 16-bit shorts until we get one with a low bit set to zero
-    # TODO: decipher this and clean it up
-    #
+    # The AMQP spec is overly-complex when it comes to handling header frames.
+    # The spec says that in addition to the first 16bit field, additional ones
+    # can follow which /may/ then be in the property list (because bit flags
+    # aren't in the list).  Properly implementing custom values requires the
+    # ability 
+
     flags = []
     while True:
       flag_bits = r.read_short()
@@ -71,6 +73,8 @@ class HeaderFrame(Frame):
           break
         flag_bits, flags = flags[0], flags[1:]
         shift = 15
+      # TODO: support boolean types even though the default properties
+      # don't include any.
       if flag_bits & (1 << shift):
         d[key] = getattr(r, 'read_' + proptype)()
       shift -= 1
