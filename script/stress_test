@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+import sys, os
+sys.path.append(os.path.abspath(".."))
+
+import logging
+from haigha import Connection, Message
+from haigha import event
+import signal
+
+def sigint_cb(*args):
+  logger.info("stopping test")
+  for channel in channels:
+    channel.close()
+  event.timeout(10, force_quit)
+  event.timeout(0, check_close_channels)
+
+def check_close_channels():
+  if len(channels):
+    event.timeout(1, check_close_channels)
+  else:
+    disconnect()
+
+def disconnect():
+  connection.close()
+
+def connection_close_cb():
+  logger.info("connection closed")
+  event.abort()
+
+def force_quit():
+  logger.error("force quit!")
+  event.abort()
+
+class ChannelTest:
+  def __init__(self, connection):
+    self._ch = connection.channel()
+    self._queue = '%s'%(self._ch.channel_id)
+
+    self._ch.exchange.declare( 'publish', 'topic', auto_delete=True )
+    self._ch.queue.declare( self._queue, auto_delete=True )
+    self._ch.queue.bind( self._queue, 'publish', self._queue )
+    self._ch.basic.consume( self._queue, self._consume )
+
+    self._publish()
+
+  def close(self):
+    global channels
+    self._ch.close()
+    channels.remove( self )
+
+  def _publish(self):
+    msg = Message(body="test")
+    self._ch.publish( msg, exchange='publish', routing_key=self._queue )
+
+  def _consume(self, msg):
+    print 'consuming ', msg
+
+###################################################################
+
+if len(sys.argv)!=4:
+  print 'Usage: example <user> <password> <vhost>'
+  sys.exit(1)
+
+debug = 2
+level = logging.DEBUG if debug else logging.INFO
+
+# Setup logging
+logging.basicConfig(level=level, format="[%(levelname)s %(asctime)s] %(message)s" )
+logger = logging.getLogger('haigha')
+
+channels = []
+
+
+
+
+logger.info( 'connecting ...' )
+connection = Connection(logger=logger, debug=debug, user=sys.argv[1], password=sys.argv[2], vhost=sys.argv[3], heartbeat=None, close_cb=connection_close_cb)
+
+def foo():
+  print 'create channels'
+  for x in xrange(0,1):
+    channels.append( ChannelTest(connection) )
+
+event.timeout(3, foo )
+
+event.signal( signal.SIGINT, sigint_cb )
+event.dispatch()
+
