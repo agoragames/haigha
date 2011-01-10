@@ -55,7 +55,7 @@ class ChannelTest:
     self._ch.publish( msg, exchange='publish', routing_key=self._queue )
 
   def _consume(self, msg):
-    print 'consuming ', msg
+    self._publish()
 
 ###################################################################
 
@@ -63,7 +63,7 @@ if len(sys.argv)!=4:
   print 'Usage: example <user> <password> <vhost>'
   sys.exit(1)
 
-debug = 2
+debug = 0
 level = logging.DEBUG if debug else logging.INFO
 
 # Setup logging
@@ -72,18 +72,11 @@ logger = logging.getLogger('haigha')
 
 channels = []
 
-
-
-
 logger.info( 'connecting ...' )
 connection = Connection(logger=logger, debug=debug, user=sys.argv[1], password=sys.argv[2], vhost=sys.argv[3], heartbeat=None, close_cb=connection_close_cb)
 
-def foo():
-  print 'create channels'
-  for x in xrange(0,1):
-    channels.append( ChannelTest(connection) )
-
-event.timeout(3, foo )
+for x in xrange(0,1):
+  channels.append( ChannelTest(connection) )
 
 event.signal( signal.SIGINT, sigint_cb )
 event.dispatch()
