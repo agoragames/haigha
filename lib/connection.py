@@ -537,7 +537,7 @@ class ConnectionChannel(Channel):
     args.write_shortstr( self.connection._close_info['reply_text'] )
     args.write_short( self.connection._close_info['class_id'] )
     args.write_short( self.connection._close_info['method_id'] )
-    self.send_frame( MethodFrame(10, 50, args) )
+    self.send_frame( MethodFrame(self.channel_id, 10, 50, args) )
 
   def _recv_close(self, method_frame):
     self.connection._close_info = {
@@ -567,3 +567,4 @@ class ConnectionChannel(Channel):
 
   def _recv_close_ok(self, method_frame):
     self.connection._close_socket()
+    self.connection._close_cb()

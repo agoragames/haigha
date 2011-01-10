@@ -32,7 +32,7 @@ class EventSocket(object):
     Initialize the socket.  If no read_cb defined, socket will only be used
     for reading.  If this socket will be used for accepting new connections,
     set read_cb here and it will be passed to new sockets.  You can also set
-    accept_cb and be notified with an EventedSocket object on accept().  The
+    accept_cb and be notified with an EventSocket object on accept().  The
     error_cb will be called if there are any errors on the socket.  The args
     to it will be this socket, an error message, and an optional exception.
     The close_cb will be called when this socket closes, with this socket as
@@ -42,7 +42,7 @@ class EventSocket(object):
     self.__debug = debug
     self.__logger = logger
     if self.__debug and not self.__logger:
-      print 'WARNING: to debug EventedSocket, must provide a logger'
+      print 'WARNING: to debug EventSocket, must provide a logger'
       self.__debug = False
 
     # There various events we may or may not schedule    
@@ -184,10 +184,10 @@ class EventSocket(object):
 
   # Allow someone to change the various callbacks.
   read_cb =   property( fset=__set_read_cb )
-  accept_cb = property( fset=lambda self,func: setattr(self, '_EventedSocket__parent_accept_cb', func ) )
-  close_cb =  property( fset=lambda self,func: setattr(self, '_EventedSocket__parent_close_cb', func ) )
-  error_cb =  property( fset=lambda self,func: setattr(self, '_EventedSocket__parent_error_cb', func ) )
-  output_empty_cb = property( fset=lambda self,func: setattr(self, '_EventedSocket__parent_output_empty_cb',func) )
+  accept_cb = property( fset=lambda self,func: setattr(self, '_EventSocket__parent_accept_cb', func ) )
+  close_cb =  property( fset=lambda self,func: setattr(self, '_EventSocket__parent_close_cb', func ) )
+  error_cb =  property( fset=lambda self,func: setattr(self, '_EventSocket__parent_error_cb', func ) )
+  output_empty_cb = property( fset=lambda self,func: setattr(self, '_EventSocket__parent_output_empty_cb',func) )
 
   def bind(self, *args):
     """
@@ -280,7 +280,7 @@ class EventSocket(object):
       self.__logger.debug("accepted connection from %s"%(str(addr)))
 
 
-    evsock = EventedSocket( read_cb=self.__parent_read_cb, \
+    evsock = EventSocket( read_cb=self.__parent_read_cb, \
                             error_cb=self.__parent_error_cb, \
                             close_cb=self.__parent_close_cb, sock=conn,
                             debug=self.__debug, logger=self.__logger )
