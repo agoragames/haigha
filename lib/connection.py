@@ -103,6 +103,14 @@ class Connection(object):
   @property
   def debug(self):
     return self._debug
+
+  @property
+  def frame_max(self):
+    return self._frame_max
+
+  @property
+  def channel_max(self):
+    return self._channel_max
   
   def reconnect(self):
     '''Reconnect to the configured host and port.'''

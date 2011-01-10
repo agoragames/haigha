@@ -20,11 +20,6 @@ class Frame(object):
     '''
     Register a frame type.
     '''
-    # TODO is there a better way to do this?  Order of class declaration matters
-    # here.  There's probably a way to tap into when a subclass is declared.  Could
-    # write a decorator 'register_type()` that subclasses classmethod?  Would like
-    # to clean up initialization pattern  Cleanup of how subclasses register is
-    # definitely in order
     cls._frame_type_map[ cls.type() ] = cls
 
   @classmethod
@@ -73,9 +68,6 @@ class Frame(object):
 
     Raise MissingFooter if there's a problem reading the footer byte.
     '''
-    # TODO: Do we implement a reader here, or stick all the writing and reading
-    # interfaces right into this class?
-    
     reader = Reader(stream)
     frame_type = reader.read_octet()
     channel_id = reader.read_short()
@@ -83,14 +75,12 @@ class Frame(object):
     payload = reader.read( size )
 
     if len(payload) != size:
-      #raise AMQPIncompletePayloadError('Payload length %d did not match expected size %d' % \
-      #  (len(payload), size) )
       return None
 
-    # TODO: In the edge case where we're missing just this one byte, return None
     ch = reader.read_octet()  # footer
     if ch != 0xce:
-      raise Frame.MissingFooter('Framing error, unexpected byte: %x.  frame type %x. channel %d, payload size %d',
+      raise Frame.MissingFooter(
+        'Framing error, unexpected byte: %x.  frame type %x. channel %d, payload size %d',
         ch, frame_type, channel, size )
 
     frame_class = cls._frame_type_map.get( frame_type )
@@ -116,16 +106,6 @@ class Frame(object):
   def channel_id(self):
     return self._channel_id
 
-  '''@property
-  def size(self):
-    if self._size==0 and self._payload != None: 
-      return len(self._payload)
-    return self._size
-
-  @property
-  def payload(self):
-    return self._payload'''
-
   def __str__(self):
     return "%s[channel: %d]"%( self.__class__.__name__, self.channel_id )
 
@@ -133,6 +113,4 @@ class Frame(object):
     '''
     Write this frame.
     '''
-    # TODO: Whomever is calling this, please put a TODO in your code about wanting to write
-    # directly to a buffer in EventSocket.
     raise NotImplementedError()

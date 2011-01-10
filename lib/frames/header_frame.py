@@ -73,8 +73,6 @@ class HeaderFrame(Frame):
           break
         flag_bits, flags = flags[0], flags[1:]
         shift = 15
-      # TODO: support boolean types even though the default properties
-      # don't include any.
       if flag_bits & (1 << shift):
         d[key] = getattr(r, 'read_' + proptype)()
       shift -= 1
@@ -93,7 +91,7 @@ class HeaderFrame(Frame):
 
   def write_frame(self, stream):
     writer = Writer()
-    writer.write_octet( 2 )
+    writer.write_octet( self.type() )
     writer.write_short( self.channel_id )
     writer.flush( stream )
   
@@ -111,12 +109,6 @@ class HeaderFrame(Frame):
     writer.flush(stream)
     stream_end_args_pos = stream.tell()
 
-    ### msg._serialzie_props
-    # TODO: decipher this and clean it up
-    # NOTE: As near as I can tell, we could loop through and write all the bits
-    # directly, queing up the list of types and values as we do, and then write
-    # them raw.  This bit about "15" is really because there are two expected
-    # bitfields to start a message.
     shift = 15
     flag_bits = 0
     flags = []
@@ -129,8 +121,6 @@ class HeaderFrame(Frame):
           flag_bits = 0
           shift = 15
 
-        # NOTE: I saw this error at TM, need to investigate @AW
-        # /usr/local/lib/python2.6/site-packages/Hydra-1.5.18-py2.6.egg/hydra/core/amqp/evamqp/message.py:120:              DeprecationWarning: 'i' format requires -2147483648 <= number <= 2147483647
         flag_bits |= (1 << shift)
         if proptype != 'bit':
           #getattr(raw_bytes, 'write_' + proptype)(val)

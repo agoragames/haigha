@@ -5,7 +5,6 @@ class Message(object):
   '''
 
   def __init__(self, body=None, delivery_info=None, **properties):
-    # TODO: Update this since we now expect the body to be a stringio buffer
     if isinstance(body, unicode):
       if properties.get('content_encoding', None) is None:
         properties['content_encoding'] = 'UTF-8'

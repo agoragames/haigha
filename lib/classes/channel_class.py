@@ -53,8 +53,6 @@ class ChannelClass(ProtocolClass):
     The caller should use closures if they need to receive a handle to the channel
     on which flow control changes.
     '''
-    # TODO: might need an add/remove cb pair depending on what we want to do with
-    # a flow control strategy
     self._flow_control_cb = cb
   
   def open(self):
@@ -62,14 +60,11 @@ class ChannelClass(ProtocolClass):
     Open the channel for communication.
     '''
     args = Writer()
-    args.write_shortstr('')   # TODO: support out-of-band.  check on 0.9.1 compatability
+    args.write_shortstr('')
     self.send_frame( MethodFrame(self.channel_id, 20, 10, args) )
     self.channel.add_synchronous_cb( self._recv_open_ok )
 
   def _recv_open_ok(self, method_frame):
-    # TODO: do we actively need to track open state, or just _closed?  Assumption
-    # should be that a non-closed channel is always open, else we get really ugly
-    # code in Channel.send_frame().
     pass
 
   def activate(self):
@@ -95,10 +90,6 @@ class ChannelClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 20, 20, args) )
     self.channel.add_synchronous_cb( self._recv_flow_ok )
 
-  # TODO: Should the callback(s) be structured in such a way that the callee
-  # has the option to flip the active bit?  Seems like we'd need separate
-  # callbacks then for _recv_flow vs. _recv_flow_ok.  Perhaps the ability to
-  # call (de-)activate after we queue the flow_ok frame satisfies this need.
   def _recv_flow(self, method_frame):
     '''
     Receive a flow control command from the broker

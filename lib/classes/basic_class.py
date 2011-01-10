@@ -39,13 +39,6 @@ class BasicClass(ProtocolClass):
     '''
     self._consumer_tag_id += 1
     return "channel-%d-%d"%( self.channel_id, self._consumer_tag_id )
-
-  # TODO: Add a concept of number of pending transactions when we re-implement
-  # public_synchronous.  May be something that goes into the Channel object,
-  # or that it will walk all the pending frames in the Channel sync buffer and
-  # determine how many transaction commits there are
-
-  # TODO: Also include an optional callback method when a transaction is committed.
   
   def qos(self, prefetch_size=0, prefetch_count=0, is_global=False):
     '''
@@ -68,15 +61,6 @@ class BasicClass(ProtocolClass):
     '''
     start a queue consumer.
     '''
-    # 22 Apr 09 aaron - I discovered a bug/feature/behavior of amqp/rabbit
-    # where we can't have two pending consume calls at a time.  The response
-    # message will only be generated once, but then the delivery method will
-    # be called with two different consumer tags for the same callback.  So
-    # if this is being called for msgs A and B, we'll only ever hear back
-    # regarding A, but we'll recieve those msgs with two consumer tags, the
-    # one for A, and one which was never bound to anything but is probably the
-    # one which should correspond to B.
-    # TODO: document this to Rabbit mailing list.
     if nowait and consumer_tag=='':
       consumer_tag = self._generate_consumer_tag()
 
@@ -157,15 +141,9 @@ class BasicClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 60, 40, args) )
     self.send_frame( HeaderFrame(self.channel_id, 60, 0, len(msg.body), msg.properties) )
 
-    # TODO: Make this more performant by not creating and deleting objects.
-    # TODO: Access frame size in Connection
-    # TODO: Think of how to incorporate this into ContentFrame, since it's
-    # the one that knows that 8 is the size of its header bytes
     idx = 0
-    frame_max = 1024
+    frame_max = self.channel.connection.frame_max
     while idx < len(msg.body):
-      #payload, body = body[:self.frame_max - 8], body[self.frame_max -8:]
-
       start = idx
       end = start + frame_max - 8
       self.send_frame( ContentFrame(self.channel_id, msg.body[start:end]) )
@@ -183,8 +161,6 @@ class BasicClass(ProtocolClass):
     args.write_shortstr( routing_key )
 
     self.send_frame( MethodFrame(self.channel_id, 60, 50, args) )
-    # TODO: Where's the callback to _recv_return?  Seeing it at the top of spec doc,
-    # but not on page 53 ....
 
   def _recv_return(self):
     pass
@@ -239,7 +215,6 @@ class BasicClass(ProtocolClass):
       self._recv_get_ok( method_frame, *content_frames )
     elif method_frame.method_id==72:
       self._recv_get_empty( method_frame )
-    # else TODO: raise Error
 
   def _recv_get_ok(self, method_frame, *content_frames):
     delivery_tag = method_frame.args.read_longlong()
@@ -292,7 +267,6 @@ class BasicClass(ProtocolClass):
     Redeliver all unacknowledged messaages on this channel.
     
     DEPRECATED
-    TODO: decide if we should support this method
     '''
     args = Writer()
     args.write_bit( requeue )

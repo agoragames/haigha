@@ -11,8 +11,6 @@ class Channel(object):
   class InvalidMethod(ChannelError): '''The method frame referenced an invalid method.  Non-fatal.'''
   class Inactive(ChannelError): '''Tried to send a content frame while the channel was inactive. Non-fatal.'''
 
-  # TODO: If there is such a thing as extended classes for method frames, then
-  # allow user to pass in a mapping.
   def __init__(self, connection, channel_id):
     '''Initialize with a handle to the connection and an id.'''
     self._connection = connection
@@ -120,7 +118,6 @@ class Channel(object):
         # is in the pending list, and if so, then raise, because it means we
         # received stuff out of order.  Else just pass it through.
         # Note that this situation could happen on any broker-initiated message.
-        # TODO: Consider what situations this doesn't scale well, and fix as needed.
         if ev==cb:
           self._pending_events.pop(0)
           self._flush_pending_events()

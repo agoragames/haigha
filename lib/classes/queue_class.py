@@ -34,11 +34,6 @@ class QueueClass(ProtocolClass):
     cb - An optional method which will be called with (queue_name, msg_count, consumer_count)
          if nowait=False
     '''
-    # TODO: raise exception if nowait=True and queue not named
-    # TODO: double-check how nowait and passive operate together and tighten up
-    #       edge cases.
-    # TODO: confirm that broker can auto-create a name
-
     # If a callback is defined, then we have to use synchronous transactions.
     if cb: nowait = False
     if arguments is None: arguments = {}

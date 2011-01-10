@@ -2,7 +2,7 @@ import struct
 from haigha.lib.frames.frame import Frame
 from haigha.lib.reader import Reader
 from haigha.lib.writer import Writer
-from cStringIO import StringIO      # TODO: find suitable alternative
+from cStringIO import StringIO
 
 class MethodFrame(Frame):
   '''

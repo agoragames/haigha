@@ -2,7 +2,7 @@
 Defines the Reader class.
 """
 
-from cStringIO import StringIO  # TODO: make 2.6 and 3.0 compatible
+from cStringIO import StringIO
 from struct import unpack
 from datetime import datetime
 from decimal import Decimal
@@ -16,7 +16,6 @@ class Reader(object):
     """
     source should be either a file-like object with a read() method, or
     a plain (non-unicode) string.
-
     """
     if isinstance(source, str):
       self.input = StringIO(source)
@@ -28,7 +27,6 @@ class Reader(object):
     self.bitcount = self.bits = 0
 
   def __str__(self):
-    # TODO: make this portable if someone passed a non-StringIO into the ctor
     return ''.join( ['\\x%s'%(c.encode('hex')) for c in self.input.getvalue()] )
 
   def close(self):
@@ -132,7 +130,7 @@ class Reader(object):
         val = table_data.read_timestamp()
       elif ftype == 'F':
         val = table_data.read_table() # recurse
-      # TODO: else raise exception
+      # else raise exception
       result[name] = val
     return result
 
