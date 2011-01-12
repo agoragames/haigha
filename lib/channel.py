@@ -44,6 +44,10 @@ class Channel(object):
   def logger(self):
     return self._connection.logger
 
+  @property
+  def closed(self):
+    return self.channel.closed
+
   def open(self):
     '''
     Open this channel.  Routes to channel.open.

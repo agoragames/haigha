@@ -1,4 +1,3 @@
-import functools
 from haigha.lib.classes import ProtocolClass
 from haigha.lib.frames import MethodFrame
 from haigha.lib.writer import Writer
@@ -117,6 +116,12 @@ class ChannelClass(ProtocolClass):
     closure and the class and method ids of the current frame in which an error
     occurred.
     '''
+    # Mark the channel as immediately closed because from an application
+    # point of view, it's obvious that another section of code should be able
+    # to check if the channel should no longer be used, even if the broker
+    # has yet to acknowledge the closure.
+    self._closed = True
+
     self._close_info = {
       'reply_code'    : reply_code,
       'reply_text'    : reply_text,
