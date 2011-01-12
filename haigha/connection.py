@@ -1,8 +1,8 @@
-from haigha.lib.channel import Channel
-from haigha.lib.connection_strategy import ConnectionStrategy
-from haigha.lib.event_socket import EventSocket
-from haigha.lib.frames import *
-from haigha.lib.writer import Writer
+from haigha.channel import Channel
+from haigha.connection_strategy import ConnectionStrategy
+from haigha.event_socket import EventSocket
+from haigha.frames import *
+from haigha.writer import Writer
 
 import event                        # http://code.google.com/p/pyevent/
 import socket
@@ -26,7 +26,7 @@ PROTOCOL_HEADER = 'AMQP\x00\x00\x09\x01'
 #
 LIBRARY_PROPERTIES = {
   'library': 'Haigha',
-  'library_version': '0.0.1',
+  'library_version': haigha.VERSION,
 }
 
 class Connection(object):

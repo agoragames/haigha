@@ -8,10 +8,10 @@ import time
 from datetime import datetime
 from cStringIO import StringIO
 
-from haigha.lib.frames import header_frame
-from haigha.lib.frames.header_frame import HeaderFrame
-from haigha.lib.reader import Reader
-from haigha.lib.writer import Writer
+from haigha.frames import header_frame
+from haigha.frames.header_frame import HeaderFrame
+from haigha.reader import Reader
+from haigha.writer import Writer
 
 class HeaderFrameTest(mox.MoxTestBase):
 

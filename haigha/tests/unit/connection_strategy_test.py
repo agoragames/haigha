@@ -5,9 +5,9 @@ Unit tests for the connection strategy
 import mox
 import socket
 import logging
-import haigha.lib as connection_strategy
+import haigha as connection_strategy
 
-from haigha.lib.connection_strategy import ConnectionStrategy, Host, UNCONNECTED, CONNECTED, FAILED
+from haigha.connection_strategy import ConnectionStrategy, Host, UNCONNECTED, CONNECTED, FAILED
 
 class ConnectionStrategyTest(mox.MoxTestBase):
 

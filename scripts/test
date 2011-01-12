@@ -6,9 +6,9 @@ import sys
 
 # Hack: we should make this more generic
 sys.path.append(os.path.abspath(".."))
-
+import ipdb; ipdb.set_trace(); #TODO:Remove Debug
 loader = unittest.TestLoader()
-suite = loader.discover('test', pattern='*_test.py')
+suite = loader.discover('haigha.tests', pattern='*_test.py')
 
 unittest.TextTestRunner(verbosity=1).run(suite)
 

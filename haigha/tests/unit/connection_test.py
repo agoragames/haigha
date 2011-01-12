@@ -1,8 +1,8 @@
 import mox
 import logging
 
-from haigha.lib import connection
-from haigha.lib.connection import Connection
+from haigha import connection
+from haigha.connection import Connection
 
 class ConnectionTestCase(mox.MoxTestBase):
   

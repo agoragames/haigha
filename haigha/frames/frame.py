@@ -1,5 +1,5 @@
 import struct
-from haigha.lib.reader import Reader
+from haigha.reader import Reader
 
 class Frame(object):
   '''

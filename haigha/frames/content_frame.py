@@ -1,5 +1,5 @@
-from haigha.lib.writer import Writer
-from haigha.lib.frames.frame import Frame
+from haigha.writer import Writer
+from haigha.frames.frame import Frame
 
 class ContentFrame(Frame):
   '''
