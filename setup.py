@@ -1,39 +1,40 @@
-from distutils.core import setup
 import haigha
 import os
 
+try:
+    from setuptools import setup, find_packages, Command
+    from setuptools.command.test import test
+    from setuptools.command.install import install
+except ImportError:
+    from ez_setup import use_setuptools
+    use_setuptools()
+    from setuptools import setup, find_packages, Command
+    from setuptools.command.test import test
+    from setuptools.command.install import install
 
-def is_package(path):
-    return (
-        os.path.isdir(path) and
-        os.path.isfile(os.path.join(path, '__init__.py'))
-        )
-
-def find_packages(path, base="" ):
-    """ Find all packages in path """
-    packages = {}
-    for item in os.listdir(path):
-        print item
-        dir = os.path.join(path, item)
-        print dir
-        if is_package( dir ):
-            print "Adding packages"
-            if base:
-                module_name = "%(base)s.%(item)s" % vars()
-            else:
-                module_name = item
-            packages[module_name] = dir
-            packages.update(find_packages(dir, module_name))
-    return packages
-
-packages = find_packages('.')
-print packages.keys()
+requirements = map(str.strip, open('requirements.txt').readlines())
 
 setup(
     name='Haigha',
     version=haigha.VERSION,
-#    package_dir = packages,
-    packages = packages.keys(),
+    author_email="""
+        "Aaron Westendorf" <aaron@agoragames.com>,
+        "Vitaly Babiy" <vbabiy@agoragames.com>"
+    """,
+    packages = find_packages(),
+    install_requires = requirements,
     license="MIT License",
-    long_description=open('README.rst').read(),
+    long_description=open('README.txt').read(),
+    keywords=['amqp', 'evented'],
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: MIT License',
+        "Intended Audience :: Developers",
+        "Operating System :: POSIX",
+        "Topic :: Communications",
+        "Topic :: System :: Distributed Computing",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        'Programming Language :: Python',
+        'Topic :: Software Development :: Libraries'
+    ]
 )
