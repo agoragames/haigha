@@ -5,22 +5,35 @@ import sys, os
 sys.path.append(os.path.abspath(".."))
 
 import logging
+import random
 from haigha import Connection, Message
 from haigha import event
 import signal
+import time
 
 def sigint_cb(*args):
+  t_end = time.time()
+  total = 0
   logger.info("stopping test")
-  for channel in channels:
+  # Have to iterate on a copy because list will be modified on close()
+  for channel in channels[:]:
+    total += channel._count
     channel.close()
   event.timeout(10, force_quit)
   event.timeout(0, check_close_channels)
 
+  logger.info("completed %d in %.06f", total, t_end-t_start)
+  logger.info("%0.6f msg/s", float(total) / (t_end-t_start))
+
 def check_close_channels():
   if len(channels):
+    print 'channels are still ', channels
     event.timeout(1, check_close_channels)
   else:
     disconnect()
+
+def channel_closed(channel):
+  channels.remove( channel )
 
 def disconnect():
   connection.close()
@@ -34,28 +47,43 @@ def force_quit():
   event.abort()
 
 class ChannelTest:
-  def __init__(self, connection):
+  def __init__(self, connection, exchange):
     self._ch = connection.channel()
+    self._exchange = exchange
     self._queue = '%s'%(self._ch.channel_id)
+    self._count = 0
 
-    self._ch.exchange.declare( 'publish', 'topic', auto_delete=True )
+    self._ch.exchange.declare( self._exchange, 'direct', auto_delete=True )
     self._ch.queue.declare( self._queue, auto_delete=True )
-    self._ch.queue.bind( self._queue, 'publish', self._queue )
+    self._ch.queue.bind( self._queue, self._exchange, self._queue )
     self._ch.basic.consume( self._queue, self._consume )
 
     self._publish()
 
   def close(self):
-    global channels
+    # HACK for the same reasons as our acks
+    self._ch.queue.delete( self._queue )
+
+    # This would be a good use case for a callback on close
     self._ch.close()
-    channels.remove( self )
+    channel_closed( self )
 
   def _publish(self):
-    msg = Message(body="test")
-    self._ch.publish( msg, exchange='publish', routing_key=self._queue )
+    self._count += 1
+    #if self._count >= 3:
+    #  sigint_cb()
+    #  return
+    if not self._ch.closed:
+      msg = Message( body="%.06f"%(time.time()) )
+      self._ch.publish( msg, exchange=self._exchange, routing_key=self._queue )
 
   def _consume(self, msg):
-    self._publish()
+    # HACK: there's currently a problem in defining consumers as no-ack.  Looking
+    # into it, but for now, send an ack
+    # https://agora.lighthouseapp.com/projects/61044-haigha/tickets/80-no_ack-not-acknowledged-by-rabbit#ticket-80-2
+    self._ch.basic.ack( msg.delivery_info['delivery_tag'] )
+     
+    self._publish() 
 
 ###################################################################
 
@@ -75,9 +103,12 @@ channels = []
 logger.info( 'connecting ...' )
 connection = Connection(logger=logger, debug=debug, user=sys.argv[1], password=sys.argv[2], vhost=sys.argv[3], heartbeat=None, close_cb=connection_close_cb)
 
-for x in xrange(0,1):
-  channels.append( ChannelTest(connection) )
+exchanges = ['publish-%d'%(x) for x in xrange(0,10)]
 
+for x in xrange(0,600):
+  channels.append( ChannelTest(connection, random.choice(exchanges)) )
+
+t_start = time.time()
 event.signal( signal.SIGINT, sigint_cb )
 event.dispatch()
 

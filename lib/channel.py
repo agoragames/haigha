@@ -1,3 +1,5 @@
+import event
+
 from haigha.lib.classes import *
 from haigha.lib.frames import Frame, HeaderFrame, ContentFrame
 
@@ -31,6 +33,9 @@ class Channel(object):
     }
 
     self._pending_events = []
+
+    self._input_frame_buffer = []
+    self._input_event = None
 
   @property
   def connection(self):
@@ -88,7 +93,40 @@ class Channel(object):
     else:
       raise Channel.InvalidClass( "class %d is not support on channel %d", 
         method_frame.class_id, self.channel_id )
+
+  def buffer_frame(self, frame):
+    '''
+    Buffer an input frame.  Will append to current list of frames and ensure
+    there's a pending event to process the queue.
+    '''
+    self._input_frame_buffer.append( frame )
+    if self._input_event is None:
+      self._input_event = event.timeout(0, self._process_frames)
+  
+  def _process_frames(self):
+    '''
+    Process the input buffer.
+    '''
+    self._input_event = None
         
+    content_frames = None
+    while len(self._input_frame_buffer):
+      frame = self._input_frame_buffer.pop(0)
+
+      if len( self._input_frame_buffer ) and isinstance(self._input_frame_buffer[0],HeaderFrame):
+        header = self._input_frame_buffer.pop(0)
+        content_frames = []
+        while sum( [len(cf.payload) for cf in content_frames] ) < header.size:
+          content_frames.append( self._input_frame_buffer.pop(0) )
+          if not isinstance( content_frames[-1], ContentFrame ):
+            raise Exception("Invalid content frame %s", content_frames[-1])
+        content_frames.insert(0, header)
+      
+      if content_frames:
+        self.dispatch(frame, *content_frames)
+      else:
+        self.dispatch(frame)
+
   def send_frame(self, frame):
     '''
     Queue a frame for sending.  Will send immediately if there are no pending

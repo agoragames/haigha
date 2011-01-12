@@ -109,6 +109,11 @@ class Frame(object):
   def __str__(self):
     return "%s[channel: %d]"%( self.__class__.__name__, self.channel_id )
 
+  def __repr__(self):
+    # Have to actually call the method rather than __repr__==__str__ because
+    # subclasses overload __str__
+    return str(self)
+
   def write_frame(self, stream):
     '''
     Write this frame.

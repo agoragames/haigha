@@ -93,7 +93,6 @@ class Connection(object):
       self._strategy = ConnectionStrategy( self, self._host, reconnect_cb = self._reconnect_cb )
     self._strategy.connect()
 
-    self._input_frame_buffer = []
     self._output_frame_buffer = []
     
   @property
@@ -336,7 +335,8 @@ class Connection(object):
       buffer = self._sock.read()     # StringIO buffer
       
       try:
-        self._input_frame_buffer.extend( Frame.read_frames(buffer) )
+        for frame in Frame.read_frames(buffer):
+          self.channel( frame.channel_id ).buffer_frame( frame )
       except Frame.FrameError as e:
         self.logger.exception( "Framing error", exc_info=True )
 
@@ -367,33 +367,8 @@ class Connection(object):
         #if not read_error:
         #  event.timeout( 0, self._read_frames )
 
-      if self._debug > 1:
-        for frame in self._input_frame_buffer:
-          self.logger.debug( "READ: %s", frame )
-
-      # Even if there was a frame error, process whatever is on the input buffer.
-      self._process_input_frames()
     except Exception, e:
       self.logger.error( "read_frame error", exc_info=True )
-
-  def _process_input_frames(self):
-    content_frames = None
-    while len(self._input_frame_buffer):
-      frame = self._input_frame_buffer.pop(0)
-
-      if len( self._input_frame_buffer ) and isinstance(self._input_frame_buffer[0],HeaderFrame):
-        header = self._input_frame_buffer.pop(0)
-        content_frames = []
-        while sum( [len(cf.payload) for cf in content_frames] ) < header.size:
-          content_frames.append( self._input_frame_buffer.pop(0) )
-          if not isinstance( content_frames[-1], ContentFrame ):
-            raise Exception("Invalid content frame %s", content_frames[-1])
-        content_frames.insert(0, header)
-      
-      if content_frames:
-        self.channel(frame.channel_id).dispatch(frame, *content_frames)
-      else:
-        self.channel(frame.channel_id).dispatch(frame)
 
   def _flush_buffered_frames(self):
     # In the rare case (a bug) where this is called but send_frame thinks
