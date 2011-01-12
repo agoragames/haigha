@@ -1,7 +1,7 @@
 import event
 
-from haigha.lib.classes import *
-from haigha.lib.frames import Frame, HeaderFrame, ContentFrame
+from haigha.classes import *
+from haigha.frames import Frame, HeaderFrame, ContentFrame
 
 class Channel(object):
   '''

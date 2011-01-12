@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.abspath(".."))
 
 loader = unittest.TestLoader()
-suite = loader.discover('test', pattern='*_test.py')
+suite = loader.discover('haigha.tests', pattern='*_test.py')
 
 unittest.TextTestRunner(verbosity=1).run(suite)
 

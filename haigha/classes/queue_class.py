@@ -1,6 +1,6 @@
-from haigha.lib.writer import Writer
-from haigha.lib.frames import MethodFrame
-from haigha.lib.classes import ProtocolClass
+from haigha.writer import Writer
+from haigha.frames import MethodFrame
+from haigha.classes import ProtocolClass
 
 class QueueClass(ProtocolClass):
   '''

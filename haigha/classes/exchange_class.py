@@ -1,6 +1,6 @@
-from haigha.lib.writer import Writer
-from haigha.lib.classes import ProtocolClass
-from haigha.lib.frames import MethodFrame
+from haigha.writer import Writer
+from haigha.classes import ProtocolClass
+from haigha.frames import MethodFrame
 
 class ExchangeClass(ProtocolClass):
   '''

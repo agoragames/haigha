@@ -1,7 +1,7 @@
-from haigha.lib.message import Message
-from haigha.lib.writer import Writer
-from haigha.lib.frames import MethodFrame, HeaderFrame, ContentFrame
-from haigha.lib.classes import ProtocolClass
+from haigha.message import Message
+from haigha.writer import Writer
+from haigha.frames import MethodFrame, HeaderFrame, ContentFrame
+from haigha.classes import ProtocolClass
 
 from cStringIO import StringIO
 

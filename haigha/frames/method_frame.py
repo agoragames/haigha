@@ -1,7 +1,7 @@
 import struct
-from haigha.lib.frames.frame import Frame
-from haigha.lib.reader import Reader
-from haigha.lib.writer import Writer
+from haigha.frames.frame import Frame
+from haigha.reader import Reader
+from haigha.writer import Writer
 from cStringIO import StringIO
 
 class MethodFrame(Frame):

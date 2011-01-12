@@ -1,6 +1,6 @@
 
-from haigha.lib.frames.frame import Frame
-from haigha.lib.writer import Writer
+from haigha.frames.frame import Frame
+from haigha.writer import Writer
 
 class HeartbeatFrame(Frame):
   '''

@@ -3,7 +3,7 @@ import mox
 from datetime import datetime
 from cStringIO import StringIO
 
-from haigha.lib.writer import Writer
+from haigha.writer import Writer
 
 
 class WriterTest(mox.MoxTestBase):

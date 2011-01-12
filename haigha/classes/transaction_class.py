@@ -1,5 +1,5 @@
-from haigha.lib.frames import MethodFrame
-from haigha.lib.classes import ProtocolClass
+from haigha.frames import MethodFrame
+from haigha.classes import ProtocolClass
 
 class TransactionClass(ProtocolClass):
   '''
