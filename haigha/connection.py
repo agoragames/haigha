@@ -89,6 +89,9 @@ class Connection(object):
     self._channel_max = 65535
     self._frame_max = 65535
 
+    self._frames_read = 0
+    self._frames_written = 0
+
     self._strategy = kwargs.get('connection_strategy')
     if not self._strategy:
       self._strategy = ConnectionStrategy( self, self._host, reconnect_cb = self._reconnect_cb )
@@ -111,6 +114,16 @@ class Connection(object):
   @property
   def channel_max(self):
     return self._channel_max
+
+  @property
+  def frames_read(self):
+    '''Number of frames read in the lifetime of this connection.'''
+    return self._frames_read
+
+  @property
+  def frames_written(self):
+    '''Number of frames written in the lifetime of this connection.'''
+    return self._frames_written
   
   def reconnect(self):
     '''Reconnect to the configured host and port.'''
@@ -337,6 +350,7 @@ class Connection(object):
       
       try:
         for frame in Frame.read_frames(buffer):
+          self._frames_read += 1
           self.channel( frame.channel_id ).buffer_frame( frame )
       except Frame.FrameError as e:
         self.logger.exception( "Framing error", exc_info=True )
@@ -392,6 +406,7 @@ class Connection(object):
 
     stream = StringIO()
     frame.write_frame(stream)
+    self._frames_written += 1
     
     if self._debug > 1:
       self.logger.debug( "WRITE: %s", frame )
