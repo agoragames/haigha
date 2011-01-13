@@ -1,6 +1,6 @@
 from haigha.channel import Channel
 from haigha.connection_strategy import ConnectionStrategy
-from haigha.event_socket import EventSocket
+from eventsocket import EventSocket
 from haigha.frames import *
 from haigha.writer import Writer
 
