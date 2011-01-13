@@ -54,8 +54,8 @@ class QueueClass(ProtocolClass):
 
     # In order to ensure that callbacks are paired up with the right declaration
     # call, we must have an item in the callback list for each synch declaration.
-    #if not nowait:
-    self.channel.add_synchronous_cb( self._recv_declare_ok )
+    if not nowait:
+      self.channel.add_synchronous_cb( self._recv_declare_ok )
     self._declare_cb.append( cb )
 
   def _recv_declare_ok(self, method_frame):
@@ -88,8 +88,8 @@ class QueueClass(ProtocolClass):
     
     # In order to ensure that callbacks are paired up with the right declaration
     # call, we must have an item in the callback list for each synch declaration.
-    #if not nowait:
-    self.channel.add_synchronous_cb( self._recv_bind_ok )
+    if not nowait:
+      self.channel.add_synchronous_cb( self._recv_bind_ok )
     self._bind_cb.append( cb )
 
   def _recv_bind_ok(self, method_frame):
@@ -138,8 +138,8 @@ class QueueClass(ProtocolClass):
     args.write_bit(nowait)
     self.send_frame( MethodFrame(self.channel_id, 50, 30, args) )
 
-    #if not nowait:
-    self.channel.add_synchronous_cb( self._recv_purge_ok )
+    if not nowait:
+      self.channel.add_synchronous_cb( self._recv_purge_ok )
     self._purge_cb.append( cb )
 
   def _recv_purge_ok(self, method_frame):
@@ -166,8 +166,8 @@ class QueueClass(ProtocolClass):
     args.write_bit(nowait)
     self.send_frame( MethodFrame(self.channel_id, 50, 40, args) )
 
-    #if not nowait:
-    self.channel.add_synchronous_cb( self._recv_delete_ok )
+    if not nowait:
+      self.channel.add_synchronous_cb( self._recv_delete_ok )
     self._delete_cb.append( cb )
 
   def _recv_delete_ok(self, method_frame):

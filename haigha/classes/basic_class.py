@@ -78,9 +78,11 @@ class BasicClass(ProtocolClass):
     args.write_table({})
     self.send_frame( MethodFrame(self.channel_id, 60, 20, args) )
 
-    self._pending_consumers.append( consumer )
-    #if not nowait:
-    self.channel.add_synchronous_cb( self._recv_consume_ok )
+    if not nowait:
+      self.channel.add_synchronous_cb( self._recv_consume_ok )
+      self._pending_consumers.append( consumer )
+    else:
+      self._consumer_cb[ consumer_tag ] = consumer
 
   def _recv_consume_ok(self, method_frame):
     consumer_tag = method_frame.args.read_shortstr()

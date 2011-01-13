@@ -46,7 +46,6 @@ class ConnectionTestCase(mox.MoxTestBase):
     self.connection._channel_max = 65535
     self.connection._frame_max = 65535
     self.connection._strategy = self.create_mock_anything()
-    self.connection._input_frame_buffer = []
     self.connection._output_frame_buffer = []
 
 
@@ -97,5 +96,4 @@ class ConnectionTestCase(mox.MoxTestBase):
     self.assertEqual( 65535, conn._channel_max )
     self.assertEqual( 65535, conn._frame_max )
     self.assertEqual( strategy, conn._strategy )
-    self.assertEqual( [], conn._input_frame_buffer )
     self.assertEqual( [], conn._output_frame_buffer )

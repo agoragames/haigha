@@ -52,3 +52,59 @@ class WriterTest(mox.MoxTestBase):
 
     stream = StringIO()
     writer.flush( stream )
+
+  def test_writing_bits(self):
+    writer = Writer(); stream = StringIO()
+    writer.write_bit(True)
+    writer.flush( stream )
+    self.assertEquals( '\x01', stream.getvalue() )
+    
+    writer = Writer(); stream = StringIO()
+    [ writer.write_bit(True) for x in xrange(4) ]
+    writer.flush( stream )
+    self.assertEquals( '\x0f', stream.getvalue() )
+    
+    writer = Writer(); stream = StringIO()
+    [ writer.write_bit(True) for x in xrange(5) ]
+    writer.flush( stream )
+    self.assertEquals( '\x1f', stream.getvalue() )
+    
+    writer = Writer(); stream = StringIO()
+    [ writer.write_bit(True) for x in xrange(8) ]
+    writer.flush( stream )
+    self.assertEquals( '\xff', stream.getvalue() )
+    
+    writer = Writer(); stream = StringIO()
+    writer.write_bit(True)
+    writer.write_bit(False)
+    writer.write_bit(True)
+    writer.write_bit(False)
+    writer.flush( stream )
+    self.assertEquals( '\x05', stream.getvalue() )
+    
+    writer = Writer(); stream = StringIO()
+    writer.write_bit(True)
+    writer.write_bit(False)
+    writer.write_bit(True)
+    writer.write_bit(False)
+    writer.write_bit(True)
+    writer.flush( stream )
+    self.assertEquals( '\x15', stream.getvalue() )
+    
+    writer = Writer(); stream = StringIO()
+    writer.write_shortstr('foo')
+    [ writer.write_bit(True) for x in xrange(4) ]
+    writer.write_shortstr('bar')
+    writer.flush( stream )
+    self.assertEquals( '\x03foo\x0f\x03bar', stream.getvalue() )
+    
+    writer = Writer(); stream = StringIO()
+    writer.write_shortstr('foo')
+    writer.write_bit(True)
+    writer.write_bit(False)
+    writer.write_bit(True)
+    writer.write_bit(False)
+    writer.write_bit(True)
+    writer.write_shortstr('bar')
+    writer.flush( stream )
+    self.assertEquals( '\x03foo\x15\x03bar', stream.getvalue() )

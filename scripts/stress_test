@@ -76,7 +76,6 @@ class ChannelTest:
 
   @property
   def _transactions(self):
-    #return self._ch._channel_id%2 == 0
     return options.tx
 
   def close_and_reopen(self):
@@ -85,19 +84,13 @@ class ChannelTest:
       open_channel()
 
   def close(self):
-    # HACK for the same reasons as our acks
-    self._ch.queue.purge( self._queue, cb=self._queue_purged )
-    self._ch.queue.delete( self._queue )
-
-  def _queue_purged(self, *args):
-    # This would be a good use case for a callback on close
     self._ch.close()
     channel_closed( self )
 
   def _publish(self):
     self._count += 1
     if not self._ch.closed:
-      msg = Message( body="%.06f"%(time.time()), application_headers={'name':'stress_test'} )
+      msg = Message( body="%.06f"%(time.time()) )
 
       if self._transactions:
         self._ch.publish_synchronous( msg, exchange=self._exchange, routing_key=self._queue, cb=self._published )
@@ -108,13 +101,6 @@ class ChannelTest:
     self._publish()
 
   def _consume(self, msg):
-    # HACK: there's currently a problem in defining consumers as no-ack.  Looking
-    # into it, but for now, send an ack
-    # https://agora.lighthouseapp.com/projects/61044-haigha/tickets/80-no_ack-not-acknowledged-by-rabbit#ticket-80-2
-    self._ch.basic.ack( msg.delivery_info['delivery_tag'] )
-    if self._transactions:
-      self._ch.tx.commit()
-    
     if not self._transactions: 
       self._publish() 
 
@@ -131,8 +117,6 @@ parser.add_option('--tx', default=False, action='store_true' )
 parser.add_option('--channels', default=500, type='int')
 parser.add_option('--debug', default=0, action='count')
 
-#if len(sys.argv)!=4:
-#  sys.exit(1)
 (options,args) = parser.parse_args()
 
 debug = options.debug
@@ -148,7 +132,7 @@ logger.info( 'connecting ...' )
 connection = Connection(logger=logger, debug=debug, 
   user=options.user, password=options.password, 
   vhost=options.vhost, host=options.host, 
-  heartbeat=2, close_cb=connection_close_cb)
+  heartbeat=None, close_cb=connection_close_cb)
 
 exchanges = ['publish-%d'%(x) for x in xrange(0,10)]
 

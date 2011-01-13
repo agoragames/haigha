@@ -7,6 +7,8 @@ from time import mktime
 from datetime import datetime
 from decimal import Decimal
 
+from StringIO import StringIO
+
 class Writer(object):
   """
   Implements writing of structured data.  Operates as in 2 passes; first a write
@@ -33,12 +35,10 @@ class Writer(object):
   #   stream = StringIO()
   #   flush(stream)
   #   return stream.getvalue()
-  #def getvalue(self):
-  #  """
-  #  Get what's been encoded so far.
-  #  """
-  #  self._flushbits()
-  #  return self.out.getvalue()
+  def __str__(self):
+    stream = StringIO()
+    self.flush( stream )
+    return stream.getvalue()
 
 
   def write(self, s):
@@ -156,6 +156,7 @@ class Writer(object):
     '''Write the string to the stream.'''
     if len(s) > 255:
       raise ValueError('String too long')
+    self._flush_bits( stream )
     self._write_octet(len(s), stream) # also flushes bits
     stream.write(s)
 
@@ -170,6 +171,7 @@ class Writer(object):
 
   def _write_longstr(self, s, stream):
     '''Write the long string to the stream.'''
+    self._flush_bits( stream )
     self._write_long(len(s), stream) # also flushes bits
     stream.write(s)
 
@@ -188,6 +190,7 @@ class Writer(object):
     # fiddle with cursor position, rewinding to write the real length of the
     # data.  Generally speaking, I'm not a fan of the AMQP encoding scheme, it
     # could be much faster.
+    self._flush_bits( stream )
     table_len_pos = stream.tell()
     self._write_long( 0, stream )
     table_data_pos = stream.tell()
