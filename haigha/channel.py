@@ -108,9 +108,9 @@ class Channel(object):
     Process the input buffer.
     '''
     self._input_event = None
-        
-    content_frames = None
+
     while len(self._input_frame_buffer):
+      content_frames = None
       frame = self._input_frame_buffer.pop(0)
 
       if len( self._input_frame_buffer ) and isinstance(self._input_frame_buffer[0],HeaderFrame):
@@ -122,10 +122,13 @@ class Channel(object):
             raise Exception("Invalid content frame %s", content_frames[-1])
         content_frames.insert(0, header)
       
-      if content_frames:
-        self.dispatch(frame, *content_frames)
-      else:
-        self.dispatch(frame)
+      try:
+        if content_frames:
+          self.dispatch(frame, *content_frames)
+        else:
+          self.dispatch(frame)
+      except:
+        self.logger.error( "Failed to dispatch %s, %s, remaining buffer %s", frame, content_frames, self._input_frame_buffer )
 
   def send_frame(self, frame):
     '''

@@ -2,12 +2,18 @@
 #-*- coding:utf-8 -*-
 
 import sys, os
+sys.path.append(os.path.abspath("."))
 sys.path.append(os.path.abspath(".."))
 
 import logging
 import random
-from haigha import Connection, Message
-from haigha import event
+from optparse import OptionParser
+
+#from haigha import Connection, Message
+#from haigha import event
+from haigha.connection import Connection
+from haigha.message import Message
+import event
 import signal
 import time
 
@@ -22,12 +28,17 @@ def sigint_cb(*args):
   event.timeout(10, force_quit)
   event.timeout(0, check_close_channels)
 
-  logger.info("completed %d in %.06f", total, t_end-t_start)
-  logger.info("%0.6f msg/s", float(total) / (t_end-t_start))
+  duration = t_end - t_start
+
+  logger.info("completed %d in %.06f", total, duration)
+  logger.info("%0.6f msg/s", float(total) / duration )
+  logger.info("frames read: %d, %f/s", 
+    connection.frames_read, float(connection.frames_read)/duration )
+  logger.info("frames written: %d, %f/s", 
+    connection.frames_written, float(connection.frames_written)/duration )
 
 def check_close_channels():
   if len(channels):
-    print 'channels are still ', channels
     event.timeout(1, check_close_channels)
   else:
     disconnect()
@@ -46,6 +57,9 @@ def force_quit():
   logger.error("force quit!")
   event.abort()
 
+def open_channel():
+  channels.append( ChannelTest(connection, random.choice(exchanges)) )
+
 class ChannelTest:
   def __init__(self, connection, exchange):
     self._ch = connection.channel()
@@ -60,38 +74,68 @@ class ChannelTest:
 
     self._publish()
 
+  @property
+  def _transactions(self):
+    #return self._ch._channel_id%2 == 0
+    return options.tx
+
+  def close_and_reopen(self):
+    if not self._ch.closed:
+      self.close()
+      open_channel()
+
   def close(self):
     # HACK for the same reasons as our acks
+    self._ch.queue.purge( self._queue, cb=self._queue_purged )
     self._ch.queue.delete( self._queue )
 
+  def _queue_purged(self, *args):
     # This would be a good use case for a callback on close
     self._ch.close()
     channel_closed( self )
 
   def _publish(self):
     self._count += 1
-    #if self._count >= 3:
-    #  sigint_cb()
-    #  return
     if not self._ch.closed:
-      msg = Message( body="%.06f"%(time.time()) )
-      self._ch.publish( msg, exchange=self._exchange, routing_key=self._queue )
+      msg = Message( body="%.06f"%(time.time()), application_headers={'name':'stress_test'} )
+
+      if self._transactions:
+        self._ch.publish_synchronous( msg, exchange=self._exchange, routing_key=self._queue, cb=self._published )
+      else:
+        self._ch.publish( msg, exchange=self._exchange, routing_key=self._queue )
+
+  def _published(self):
+    self._publish()
 
   def _consume(self, msg):
     # HACK: there's currently a problem in defining consumers as no-ack.  Looking
     # into it, but for now, send an ack
     # https://agora.lighthouseapp.com/projects/61044-haigha/tickets/80-no_ack-not-acknowledged-by-rabbit#ticket-80-2
     self._ch.basic.ack( msg.delivery_info['delivery_tag'] )
-     
-    self._publish() 
+    if self._transactions:
+      self._ch.tx.commit()
+    
+    if not self._transactions: 
+      self._publish() 
 
 ###################################################################
 
-if len(sys.argv)!=4:
-  print 'Usage: example <user> <password> <vhost>'
-  sys.exit(1)
+parser = OptionParser(
+  usage='Usage: stress_test [options]'
+)
+parser.add_option('--user', default='guest', type='string')
+parser.add_option('--pass', default='guest', dest='password', type='string')
+parser.add_option('--vhost', default='/', type='string')
+parser.add_option('--host', default='localhost', type='string')
+parser.add_option('--tx', default=False, action='store_true' )
+parser.add_option('--channels', default=500, type='int')
+parser.add_option('--debug', default=0, action='count')
 
-debug = 0
+#if len(sys.argv)!=4:
+#  sys.exit(1)
+(options,args) = parser.parse_args()
+
+debug = options.debug
 level = logging.DEBUG if debug else logging.INFO
 
 # Setup logging
@@ -101,12 +145,15 @@ logger = logging.getLogger('haigha')
 channels = []
 
 logger.info( 'connecting ...' )
-connection = Connection(logger=logger, debug=debug, user=sys.argv[1], password=sys.argv[2], vhost=sys.argv[3], heartbeat=None, close_cb=connection_close_cb)
+connection = Connection(logger=logger, debug=debug, 
+  user=options.user, password=options.password, 
+  vhost=options.vhost, host=options.host, 
+  heartbeat=2, close_cb=connection_close_cb)
 
 exchanges = ['publish-%d'%(x) for x in xrange(0,10)]
 
-for x in xrange(0,600):
-  channels.append( ChannelTest(connection, random.choice(exchanges)) )
+for x in xrange(0,options.channels):
+  open_channel()
 
 t_start = time.time()
 event.signal( signal.SIGINT, sigint_cb )

@@ -97,7 +97,7 @@ class QueueClass(ProtocolClass):
     cb = self._bind_cb.pop(0)
     if cb: cb()
 
-  def unbind(self, queue, exchange, routing_key, arguments=None, cb=None):
+  def unbind(self, queue, exchange, routing_key, arguments=None, ticket=None, cb=None):
     '''
     Unbind a queue from an exchange.  This is always synchronous.
     '''
@@ -122,7 +122,7 @@ class QueueClass(ProtocolClass):
     cb = self._unbind_cb.pop(0)
     if cb: cb()
     
-  def purge(self, queue, nowait=True, cb=None):
+  def purge(self, queue, nowait=True, ticket=None, cb=None):
     '''
     Purge all messages in a queue.
     '''
