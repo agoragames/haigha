@@ -8,6 +8,7 @@ import event                        # http://code.google.com/p/pyevent/
 import socket
 import struct
 import traceback
+import haigha
 
 from cStringIO import StringIO
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL

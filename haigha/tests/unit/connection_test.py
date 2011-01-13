@@ -80,7 +80,7 @@ class ConnectionTestCase(mox.MoxTestBase):
     self.assertEqual( None, conn._client_properties )
     self.assertEqual( conn._properties, {
       'library': 'Haigha',
-      'library_version': '0.0.1',
+      'library_version': '0.1.0',
     } )
     self.assertFalse( conn._closed )
     self.assertFalse( conn._connected )

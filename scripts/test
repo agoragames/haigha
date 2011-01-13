@@ -4,11 +4,10 @@ import unittest2 as unittest
 import os
 import sys
 
-# Hack: we should make this more generic
-sys.path.append(os.path.abspath(".."))
+project_root = os.path.split(os.path.abspath(os.path.dirname(__file__)))[0]
 
 loader = unittest.TestLoader()
-suite = loader.discover('haigha.tests', pattern='*_test.py')
+suite = loader.discover('haigha.tests', pattern='*_test.py', top_level_dir=project_root)
 
 unittest.TextTestRunner(verbosity=1).run(suite)
 
