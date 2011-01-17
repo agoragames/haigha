@@ -8,8 +8,8 @@ class Frame(object):
 
   # Exceptions
   class FrameError(Exception): '''Base class for all frame errors'''
+  class FormatError(FrameError): '''The frame was mal-formed.'''
   class InvalidFrameType(FrameError): '''The frame type is unknown.'''
-  class MissingFooter(FrameError): '''Could not find the footer to the frame.'''
 
   # Class data
   _frame_type_map = {}
@@ -48,10 +48,16 @@ class Frame(object):
     while True:
       frame_start_pos = stream.tell()
       try:
-        frame = cls._read_frame(stream)
-      except struct.error, e:
+        frame = Frame._read_frame(stream)
+      except Reader.BufferUnderflow:
         # No more data in the stream
         frame = None
+      except Reader.ReaderError:
+        # Some other format error
+        raise Frame.FormatError()
+      except struct.error, e:
+        raise Frame.FormatError()
+
       if frame is None: 
         stream.seek( frame_start_pos )
         break
@@ -79,15 +85,14 @@ class Frame(object):
 
     ch = reader.read_octet()  # footer
     if ch != 0xce:
-      raise Frame.MissingFooter(
+      raise Frame.FormatError(
         'Framing error, unexpected byte: %x.  frame type %x. channel %d, payload size %d',
-        ch, frame_type, channel, size )
+        ch, frame_type, channel_id, size )
 
     frame_class = cls._frame_type_map.get( frame_type )
     if not frame_class:
       raise Frame.InvalidFrameType("Unknown frame type %x", frame_type)
     return frame_class.parse( channel_id, payload )
-
 
 
   # Instance methods
