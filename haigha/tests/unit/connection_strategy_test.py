@@ -181,7 +181,6 @@ class ConnectionStrategyTest(mox.MoxTestBase):
 
 #    self.mox.ReplayAll()
 #    self.strategy.connect( 42 )
-#    print self.strategy._pending_connect
 #    self.assertTrue( self.strategy._pending_connect, 'foo' )
   
   def test_connect_had_single_pending_event(self):

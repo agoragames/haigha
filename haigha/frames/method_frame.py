@@ -65,13 +65,6 @@ class MethodFrame(Frame):
     # Mark the point in the stream where we start writing arguments, *including*
     # the class and method ids.
     stream_method_pos = stream.tell()
-    #print 'stream method at ', stream_method_pos
-
-    #if args==None:
-    #  pkt.write_long(4)
-    #else:
-    #  pkt.write_long(len(args)+4)  # 4 = length of class_id and method_id
-                                     # in payload
 
     writer = Writer()
     writer.write_short(self.class_id)
@@ -84,7 +77,6 @@ class MethodFrame(Frame):
       stream_end_args_pos = stream.tell()
 
     stream_len = stream_end_args_pos - stream_method_pos
-    #print 'stream arg length ', stream_len
 
     stream.seek( stream_method_pos )
     
