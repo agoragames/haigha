@@ -44,7 +44,7 @@ class Connection(object):
     self._logger = kwargs.get('logger', root_logger)
 
     self._user = kwargs.get('user', 'guest')
-    self._password = kwargs.get('user', 'guest')
+    self._password = kwargs.get('password', 'guest')
     self._host = kwargs.get('host', 'localhost')
     self._vhost = kwargs.get('vhost', '/')
 
