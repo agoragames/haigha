@@ -3,6 +3,7 @@ from haigha.connection_strategy import ConnectionStrategy
 from eventsocket import EventSocket
 from haigha.frames import *
 from haigha.writer import Writer
+from exceptions import *
 
 import event                        # http://code.google.com/p/pyevent/
 import socket
@@ -31,10 +32,8 @@ LIBRARY_PROPERTIES = {
 
 class Connection(object):
 
-  class ConnectionError(Exception): '''Base class for all connection exceptions'''
   class TooManyChannels(ConnectionError): '''This connection has too many channels open.  Non-fatal.'''
   class InvalidChannel(ConnectionError): '''The channel id does not correspond to an existing channel.  Non-fatal.'''
-  class Closed(ConnectionError): '''The operation is invalid because the connection is closed.'''
 
   def __init__(self, **kwargs):
     '''
@@ -395,9 +394,9 @@ class Connection(object):
   def send_frame(self, frame):
     if self._closed:
       if self._close_info and len(self._close_info['reply_text'])>0:
-        raise Connection.Closed("connection is closed: %s : %s"%\
+        raise ConnectionClosed("connection is closed: %s : %s"%\
           (self._close_info['reply_code'],self._close_info['reply_text']) )
-      raise Connection.Closed("connection is closed")
+      raise ConnectionClosed("connection is closed")
 
     if self._sock==None or (not self._connected and frame.channel_id!=0):
       self._output_frame_buffer.append( frame )
@@ -547,10 +546,11 @@ class ConnectionChannel(Channel):
       self.connection._sock.close_cb = None
 
     # Schedule the actual close for later so that handshake IO can take place.
+    # Even though it's scheduled at 0, it's queued after the frame IO
     event.timeout(0, self.connection._close_socket)
 
     # Likewise, call any potential close callback on a delay
-    event.timeout( 0, self.connection._close_cb )
+    event.timeout(0, self.connection._close_cb)
 
   def _send_close_ok(self):
     self.send_frame( MethodFrame(self.channel_id, 10, 61) )

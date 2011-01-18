@@ -2,13 +2,13 @@ import event
 
 from haigha.classes import *
 from haigha.frames import Frame, HeaderFrame, ContentFrame
+from haigha.exceptions import *
 
 class Channel(object):
   '''
   Define a channel
   '''
 
-  class ChannelError(Exception): '''Base class for all channel errors'''
   class InvalidClass(ChannelError): '''The method frame referenced an invalid class.  Non-fatal.'''
   class InvalidMethod(ChannelError): '''The method frame referenced an invalid method.  Non-fatal.'''
   class Inactive(ChannelError): '''Tried to send a content frame while the channel was inactive. Non-fatal.'''
@@ -51,7 +51,13 @@ class Channel(object):
 
   @property
   def closed(self):
+    # Because this is called everytime in send_frame, perhas it should be
+    # assigned directly as the property to avoid the extra method call
     return self.channel.closed
+
+  @property
+  def close_info(self):
+    return self.channel.close_info
 
   def open(self):
     '''
@@ -135,6 +141,16 @@ class Channel(object):
     Queue a frame for sending.  Will send immediately if there are no pending
     synchronous transactions on this connection.
     '''
+    if self.closed:
+      if self.close_info and len(self.close_info['reply_text'])>0:
+        raise ConnectionClosed(
+          "channel %d is closed: %s : %s",
+          self.channel_id,
+          self.close_info['reply_code'],
+          self.close_info['reply_text'] )
+      raise ChannelClosed()
+
+
     if not len(self._pending_events) or isinstance(self._pending_events[0],Frame):
       if not self.channel.active and isinstance( frame, (ContentFrame,HeaderFrame) ):
         raise Inactive( "Channel %s flow control activated", self.channel_id )

@@ -116,12 +116,6 @@ class ChannelClass(ProtocolClass):
     closure and the class and method ids of the current frame in which an error
     occurred.
     '''
-    # Mark the channel as immediately closed because from an application
-    # point of view, it's obvious that another section of code should be able
-    # to check if the channel should no longer be used, even if the broker
-    # has yet to acknowledge the closure.
-    self._closed = True
-
     self._close_info = {
       'reply_code'    : reply_code,
       'reply_text'    : reply_text,
@@ -150,7 +144,7 @@ class ChannelClass(ProtocolClass):
     }
     self._closed = True
 
-    self.send_frame( MethodFrame(self.channel_id, 20, 41, args) )
+    self.send_frame( MethodFrame(self.channel_id, 20, 41) )
 
   def _recv_close_ok(self, method_frame):
     '''
