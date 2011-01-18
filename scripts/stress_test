@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(".."))
 
 import logging
 import random
+import socket
 from optparse import OptionParser
 
 #from haigha import Connection, Message
@@ -129,10 +130,14 @@ logger = logging.getLogger('haigha')
 channels = []
 
 logger.info( 'connecting ...' )
+sock_opts = {
+  (socket.IPPROTO_TCP, socket.TCP_NODELAY) : 1,
+}
 connection = Connection(logger=logger, debug=debug, 
   user=options.user, password=options.password, 
   vhost=options.vhost, host=options.host, 
-  heartbeat=None, close_cb=connection_close_cb)
+  heartbeat=None, close_cb=connection_close_cb,
+  sock_opts=sock_opts)
 
 exchanges = ['publish-%d'%(x) for x in xrange(0,10)]
 
