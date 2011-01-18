@@ -128,7 +128,7 @@ class Channel(object):
         else:
           self.dispatch(frame)
       except:
-        self.logger.error( "Failed to dispatch %s, %s, remaining buffer %s", frame, content_frames, self._input_frame_buffer )
+        self.logger.error( "Failed to dispatch %s, %s, remaining buffer %s", frame, content_frames, self._input_frame_buffer, exc_info=True )
 
   def send_frame(self, frame):
     '''
