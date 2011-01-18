@@ -16,6 +16,7 @@ class TransactionClass(ProtocolClass):
 
     self._enabled = False
     self._commit_cb = []
+    self._rollback_cb = []
 
   @property
   def enabled(self):
@@ -47,13 +48,16 @@ class TransactionClass(ProtocolClass):
     cb = self._commit_cb.pop(0)
     if cb is not None: cb()
 
-  def rollback(self):
+  def rollback(self, cb=None):
     '''
     Abandon all message publications and acks in the current transaction.
+    Caller can specify a callback to use when the transaction has been
+    aborted.
     '''
+    self._rollback_cb.append( cb )
     self.send_frame( MethodFrame(self.channel_id, 90, 30) )
     self.channel.add_synchronous_cb( self._recv_rollback_ok )
 
   def _recv_rollback_ok(self, method_frame):
-    # nothing to do
-    pass
+    cb = self._rollback_cb.pop(0)
+    if cb is not None: cb()

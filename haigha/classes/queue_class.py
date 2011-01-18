@@ -25,7 +25,7 @@ class QueueClass(ProtocolClass):
 
   def declare(self, queue='', passive=False, durable=False,
       exclusive=False, auto_delete=True, nowait=True,
-      arguments=None, ticket=None, cb=None):
+      arguments={}, ticket=None, cb=None):
     '''
     Declare a queue.  By default is asynchronoous but will be synchronous if nowait=False
     or a callback is defined.
@@ -36,7 +36,6 @@ class QueueClass(ProtocolClass):
     '''
     # If a callback is defined, then we have to use synchronous transactions.
     if cb: nowait = False
-    if arguments is None: arguments = {}
 
     args = Writer()
     if ticket is not None:
@@ -52,11 +51,9 @@ class QueueClass(ProtocolClass):
     args.write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 50, 10, args) )
 
-    # In order to ensure that callbacks are paired up with the right declaration
-    # call, we must have an item in the callback list for each synch declaration.
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_declare_ok )
-    self._declare_cb.append( cb )
+      self._declare_cb.append( cb )
 
   def _recv_declare_ok(self, method_frame):
     queue = method_frame.args.read_shortstr()
@@ -66,13 +63,12 @@ class QueueClass(ProtocolClass):
     cb = self._declare_cb.pop(0)
     if cb: cb( queue, message_count, consumer_count )
     
-  def bind(self, queue, exchange, routing_key='', nowait=True, arguments=None, ticket=None, cb=None):
+  def bind(self, queue, exchange, routing_key='', nowait=True, arguments={}, ticket=None, cb=None):
     '''
     bind to a queue.
     '''
     # If a callback is defined, then we have to use synchronous transactions.
     if cb: nowait = False
-    if arguments is None: arguments = {}
 
     args = Writer()
     if ticket is not None:
@@ -86,11 +82,9 @@ class QueueClass(ProtocolClass):
     args.write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 50, 20, args) )
     
-    # In order to ensure that callbacks are paired up with the right declaration
-    # call, we must have an item in the callback list for each synch declaration.
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_bind_ok )
-    self._bind_cb.append( cb )
+      self._bind_cb.append( cb )
 
   def _recv_bind_ok(self, method_frame):
     # No arguments defined.
@@ -140,7 +134,7 @@ class QueueClass(ProtocolClass):
 
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_purge_ok )
-    self._purge_cb.append( cb )
+      self._purge_cb.append( cb )
 
   def _recv_purge_ok(self, method_frame):
     message_count = method_frame.args.read_long()
@@ -168,7 +162,7 @@ class QueueClass(ProtocolClass):
 
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_delete_ok )
-    self._delete_cb.append( cb )
+      self._delete_cb.append( cb )
 
   def _recv_delete_ok(self, method_frame):
     message_count = method_frame.args.read_long()

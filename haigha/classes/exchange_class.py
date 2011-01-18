@@ -16,7 +16,7 @@ class ExchangeClass(ProtocolClass):
 
 
   def declare(self, exchange, type, passive=False, durable=False,\
-      auto_delete=True, internal=False, nowait=False, arguments=None, ticket=None):
+      auto_delete=True, internal=False, nowait=True, arguments=None, ticket=None):
     """
     Declare the exchange.
 
@@ -44,7 +44,7 @@ class ExchangeClass(ProtocolClass):
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_declare_ok )
     
-  def delete(self, exchange, if_unused=False, nowait=False, ticket=None):
+  def delete(self, exchange, if_unused=False, nowait=True, ticket=None):
     '''
     Delete an exchange.
     '''

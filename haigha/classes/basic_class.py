@@ -88,11 +88,13 @@ class BasicClass(ProtocolClass):
     consumer_tag = method_frame.args.read_shortstr()
     self._consumer_cb[ consumer_tag ] = self._pending_consumers.pop(0)
 
-  def cancel(self, consumer_tag='', nowait=False, consumer=None, cb=None):
+  def cancel(self, consumer_tag='', nowait=True, consumer=None, cb=None):
     '''
     Cancel a consumer. Can choose to delete based on a consumer tag or the
     function which is consuming.  If deleting by function, take care to only
     use a consumer once per channel.
+
+    Callbacks only apply if nowait=False
     '''
     if consumer:
       for (tag,func) in self._consumer_cb.iteritems():
@@ -105,10 +107,9 @@ class BasicClass(ProtocolClass):
     args.write_bit(nowait)
     self.send_frame( MethodFrame(self.channel_id, 60, 30, args) )
 
-    self._cancel_cb.append( cb )
-
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_cancel_ok )
+      self._cancel_cb.append( cb )
     else:
       try:
         del self._consumer_cb[consumer_tag]
@@ -185,8 +186,7 @@ class BasicClass(ProtocolClass):
     msg = self._message_from_frames( content_frames[1:], delivery_info, **header.properties )
 
     func = self._consumer_cb.get(consumer_tag, None)
-    if func is not None:
-      func(msg)
+    if func is not None: func(msg)
 
   def get(self, queue, consumer, no_ack=True, ticket=None):
     '''
@@ -233,11 +233,10 @@ class BasicClass(ProtocolClass):
       'message_count' : message_count,
     }
     header = content_frames[0]
-    msg = self._message_from_frames( content_frames[1:], delivery_info )
+    msg = self._message_from_frames( content_frames[1:], delivery_info, **header.properties )
 
     cb = self._get_cb.pop(0)
-    if cb is not None:
-      cb( msg )
+    if cb is not None: cb( msg )
 
   def _recv_get_empty(self):
     self._get_cb.pop(0)
@@ -267,7 +266,7 @@ class BasicClass(ProtocolClass):
     '''
     Redeliver all unacknowledged messaages on this channel.
     
-    DEPRECATED
+    This method is deprecated in favour of the synchronous recover/recover-ok
     '''
     args = Writer()
     args.write_bit( requeue )
@@ -281,12 +280,15 @@ class BasicClass(ProtocolClass):
     args = Writer()
     args.write_bit( requeue )
 
+    # The XML spec is incorrect; this method is synchronous
+    #  http://lists.rabbitmq.com/pipermail/rabbitmq-discuss/2011-January/010738.html
     self._recover_cb.append( cb )
     self.send_frame( MethodFrame(self.channel_id, 60, 110, args) )
+    self.channel.add_synchronous_cb( self._recv_recover_ok )
 
   def _recv_recover_ok(self):
     cb = self._recover_cb.pop(0)
-    if cb: cb()
+    if cb is not None: cb()
 
   def _message_from_frames(self, content_frames, delivery_info=None, **properties):
     # NOTE: Using a buffer here for joining to reduce space, but also to set
