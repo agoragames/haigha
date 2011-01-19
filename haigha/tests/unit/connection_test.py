@@ -1,7 +1,7 @@
 import mox
 import logging
 
-from haigha import connection
+from haigha import connection, VERSION
 from haigha.connection import Connection
 
 class ConnectionTestCase(mox.MoxTestBase):
@@ -79,7 +79,7 @@ class ConnectionTestCase(mox.MoxTestBase):
     self.assertEqual( None, conn._client_properties )
     self.assertEqual( conn._properties, {
       'library': 'Haigha',
-      'library_version': '0.1.0',
+      'library_version': VERSION,
     } )
     self.assertFalse( conn._closed )
     self.assertFalse( conn._connected )
