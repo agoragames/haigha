@@ -29,8 +29,43 @@ class MessageTest(mox.MoxTestBase):
     m = Message( 'foo', 'delivery', foo='bar' )
     self.assertEquals( 'foo', m.body.read() )
     self.assertEquals( 'foo', m.body_text )
+    self.assertEquals( 3, m.body_len )
     self.assertEquals( 'delivery', m.delivery_info )
     self.assertEquals( {'foo':'bar'}, m.properties )
+
+  def test_len(self):
+    m = Message('foobar')
+    self.assertEquals( 6, len(m) )
+
+  def test_nonzero(self):
+    m = Message()
+    self.assertTrue( m )
+
+  def test_eq(self):
+    l=Message(); r=Message()
+    self.assertEquals( l, r )
+
+    l=Message('foo'); r=Message('foo')
+    self.assertEquals( l, r )
+
+    l=Message(foo='bar'); r=Message(foo='bar')
+    self.assertEquals( l, r )
+
+    l=Message('hello', foo='bar'); r=Message('hello', foo='bar')
+    self.assertEquals( l, r )
+
+    l=Message('foo'); r=Message('bar')
+    self.assertNotEquals( l, r )
+
+    l=Message(foo='bar'); r=Message(foo='brah')
+    self.assertNotEquals( l, r )
+
+    l=Message('hello', foo='bar'); r=Message('goodbye', foo='bar')
+    self.assertNotEquals( l, r )
+
+    l=Message('hello', foo='bar'); r=Message('hello', foo='brah')
+    self.assertNotEquals( l, r )
+
 
   def test_str(self):
     m = Message( 'foo', 'delivery', foo='bar' )

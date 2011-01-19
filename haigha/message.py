@@ -40,6 +40,16 @@ class Message(object):
   def __len__(self):
     return self.body_len
 
+  def __nonzero__(self):
+    '''Have to define this because length is defined.'''
+    return True
+
+  def __eq__(self, rhs):
+    if isinstance(rhs,Message):
+      return self.properties == rhs.properties and \
+             self.body_text == rhs.body_text
+    return False
+
   @property
   def delivery_info(self):
     return self._delivery_info
