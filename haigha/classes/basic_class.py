@@ -141,15 +141,11 @@ class BasicClass(ProtocolClass):
     args.write_bit(immediate)
 
     self.send_frame( MethodFrame(self.channel_id, 60, 40, args) )
-    self.send_frame( HeaderFrame(self.channel_id, 60, 0, len(msg.body), msg.properties) )
+    self.send_frame( HeaderFrame(self.channel_id, 60, 0, len(msg), msg.properties) )
 
-    idx = 0
     frame_max = self.channel.connection.frame_max
-    while idx < len(msg.body):
-      start = idx
-      end = start + frame_max - 8
-      self.send_frame( ContentFrame(self.channel_id, msg.body[start:end]) )
-      idx = end
+    for frame in ContentFrame.create_frames(self.channel_id, msg.body, frame_max):
+      self.send_frame( frame )
 
   def return_msg(self, reply_code, reply_text, exchange, routing_key):
     '''

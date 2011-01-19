@@ -30,6 +30,17 @@ class Message(object):
     return self._body.getvalue()
 
   @property
+  def body_len(self):
+    pos = self._body.tell()
+    self._body.seek(0, 2)
+    rval = self._body.tell()
+    self._body.seek(pos)
+    return rval
+
+  def __len__(self):
+    return self.body_len
+
+  @property
   def delivery_info(self):
     return self._delivery_info
 

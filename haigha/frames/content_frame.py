@@ -16,7 +16,22 @@ class ContentFrame(Frame):
 
   @classmethod
   def parse(self, channel_id, payload):
-    return ContentFrame( channel_id, payload)
+    return ContentFrame( channel_id, payload )
+
+  @classmethod
+  def create_frames(self, channel_id, buf, frame_max):
+    '''
+    A generator which will create frames from a buffer given a max
+    frame size.
+    '''
+    # Not happy about reading from a buffer only to put it back into
+    # a buffer.  These kinds of things will be fixed someday.
+    buf.seek(0)
+    size = frame_max - 8   # 8 bytes overhead for frame header and footer
+    while True:
+      payload = buf.read( size )
+      if len(payload)==0: break
+      yield ContentFrame(channel_id, payload)
     
   def __init__(self, channel_id, payload):
     Frame.__init__(self, channel_id)
