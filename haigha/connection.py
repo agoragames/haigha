@@ -170,7 +170,7 @@ class Connection(object):
     so that it can be reconnected.  All channels (except our own) are nuked as
     they'll be useless when we reconnect.
     '''
-    self.connected = False
+    self._connected = False
     if self._sock!=None:
       self._sock.close_cb = None
       self._sock.close()
@@ -187,7 +187,7 @@ class Connection(object):
   def add_reconnect_callback(self, callback):
     '''Adds a reconnect callback to the strategy.  This can be used to
     resubscribe to exchanges, etc.'''
-    self.strategy.reconnect_callbacks.append(callback)
+    self._strategy.reconnect_callbacks.append(callback)
 
   ###
   ### EventSocket callbacks
