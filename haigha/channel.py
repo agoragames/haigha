@@ -143,7 +143,7 @@ class Channel(object):
     '''
     if self.closed:
       if self.close_info and len(self.close_info['reply_text'])>0:
-        raise ConnectionClosed(
+        raise ChannelClosed(
           "channel %d is closed: %s : %s",
           self.channel_id,
           self.close_info['reply_code'],
