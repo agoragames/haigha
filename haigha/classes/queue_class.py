@@ -166,5 +166,5 @@ class QueueClass(ProtocolClass):
 
   def _recv_delete_ok(self, method_frame):
     message_count = method_frame.args.read_long()
-    cb = self._purge_cb.pop(0)
+    cb = self._delete_cb.pop(0)
     if cb: cb( message_count )
