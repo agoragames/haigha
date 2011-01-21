@@ -8,9 +8,6 @@ from haigha.writer import Writer
 
 class WriterTest(mox.MoxTestBase):
 
-  def setUp(self):
-    mox.MoxTestBase.setUp( self )
-
   def test_write_methods(self):
     writer = Writer()
     writer.write( 'foo' )

@@ -83,8 +83,7 @@ class Channel(object):
     is supplied, will be called when the transaction is committed.
     '''
     cb = kwargs.pop('cb', None)
-    if not self.tx.enabled:
-      self.tx.select()
+    self.tx.select()
     self.basic.publish( *args, **kwargs )
     self.tx.commit( cb=cb )
 
