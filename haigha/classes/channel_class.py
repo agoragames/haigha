@@ -114,8 +114,11 @@ class ChannelClass(ProtocolClass):
     '''
     Close this channel.  Caller has the option of specifying the reason for
     closure and the class and method ids of the current frame in which an error
-    occurred.
+    occurred.  If in the event of an exception, the channel will be marked
+    as immediately closed.  If channel is already closed, call is ignored.
     '''
+    if self._closed: return
+
     self._close_info = {
       'reply_code'    : reply_code,
       'reply_text'    : reply_text,
@@ -123,14 +126,19 @@ class ChannelClass(ProtocolClass):
       'method_id'     : method_id
     }
 
-    args = Writer()
-    args.write_short( reply_code )
-    args.write_shortstr( reply_text )
-    args.write_short( class_id )
-    args.write_short( method_id )
-    self.send_frame( MethodFrame(self.channel_id, 20, 40, args) )
-    
-    self.channel.add_synchronous_cb( self._recv_close_ok )
+    try:
+      args = Writer()
+      args.write_short( reply_code )
+      args.write_shortstr( reply_text )
+      args.write_short( class_id )
+      args.write_short( method_id )
+      self.send_frame( MethodFrame(self.channel_id, 20, 40, args) )
+      
+      self.channel.add_synchronous_cb( self._recv_close_ok )
+    except:
+      self.logger.error("Failed to close channel %d", 
+        self.channel_id, exc_info=True)
+      self._closed = True
 
   def _recv_close(self, method_frame):
     '''

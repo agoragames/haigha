@@ -294,15 +294,15 @@ class Connection(object):
     rval.open()
     return rval
 
-  def close(self):
+  def close(self, reply_code=0, reply_text='', class_id=0, method_id=0):
     '''
     Close this connection.
     '''
     self._close_info = {
-      'reply_code'    : 0,  #reply_code,
-      'reply_text'    : '', #reply_text,
-      'class_id'      : 0,  #method_sig[0],
-      'method_id'     : 0,  #method_sig[1]
+      'reply_code'    : reply_code,
+      'reply_text'    : reply_text,
+      'class_id'      : class_id,
+      'method_id'     : method_id
     }
     self._channels[0].close()
 

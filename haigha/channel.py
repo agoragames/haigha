@@ -34,7 +34,7 @@ class Channel(object):
 
     self._pending_events = []
 
-    self._input_frame_buffer = []
+    self._frame_buffer = []
     self._input_event = None
 
   @property
@@ -51,8 +51,6 @@ class Channel(object):
 
   @property
   def closed(self):
-    # Because this is called everytime in send_frame, perhas it should be
-    # assigned directly as the property to avoid the extra method call
     return self.channel.closed
 
   @property
@@ -65,11 +63,11 @@ class Channel(object):
     '''
     self.channel.open()
 
-  def close(self):
+  def close(self, reply_code=0, reply_text='', class_id=0, method_id=0):
     '''
     Close this channel.  Routes to channel.close.
     '''
-    self.channel.close()
+    self.channel.close(reply_code, reply_text, class_id, method_id)
 
   def publish(self, *args, **kwargs):
     '''
@@ -93,7 +91,8 @@ class Channel(object):
     '''
     klass = self._class_map.get( method_frame.class_id )
     if klass:
-      self.logger.debug("Channel %d dispatching class_id : %s ", self.channel_id, method_frame.class_id)
+      self.logger.debug("Channel %d dispatching class_id : %s ", 
+        self.channel_id, method_frame.class_id)
       klass.dispatch( method_frame, *content_frames)
     else:
       raise Channel.InvalidClass( "class %d is not support on channel %d", 
@@ -104,28 +103,50 @@ class Channel(object):
     Buffer an input frame.  Will append to current list of frames and ensure
     there's a pending event to process the queue.
     '''
-    self._input_frame_buffer.append( frame )
+    self._frame_buffer.append( frame )
     if self._input_event is None:
       self._input_event = event.timeout(0, self._process_frames)
-  
+
   def _process_frames(self):
     '''
     Process the input buffer.
     '''
     self._input_event = None
 
-    while len(self._input_frame_buffer):
+    while len(self._frame_buffer):
       content_frames = None
-      frame = self._input_frame_buffer.pop(0)
+      frame = self._frame_buffer.pop(0)
 
-      if len( self._input_frame_buffer ) and isinstance(self._input_frame_buffer[0],HeaderFrame):
-        header = self._input_frame_buffer.pop(0)
-        content_frames = []
-        while sum( [len(cf.payload) for cf in content_frames] ) < header.size:
-          content_frames.append( self._input_frame_buffer.pop(0) )
-          if not isinstance( content_frames[-1], ContentFrame ):
-            raise Exception("Invalid content frame %s", content_frames[-1])
-        content_frames.insert(0, header)
+      if isinstance(frame, (HeaderFrame,ContentFrame)):
+        self.connection.close(
+          505, 
+          "Unexpected %s on channel %d"%(frame.__class__.__name__, self.channel_id)
+        )
+        return
+
+      if len(self._frame_buffer) and isinstance(self._frame_buffer[0],HeaderFrame):
+        header = self._frame_buffer.pop(0)
+        content_frames = [ header ]
+        total = 0
+        while total < header.size and len(self._frame_buffer):
+          content = self._frame_buffer.pop(0)
+          content_frames.append( content )
+          if not isinstance( content, ContentFrame ):
+            self.connection.close(
+              505, 
+              "Expecting content frame, received %s on channel %d"%\
+                (frame.__class__.__name__, self.channel_id)
+            )
+            return
+          total += len( content.payload )
+
+        # If not all content arrived yet, re-queue and abort.  By definition
+        # there were no non-content frames left in the buffer because that
+        # would have resulted in an error.
+        if total < header.size:
+          self._frame_buffer.append( frame )
+          self._frame_buffer.extend( content_frames )
+          return
       
       try:
         if content_frames:
@@ -133,7 +154,9 @@ class Channel(object):
         else:
           self.dispatch(frame)
       except:
-        self.logger.error( "Failed to dispatch %s, %s, remaining buffer %s", frame, content_frames, self._input_frame_buffer, exc_info=True )
+        self.logger.error( 
+          "Failed to dispatch %s, %s", frame, content_frames, exc_info=True )
+        self.close( 500, "Failed to dispatch %s"%(str(frame)) )
 
   def send_frame(self, frame):
     '''
@@ -150,9 +173,14 @@ class Channel(object):
       raise ChannelClosed()
 
 
-    if not len(self._pending_events) or isinstance(self._pending_events[0],Frame):
+    # If there's any pending event at all, then it means that when the current
+    # dispatch loop started, all possible frames were flushed and the remaining
+    # item(s) starts with a sync callback.  After careful consideration, it
+    # seems that it's safe to assume the len>0 means to buffer the frame. The
+    # other advantage here is 
+    if not len(self._pending_events):
       if not self.channel.active and isinstance( frame, (ContentFrame,HeaderFrame) ):
-        raise Inactive( "Channel %s flow control activated", self.channel_id )
+        raise Channel.Inactive( "Channel %d flow control activated", self.channel_id )
       self._connection.send_frame(frame)
     else:
       self._pending_events.append( frame )
@@ -171,18 +199,18 @@ class Channel(object):
     '''
     if len(self._pending_events):
       ev = self._pending_events[0]
-      if not isinstance(ev,Frame):
-        # We can't have a strict check using this simple mechanism, because we
-        # could be waiting for a synch response while messages are being published.
-        # So for now, if it's not in the list, do a check to see if the callback
-        # is in the pending list, and if so, then raise, because it means we
-        # received stuff out of order.  Else just pass it through.
-        # Note that this situation could happen on any broker-initiated message.
-        if ev==cb:
-          self._pending_events.pop(0)
-          self._flush_pending_events()
-        elif cb in self._pending_events:
-          raise Channel.ChannelError("Expected synchronous callback %s, called %s", ev, cb)
+
+      # We can't have a strict check using this simple mechanism, because we
+      # could be waiting for a synch response while messages are being published.
+      # So for now, if it's not in the list, do a check to see if the callback
+      # is in the pending list, and if so, then raise, because it means we
+      # received stuff out of order.  Else just pass it through.
+      # Note that this situation could happen on any broker-initiated message.
+      if ev==cb:
+        self._pending_events.pop(0)
+        self._flush_pending_events()
+      elif cb in self._pending_events:
+        raise ChannelError("Expected synchronous callback %s, got %s", ev, cb)
 
   def _flush_pending_events(self):
     '''
