@@ -171,7 +171,7 @@ class BasicClass(ProtocolClass):
     routing_key = method_frame.args.read_shortstr()
 
     delivery_info = {
-      'channel': self,
+      'channel': self.channel,
       'consumer_tag': consumer_tag,
       'delivery_tag': delivery_tag,
       'redelivered': redelivered,
@@ -221,7 +221,7 @@ class BasicClass(ProtocolClass):
     message_count = method_frame.args.read_long()
     
     delivery_info = {
-      'channel': self,
+      'channel': self.channel,
       'delivery_tag': delivery_tag,
       'redelivered': redelivered,
       'exchange': exchange,

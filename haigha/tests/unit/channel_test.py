@@ -1,7 +1,5 @@
 
 import mox
-from datetime import datetime
-from cStringIO import StringIO
 import event
 
 from haigha.channel import Channel
