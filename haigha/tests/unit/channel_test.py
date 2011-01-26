@@ -1,6 +1,5 @@
 
 import mox
-import event
 
 from haigha.channel import Channel
 from haigha.exceptions import ChannelError, ChannelClosed
@@ -25,7 +24,6 @@ class ChannelTest(mox.MoxTestBase):
     self.assertEquals( c._class_map[90], c.tx )
     self.assertEquals( [], c._pending_events )
     self.assertEquals( [], c._frame_buffer )
-    self.assertEquals( None, c._input_event )
 
   def test_properties(self):
     connection = self.create_mock_anything()
@@ -91,25 +89,18 @@ class ChannelTest(mox.MoxTestBase):
 
   def test_buffer_frame(self):
     c = Channel(None,None)
-    self.mock(event, 'timeout')
-
-    event.timeout( 0, c._process_frames ).AndReturn( 'pending_event' )
-
     self.replay_all()
     c.buffer_frame( 'f1' )
     c.buffer_frame( 'f2' )
-    self.assertEquals( 'pending_event', c._input_event )
     self.assertEquals( ['f1', 'f2'], c._frame_buffer )
 
   def test_process_frames_when_no_frames(self):
     # Not that this should ever happen, but to be sure
     c = Channel(None,None)
-    c._input_event = 'foo'
     self.mock( c, 'dispatch' )
 
     self.replay_all()
-    c._process_frames()
-    self.assertEquals( None, c._input_event )
+    c.process_frames()
 
   def test_process_frames_when_just_a_method_frame(self):
     c = Channel(None, None)
@@ -120,7 +111,7 @@ class ChannelTest(mox.MoxTestBase):
     c.dispatch( frame )
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
     self.assertEquals( [], c._frame_buffer )
 
   def test_process_frames_when_just_a_heartbeat_frame(self):
@@ -132,7 +123,7 @@ class ChannelTest(mox.MoxTestBase):
     c.dispatch( frame )
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
     self.assertEquals( [], c._frame_buffer )
 
   def test_process_frames_when_just_a_header_or_content_frame(self):
@@ -145,8 +136,8 @@ class ChannelTest(mox.MoxTestBase):
     conn.close(505, mox.IsA(str))
 
     self.replay_all()
-    c._process_frames()
-    c._process_frames()
+    c.process_frames()
+    c.process_frames()
 
   def test_process_frames_when_includes_just_a_header_frame(self):
     c = Channel(None, None)
@@ -156,7 +147,7 @@ class ChannelTest(mox.MoxTestBase):
     c._frame_buffer = [ method_frame, header_frame ]
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
     self.assertEquals( [method_frame, header_frame], c._frame_buffer )
 
   def test_process_frames_when_includes_all_content(self):
@@ -170,7 +161,7 @@ class ChannelTest(mox.MoxTestBase):
     c.dispatch( method_frame, header_frame, content_frame )
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
     self.assertEquals( [], c._frame_buffer )
 
   def test_process_frames_when_partial_content(self):
@@ -182,7 +173,7 @@ class ChannelTest(mox.MoxTestBase):
     c._frame_buffer = [ method_frame, header_frame, content_frame ]
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
     self.assertEquals( [method_frame, header_frame, content_frame], c._frame_buffer )
 
   def test_process_frames_when_partial_content_followed_by_another_frame(self):
@@ -197,7 +188,7 @@ class ChannelTest(mox.MoxTestBase):
     conn.close( 505, mox.IsA(str) )
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
 
   def test_process_frames_processes_the_whole_buffer(self):
     c = Channel(None, None)
@@ -214,7 +205,7 @@ class ChannelTest(mox.MoxTestBase):
     c.dispatch( heart )
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
     self.assertEquals( [], c._frame_buffer )
 
   def test_process_frames_handles_dispatch_error_by_closing_channel(self):
@@ -231,7 +222,7 @@ class ChannelTest(mox.MoxTestBase):
     c.close( 500, mox.IsA(str) )
 
     self.replay_all()
-    c._process_frames()
+    c.process_frames()
     self.assertEquals( [], c._frame_buffer )
 
   def test_send_frame_when_not_closed_no_flow_control_no_pending_events(self):

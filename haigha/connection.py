@@ -347,9 +347,13 @@ class Connection(object):
       buffer = self._sock.read()     # StringIO buffer
       
       try:
+        p_channels = set()
         for frame in Frame.read_frames(buffer):
           self._frames_read += 1
-          self.channel( frame.channel_id ).buffer_frame( frame )
+          ch = self.channel( frame.channel_id )
+          ch.buffer_frame( frame )
+          p_channels.add( ch )
+        event.timeout(0, self._process_channels, p_channels)
       except Frame.FrameError as e:
         self.logger.exception( "Framing error", exc_info=True )
 
@@ -382,6 +386,10 @@ class Connection(object):
 
     except Exception, e:
       self.logger.error( "read_frame error", exc_info=True )
+
+  def _process_channels(self, channels):
+    for channel in channels:
+      channel.process_frames()
 
   def _flush_buffered_frames(self):
     # In the rare case (a bug) where this is called but send_frame thinks

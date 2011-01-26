@@ -1,5 +1,3 @@
-import event
-
 from haigha.classes import *
 from haigha.frames import Frame, HeaderFrame, ContentFrame
 from haigha.exceptions import *
@@ -35,7 +33,6 @@ class Channel(object):
     self._pending_events = []
 
     self._frame_buffer = []
-    self._input_event = None
 
   @property
   def connection(self):
@@ -104,15 +101,11 @@ class Channel(object):
     there's a pending event to process the queue.
     '''
     self._frame_buffer.append( frame )
-    if self._input_event is None:
-      self._input_event = event.timeout(0, self._process_frames)
 
-  def _process_frames(self):
+  def process_frames(self):
     '''
     Process the input buffer.
     '''
-    self._input_event = None
-
     while len(self._frame_buffer):
       content_frames = None
       frame = self._frame_buffer.pop(0)
