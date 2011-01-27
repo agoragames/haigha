@@ -8,6 +8,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from StringIO import StringIO
+from collections import deque
 
 class Writer(object):
   """
@@ -19,7 +20,7 @@ class Writer(object):
   """
 
   def __init__(self):
-    self._output_buffer = []
+    self._output_buffer = deque()
 
   def flush(self, stream):
     '''Flush the output to the stream. Stream must be a file object.'''
@@ -91,8 +92,6 @@ class Writer(object):
 
   def _write_octet(self, n, stream):
     '''Write an octet to the output stream.'''
-    if (n < 0) or (n > 255):
-      raise ValueError('Octet %d out of range 0..255', n)
     self._flush_bits( stream )
     stream.write(pack('B', n))
 
@@ -106,8 +105,6 @@ class Writer(object):
 
   def _write_short(self, n, stream):
     '''Write the short to the output stream.'''
-    if (n < 0) or (n > 65535):
-      raise ValueError('Octet %d out of range 0..65535', n)
     self._flush_bits( stream )
     stream.write(pack('>H', n))
 
@@ -121,8 +118,6 @@ class Writer(object):
 
   def _write_long(self, n, stream):
     '''Write the long to a stream.'''    
-    if (n < 0) or (n >= (2**32)):
-      raise ValueError('Octet %d out of range 0..2**31-1', n)
     self._flush_bits( stream )
     stream.write(pack('>I', n))
 
@@ -136,8 +131,6 @@ class Writer(object):
 
   def _write_longlong(self, n, stream):
     '''Write the longlong to a stream.'''
-    if (n < 0) or (n >= (2**64)):
-      raise ValueError('Octet %d out of range 0..2**64-1', n)
     self._flush_bits( stream )
     stream.write(pack('>Q', n))
 
@@ -154,8 +147,6 @@ class Writer(object):
 
   def _write_shortstr(self, s, stream):
     '''Write the string to the stream.'''
-    if len(s) > 255:
-      raise ValueError('String too long')
     self._flush_bits( stream )
     self._write_octet(len(s), stream) # also flushes bits
     stream.write(s)
