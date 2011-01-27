@@ -19,10 +19,10 @@ class ChannelClass(ProtocolClass):
 
     self._closed = False
     self._close_info = {
-      'reply_code'    : -1,
+      'reply_code'    : 0,
       'reply_text'    : 'first connect',
-      'class_id'      : -1,
-      'method_id'     : -1
+      'class_id'      : 0,
+      'method_id'     : 0
     }
 
     self._active = True
