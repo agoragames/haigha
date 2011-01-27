@@ -89,7 +89,7 @@ class ChannelTest:
   def _publish(self):
     self._count += 1
     if not self._ch.closed:
-      msg = Message( body="%.06f"%(time.time()) )
+      msg = Message( body='hello world' )
 
       if self._transactions:
         self._ch.publish_synchronous( msg, exchange=self._exchange, routing_key=self._queue, cb=self._published )
@@ -113,6 +113,7 @@ parser.add_option('--pass', default='guest', dest='password', type='string')
 parser.add_option('--vhost', default='/', type='string')
 parser.add_option('--host', default='localhost', type='string')
 parser.add_option('--tx', default=False, action='store_true' )
+parser.add_option('--profile', default=False, action='store_true' )
 parser.add_option('--channels', default=500, type='int')
 parser.add_option('--debug', default=0, action='count')
 parser.add_option('--time', default=0, type='int')
@@ -148,5 +149,9 @@ if options.time:
 
 t_start = time.time()
 event.signal( signal.SIGINT, sigint_cb )
-event.dispatch()
 
+if options.profile:
+  import cProfile
+  cProfile.run( 'event.dispatch()', 'profile.pstats' )
+else:
+  event.dispatch()
