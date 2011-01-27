@@ -1,3 +1,5 @@
+from collections import deque
+
 from haigha.classes import *
 from haigha.frames import Frame, HeaderFrame, ContentFrame
 from haigha.exceptions import *
@@ -32,7 +34,7 @@ class Channel(object):
 
     self._pending_events = []
 
-    self._frame_buffer = []
+    self._frame_buffer = deque()
 
   @property
   def connection(self):
@@ -82,15 +84,13 @@ class Channel(object):
     self.basic.publish( *args, **kwargs )
     self.tx.commit( cb=cb )
 
-  def dispatch(self, method_frame, *content_frames):
+  def dispatch(self, method_frame, content_frames):
     '''
     Dispatch a method.
     '''
     klass = self._class_map.get( method_frame.class_id )
     if klass:
-      self.logger.debug("Channel %d dispatching class_id : %s ", 
-        self.channel_id, method_frame.class_id)
-      klass.dispatch( method_frame, *content_frames)
+      klass.dispatch( method_frame, content_frames)
     else:
       raise Channel.InvalidClass( "class %d is not support on channel %d", 
         method_frame.class_id, self.channel_id )
@@ -108,7 +108,7 @@ class Channel(object):
     '''
     while len(self._frame_buffer):
       content_frames = None
-      frame = self._frame_buffer.pop(0)
+      frame = self._frame_buffer.popleft()
 
       if isinstance(frame, (HeaderFrame,ContentFrame)):
         self.connection.close(
@@ -118,11 +118,11 @@ class Channel(object):
         return
 
       if len(self._frame_buffer) and isinstance(self._frame_buffer[0],HeaderFrame):
-        header = self._frame_buffer.pop(0)
+        header = self._frame_buffer.popleft()
         content_frames = [ header ]
         total = 0
         while total < header.size and len(self._frame_buffer):
-          content = self._frame_buffer.pop(0)
+          content = self._frame_buffer.popleft()
           content_frames.append( content )
           if not isinstance( content, ContentFrame ):
             self.connection.close(
@@ -142,10 +142,7 @@ class Channel(object):
           return
       
       try:
-        if content_frames:
-          self.dispatch(frame, *content_frames)
-        else:
-          self.dispatch(frame)
+        self.dispatch(frame, content_frames)
       except:
         self.logger.error( 
           "Failed to dispatch %s, %s", frame, content_frames, exc_info=True )
