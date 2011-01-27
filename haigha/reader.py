@@ -21,12 +21,12 @@ class Reader(object):
     source should be either a file-like object with a read() and tell() method, 
     a plain or unicode string.
     """
-    if isinstance(source, str):
+    if hasattr(source, 'read'):
+      self.input = source
+    elif isinstance(source, str):
       self.input = StringIO(source)
     elif isinstance(source, unicode):
       self.input = StringIO(source.encode('utf8'))
-    elif hasattr(source, 'read') and hasattr(source,'tell'):
-      self.input = source
     else:
       raise ValueError('Reader needs a file-like object or plain string')
 
@@ -52,16 +52,16 @@ class Reader(object):
 
   def read_bit(self):
     """
-    Read a single boolean value.
+    Read a single boolean value, returns 0 or 1.
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     """
     if not self.bitcount:
       self.bits = ord( self.read(1) )
-      self.bitcount = 8
-    result = (self.bits & 1) == 1
+      self.bitcount = 0xFF
+    result = self.bits & 1
     self.bits >>= 1
-    self.bitcount -= 1
+    self.bitcount >>= 1
     return result
 
   def read_octet(self):
@@ -103,14 +103,14 @@ class Reader(object):
   def read_shortstr(self):
     """
     Read a utf-8 encoded string that's stored in up to
-    255 bytes.  Return it decoded as a Python unicode object.
+    255 bytes.
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise UnicodeDecodeError if the text is mal-formed.
     Will raise struct.error if the data is malformed
     """
     slen = unpack('B', self.read(1))[0]
-    return self.read(slen).decode('utf-8')
+    return self.read(slen)
 
   def read_longstr(self):
     """
