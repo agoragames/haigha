@@ -66,10 +66,10 @@ class Connection(object):
     self._connected = False
     self._output_buffer = []
     self._close_info = {
-      'reply_code'    : -1,
+      'reply_code'    : 0,
       'reply_text'    : 'first connect',
-      'class_id'      : -1,
-      'method_id'     : -1
+      'class_id'      : 0,
+      'method_id'     : 0
     }
     
     self._channels = {
@@ -441,11 +441,11 @@ class ConnectionChannel(Channel):
       51 : self._recv_close_ok,
     }
 
-  def dispatch(self, frame, *content_frames):
+  def dispatch(self, frame, content_frames):
     '''
     Override the default dispatch since we don't need the rest of the stack.
     '''
-    if len(content_frames):
+    if content_frames:
       raise Frame.FrameError("504: content frames on channel %d", self.channel_id)
 
     if frame.type()==HeartbeatFrame.type():
@@ -467,7 +467,7 @@ class ConnectionChannel(Channel):
       raise Frame.InvalidFrameType("frame type %d is not supported on channel %d",
         frame.type(), self.channel_id)
 
-  def close(self):
+  def close(self, reply_code=0, reply_text='', class_id=0, method_id=0):
     '''
     Close the main connection connection channel.
     '''
