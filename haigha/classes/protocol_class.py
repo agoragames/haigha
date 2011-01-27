@@ -31,7 +31,7 @@ class ProtocolClass(object):
   def default_ticket(self):
     return 0
 
-  def dispatch(self, method_frame, *content_frames):
+  def dispatch(self, method_frame, content_frames):
     '''
     Dispatch a method for this protocol.
     '''
@@ -45,7 +45,7 @@ class ProtocolClass(object):
       method = getattr(self, method.im_func.__name__)
       
       self.channel.clear_synchronous_cb( method )
-      if len(content_frames):
+      if content_frames:
         method(method_frame, *content_frames )
       else:
         method(method_frame)
