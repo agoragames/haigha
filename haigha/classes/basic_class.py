@@ -1,9 +1,10 @@
+from collections import namedtuple
+from io import BytesIO
+
 from haigha.message import Message
 from haigha.writer import Writer
 from haigha.frames import MethodFrame, HeaderFrame, ContentFrame
 from haigha.classes import ProtocolClass
-
-from cStringIO import StringIO
 
 class BasicClass(ProtocolClass):
   '''
@@ -163,7 +164,7 @@ class BasicClass(ProtocolClass):
   def _recv_return(self):
     pass
 
-  def _recv_deliver(self, method_frame, *content_frames):
+  def _recv_deliver(self, method_frame, header, *content_frames):
     consumer_tag = method_frame.args.read_shortstr()
     delivery_tag = method_frame.args.read_longlong()
     redelivered = method_frame.args.read_bit()
@@ -178,11 +179,10 @@ class BasicClass(ProtocolClass):
       'exchange': exchange,
       'routing_key': routing_key,
     }
-    header = content_frames[0]
-    msg = self._message_from_frames( content_frames[1:], delivery_info, **header.properties )
-
+    msg = self._message_from_frames( content_frames, delivery_info, header.properties )
+    
     func = self._consumer_cb.get(consumer_tag, None)
-    if func is not None: func(msg)
+    if func: func(msg)
 
   def get(self, queue, consumer, no_ack=True, ticket=None):
     '''
@@ -213,7 +213,7 @@ class BasicClass(ProtocolClass):
     elif method_frame.method_id==72:
       self._recv_get_empty( method_frame )
 
-  def _recv_get_ok(self, method_frame, *content_frames):
+  def _recv_get_ok(self, method_frame, header, *content_frames):
     delivery_tag = method_frame.args.read_longlong()
     redelivered = method_frame.args.read_bit()
     exchange = method_frame.args.read_shortstr()
@@ -228,11 +228,10 @@ class BasicClass(ProtocolClass):
       'routing_key': routing_key,
       'message_count' : message_count,
     }
-    header = content_frames[0]
-    msg = self._message_from_frames( content_frames[1:], delivery_info, **header.properties )
+    msg = self._message_from_frames( content_frames, delivery_info, header.properties )
 
     cb = self._get_cb.pop(0)
-    if cb is not None: cb( msg )
+    if cb: cb( msg )
 
   def _recv_get_empty(self):
     self._get_cb.pop(0)
@@ -286,14 +285,14 @@ class BasicClass(ProtocolClass):
     cb = self._recover_cb.pop(0)
     if cb is not None: cb()
 
-  def _message_from_frames(self, content_frames, delivery_info=None, **properties):
+  def _message_from_frames(self, content_frames, delivery_info, properties):
     # NOTE: Using a buffer here for joining to reduce space, but also to set
     # the stage for Message.body being an IO stream.  The plan is for ContentFrame
     # payload to be a slice of a buffer as received by the socket, and to use
     # "MultiIO" object to join them back together, so that the Message body
     # will be a handle to a seemless read of bytes directly out of memory that
     # the socket data was read into.
-    buffer = StringIO()
+    buffer = BytesIO()
     for frame in content_frames:
       buffer.write( frame.payload )
 
