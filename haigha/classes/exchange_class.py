@@ -33,11 +33,12 @@ class ExchangeClass(ProtocolClass):
       args.write_short(self.default_ticket)
     args.write_shortstr(exchange)
     args.write_shortstr(type)
-    args.write_bit(passive)
-    args.write_bit(durable)
-    args.write_bit(auto_delete)
-    args.write_bit(internal)
-    args.write_bit(nowait)
+    #args.write_bit(passive)
+    #args.write_bit(durable)
+    #args.write_bit(auto_delete)
+    #args.write_bit(internal)
+    #args.write_bit(nowait)
+    args.write_bits(passive, durable, auto_delete, internal, nowait)
     args.write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 40, 10, args) )
 
@@ -54,8 +55,9 @@ class ExchangeClass(ProtocolClass):
     else:
       args.write_short(self.default_ticket)
     args.write_shortstr(exchange)
-    args.write_bit(if_unused)
-    args.write_bit(nowait)
+    #args.write_bit(if_unused)
+    #args.write_bit(nowait)
+    args.write_bits(if_unused, nowait)
     self.send_frame( MethodFrame(self.channel_id, 40, 20, args) )
     
     if not nowait:

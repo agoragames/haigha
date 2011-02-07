@@ -24,14 +24,15 @@ class ContentFrame(Frame):
     A generator which will create frames from a buffer given a max
     frame size.
     '''
-    # Not happy about reading from a buffer only to put it back into
-    # a buffer.  These kinds of things will be fixed someday.
-    buf.seek(0)
     size = frame_max - 8   # 8 bytes overhead for frame header and footer
+    offset = 0
     while True:
-      payload = buf.read( size )
-      if len(payload)==0: break
+      payload = buf[offset:(offset+size)]
+      #if len(payload)==0: break
+      offset += size
+      
       yield ContentFrame(channel_id, payload)
+      if offset >= len(buf): break
     
   def __init__(self, channel_id, payload):
     Frame.__init__(self, channel_id)
@@ -40,8 +41,8 @@ class ContentFrame(Frame):
   def __str__(self):
     return "%s[channel: %d, payload: %s]"%( self.__class__.__name__, self.channel_id, self._payload )
 
-  def write_frame(self, stream):
-    writer = Writer()
+  def write_frame(self, buf):
+    writer = Writer( buf )
 
     writer.write_octet( self.type() )
     writer.write_short(self.channel_id)
@@ -50,7 +51,7 @@ class ContentFrame(Frame):
     writer.write( self._payload )
 
     writer.write_octet( 0xce )
-    writer.flush( stream )
+    #writer.flush( stream )
 
 
 ContentFrame.register()

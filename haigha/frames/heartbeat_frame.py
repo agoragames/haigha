@@ -21,13 +21,13 @@ class HeartbeatFrame(Frame):
   def parse(self, channel_id, payload):
     return HeartbeatFrame( channel_id )
 
-  def write_frame(self, stream):
-    writer = Writer()
+  def write_frame(self, buf):
+    writer = Writer(buf)
     writer.write_octet( self.type() )
     writer.write_short( self.channel_id )
     writer.write_long( 0 )
     writer.write_octet( 0xce )
-    writer.flush( stream )
+    #writer.flush( stream )
 
   def __init__(self, *args, **kwargs):
     Frame.__init__(self, *args, **kwargs)

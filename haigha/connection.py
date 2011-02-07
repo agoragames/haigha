@@ -3,6 +3,7 @@ from haigha.connection_strategy import ConnectionStrategy
 from eventsocket import EventSocket
 from haigha.frames import *
 from haigha.writer import Writer
+from haigha.reader import Reader
 from exceptions import *
 
 import event                        # http://code.google.com/p/pyevent/
@@ -11,6 +12,7 @@ import struct
 import haigha
 
 from cStringIO import StringIO
+from io import BytesIO
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from logging import root as root_logger
 
@@ -78,10 +80,11 @@ class Connection(object):
     
     login_response = Writer()
     login_response.write_table({'LOGIN': self._user, 'PASSWORD': self._password})
-    stream = StringIO()
-    login_response.flush(stream)
-    self._login_response = stream.getvalue()[4:]  #Skip the length
+    #stream = StringIO()
+    #login_response.flush(stream)
+    #self._login_response = stream.getvalue()[4:]  #Skip the length
                                                       #at the beginning
+    self._login_response = login_response.buffer()[4:]
     
     self._channel_counter = 0
     self._channel_max = 65535
@@ -96,6 +99,7 @@ class Connection(object):
     self._strategy.connect()
 
     self._output_frame_buffer = []
+    self._output_buffer = None
     
   @property
   def logger(self):
@@ -334,62 +338,52 @@ class Connection(object):
     '''
     Read frames from the socket.
     '''
+    # Because of the timer callback to dataRead when we re-buffered, there's a
+    # chance that in between we've lost the socket.  If that's the case, just
+    # silently return as some code elsewhere would have already notified us.
+    # That bug could be fixed by improving the message reading so that we consume
+    # all possible messages and ensure that only a partial message was rebuffered,
+    # so that we can rely on the next read event to read the subsequent message.
+    if self._sock is None:
+      return
+    
+    data = self._sock.read()
+    reader = Reader( data )
+    p_channels = set()
+    
     try:
-      # Because of the timer callback to dataRead when we re-buffered, there's a
-      # chance that in between we've lost the socket.  If that's the case, just
-      # silently return as some code elsewhere would have already notified us.
-      # That bug could be fixed by improving the message reading so that we consume
-      # all possible messages and ensure that only a partial message was rebuffered,
-      # so that we can rely on the next read event to read the subsequent message.
-      if self._sock is None:
-        return
+      frames = Frame.read_frames( reader )
+    except Frame.FrameError as e:
+      self.logger.exception( "Framing error", exc_info=True )
       
-      buffer = self._sock.read()     # StringIO buffer
-      
-      try:
-        p_channels = set()
-        for frame in Frame.read_frames(buffer):
-          self._frames_read += 1
-          ch = self.channel( frame.channel_id )
-          ch.buffer_frame( frame )
-          p_channels.add( ch )
-        event.timeout(0, self._process_channels, p_channels)
-      except Frame.FrameError as e:
-        self.logger.exception( "Framing error", exc_info=True )
+    for frame in frames:
+      self._frames_read += 1
+      ch = self.channel( frame.channel_id )
+      ch.buffer_frame( frame )
+      p_channels.add( ch )
 
-      # HACK: read the buffer contents and re-buffer.  Would prefer to pass
-      # buffer back, but there's no good way of asking the total size of the
-      # buffer, comparing to tell(), and then re-buffering.  There's also no
-      # ability to clear the buffer up to the current position.
-      # NOTE: This will be cleared up once eventsocket supports the 
-      # uber-awesome buffering scheme that will utilize mmap.
-      remaining = buffer.read()
-      if len(remaining)>0:
-        self._sock.buffer( remaining )
+    # Still not clear on what's the best approach here
+    self._process_channels( p_channels )
+    #event.timeout(0, self._process_channels, p_channels)
 
-        # If data remaining and no read error, re-schedule to continue processing
-        # the buffer.
-        # Consider not putting this on a delay, but rather calling it after
-        # processMessage().  Need to consider what affect this might have on IO.
-        # It would mandate that the client process as quickly as incoming data,
-        # else the broker might drop the connection.  In the end, it would likely
-        # be the case that only a few messages would be in the buffer at any one
-        # time.
-        # NOTE: I don't think this applies now because of the way Frame.read_frames()
-        # is implemented.  If there's anything remaining, it's because there is a
-        # single, partial frame remaining and the only way it will complete is if
-        # new data comes in on the socket, at which point we'll get an event and
-        # try this method again. @AW
-        # I created a ticket to sort this out @AW
-        #if not read_error:
-        #  event.timeout( 0, self._read_frames )
+    # HACK: read the buffer contents and re-buffer.  Would prefer to pass
+    # buffer back, but there's no good way of asking the total size of the
+    # buffer, comparing to tell(), and then re-buffering.  There's also no
+    # ability to clear the buffer up to the current position.
+    # NOTE: This will be cleared up once eventsocket supports the 
+    # uber-awesome buffering scheme that will utilize mmap.
+    if reader.tell() < len(data):
+      self._sock.buffer( data[reader.tell():] )
 
-    except Exception, e:
-      self.logger.error( "read_frame error", exc_info=True )
 
   def _process_channels(self, channels):
+    self._output_buffer = bytearray()
     for channel in channels:
       channel.process_frames()
+    
+    if len(self._output_buffer):
+      self._sock.write( self._output_buffer )
+    self._output_buffer = None
 
   def _flush_buffered_frames(self):
     # In the rare case (a bug) where this is called but send_frame thinks
@@ -410,14 +404,17 @@ class Connection(object):
       self._output_frame_buffer.append( frame )
       return
 
-    stream = StringIO()
-    frame.write_frame(stream)
+    if self._output_buffer is None:
+      buf = bytearray()
+      frame.write_frame(buf)
+      self._sock.write( buf )
+    else:
+      frame.write_frame( self._output_buffer )
+    
     self._frames_written += 1
     
     if self._debug > 1:
       self.logger.debug( "WRITE: %s", frame )
-  
-    self._sock.write(stream.getvalue())
     
 
 class ConnectionChannel(Channel):

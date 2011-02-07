@@ -2,8 +2,7 @@
 Defines the Reader class.
 """
 
-from cStringIO import StringIO
-from struct import unpack
+from struct import unpack, unpack_from, Struct
 from datetime import datetime
 from decimal import Decimal
 
@@ -14,29 +13,73 @@ class Reader(object):
 
   class ReaderError(Exception): '''Base class for all reader errors.'''
   class BufferUnderflow(ReaderError): '''Not enough bytes to satisfy the request.'''
-  class TableError(ReaderError): '''Unsupported table field type was read.'''
+  class FieldError(ReaderError): '''Unsupported field type was read.'''
 
-  def __init__(self, source):
+  def __init__(self, source, start_pos=0, size=None):
     """
-    source should be either a file-like object with a read() and tell() method, 
-    a plain or unicode string.
+    source should be a bytearray, io object with a read() method, another
+    Reader, a plain or unicode string.  
     """
-    if hasattr(source, 'read'):
-      self.input = source
+    # Note: buffer used here because unpack_from can't accept an array,
+    # which I think is related to http://bugs.python.org/issue7827
+    if isinstance(source, bytearray):
+      self._input = buffer(source)
+    elif isinstance(source, Reader):
+      self._input = source._input
+    elif hasattr(source, 'read'):
+      self._input = buffer( source.read() )
     elif isinstance(source, str):
-      self.input = StringIO(source)
+      self._input = buffer(source)
     elif isinstance(source, unicode):
-      self.input = StringIO(source.encode('utf8'))
+      self._input = buffer(source.encode('utf8'))
     else:
-      raise ValueError('Reader needs a file-like object or plain string')
+      raise ValueError('Reader needs a bytearray, io object or plain string')
 
-    self.bitcount = self.bits = 0
+    self._start_pos = self._pos = start_pos
+    self._end_pos = len(self._input)
+    if size:
+      self._end_pos = self._start_pos + size
 
   def __str__(self):
-    return ''.join( ['\\x%s'%(c.encode('hex')) for c in self.input.getvalue()] )
+    #return ''.join( ['\\x%s'%(c.encode('hex')) for c in self.input.getvalue()] )
+    return ''.join( ['\\x%s'%(c.encode('hex')) for c in self._input] )
 
-  def close(self):
-    self.input.close()
+  def tell(self):
+    '''
+    Current position
+    '''
+    return self._pos
+
+  def seek(self, offset, whence=0):
+    '''
+    Simple seek. Follows standard interface.
+    '''
+    if whence==0:
+      self._pos = self._start_pos + offset
+    elif whence==1:
+      self._pos += offset
+    else:
+      self._pos = ( self._end_pos-1 ) + offset
+
+  def _check_underflow(self, n):
+    '''
+    Raise BufferUnderflow if there's not enough bytes to satisfy the request.
+    '''
+    if self._pos+n > self._end_pos:
+      #print 'DEBUG: underflow ', self._pos, n, self._end_pos, len(self._input), str(self)
+      raise self.BufferUnderflow()
+
+  def __len__(self):
+    '''
+    Supports content framing in Channel
+    '''
+    return self._end_pos - self._start_pos
+
+  def buffer(self):
+    '''
+    Get a copy of the buffer that this is reading from. Returns a buffer object
+    '''
+    return buffer( self._input, self._start_pos, (self._end_pos-self._start_pos) )
 
   def read(self, n):
     """
@@ -44,61 +87,83 @@ class Reader(object):
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     """
-    self.bitcount = self.bits = 0
-    rval = self.input.read(n)
-    if len(rval) != n:
-      raise self.BufferUnderflow()
+    self._check_underflow(n)
+    rval = self._input[ self._pos:self._pos+n ]
+    self._pos += n
     return rval
 
   def read_bit(self):
     """
-    Read a single boolean value, returns 0 or 1.
+    Read a single boolean value, returns 0 or 1. Convience for single bit fields
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     """
-    if not self.bitcount:
-      self.bits = ord( self.read(1) )
-      self.bitcount = 0xFF
-    result = self.bits & 1
-    self.bits >>= 1
-    self.bitcount >>= 1
+    self._check_underflow(1)
+    result = ord(self._input[ self._pos ]) & 1
+    self._pos += 1
     return result
 
-  def read_octet(self):
+  def read_bits(self, num):
+    '''
+    Read several bits packed into the same field. Will return as a list. 
+
+    Will raise BufferUnderflow if there's not enough bytes in the buffer.
+    Will raise ValueError if num < 0 or num > 9
+    '''
+    self._check_underflow(1)
+    if num < 0 or num > 9: raise ValueError("8 bits per field")
+    field = ord(self._input[self._pos])
+    result = map(lambda x: field>>x & 1, xrange(num) )
+    self._pos += 1
+    return result
+
+  def read_octet(self, unpacker=Struct('B')):
     """
     Read one byte, return as an integer
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return unpack('B', self.read(1))[0]
+    self._check_underflow( unpacker.size )
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
 
-  def read_short(self):
+  def read_short(self, unpacker=Struct('>H')):
     """
     Read an unsigned 16-bit integer
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return unpack('>H', self.read(2))[0]
+    self._check_underflow( unpacker.size )
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
 
-  def read_long(self):
+  def read_long(self, unpacker=Struct('>I')):
     """
     Read an unsigned 32-bit integer
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return unpack('>I', self.read(4))[0]
+    self._check_underflow( unpacker.size )
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
 
-  def read_longlong(self):
+  def read_longlong(self, unpacker=Struct('>Q')):
     """
     Read an unsigned 64-bit integer
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return unpack('>Q', self.read(8))[0]
+    self._check_underflow( unpacker.size )
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
 
   def read_shortstr(self):
     """
@@ -109,7 +174,7 @@ class Reader(object):
     Will raise UnicodeDecodeError if the text is mal-formed.
     Will raise struct.error if the data is malformed
     """
-    slen = unpack('B', self.read(1))[0]
+    slen = self.read_octet()
     return self.read(slen)
 
   def read_longstr(self):
@@ -121,40 +186,9 @@ class Reader(object):
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    slen = unpack('>I', self.read(4))[0]
+    slen = self.read_long()
     return self.read(slen)
-
-  def read_table(self):
-    """
-    Read an AMQP table, and return as a Python dictionary.
-
-    Will raise BufferUnderflow if there's not enough bytes in the buffer.
-    Will raise UnicodeDecodeError if the text is mal-formed.
-    Will raise struct.error if the data is malformed
-    """
-    tlen = unpack('>I', self.read(4))[0]
-    end_pos = self.input.tell() + tlen
-    result = {}
-    while self.input.tell() < end_pos:
-      name = self.read_shortstr()
-      ftype = self.read(1)
-      if ftype == 'S':
-        val = self.read_longstr()
-      elif ftype == 'I':
-        val = unpack('>i', self.read(4))[0]
-      elif ftype == 'D':
-        d = self.read_octet()
-        n = unpack('>i', self.read(4))[0]
-        val = Decimal(n) / Decimal(10 ** d)
-      elif ftype == 'T':
-        val = self.read_timestamp()
-      elif ftype == 'F':
-        val = self.read_table()
-      else:
-        raise Reader.TableError('Unknown field type %s', ftype)
-      result[name] = val
-    return result
-
+  
   def read_timestamp(self):
     """
     Read and AMQP timestamp, which is a 64-bit integer representing
@@ -164,4 +198,147 @@ class Reader(object):
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return datetime.fromtimestamp(self.read_longlong())
+    return datetime.fromtimestamp( self.read_longlong() )
+
+  def read_table(self):
+    """
+    Read an AMQP table, and return as a Python dictionary.
+
+    Will raise BufferUnderflow if there's not enough bytes in the buffer.
+    Will raise UnicodeDecodeError if the text is mal-formed.
+    Will raise struct.error if the data is malformed
+    """
+    # Only need to check underflow on the table once
+    tlen = self.read_long()
+    self._check_underflow(tlen)
+    end_pos = self._pos + tlen
+    result = {}
+    while self._pos < end_pos:
+      name = self._table_shortstr()
+      result[name] = self._read_field()
+    return result
+
+  def _read_field(self):
+    '''
+    Read a single byte for field type, then read the value.
+    '''
+    ftype = self._input[ self._pos ]
+    self._pos += 1
+    
+    reader = field_type_map[ ftype ]
+    if reader:
+      return reader(self)
+
+    raise Reader.FieldError('Unknown field type %s', ftype)
+    
+  def _table_bool(self):
+    result = ord(self._input[ self._pos ]) & 1
+    self._pos += 1
+    return result
+
+  def _table_short_short_int(self, unpacker=Struct('b')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+    
+  def _table_short_short_uint(self, unpacker=Struct('B')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+
+  def _table_short_int(self, unpacker=Struct('>h')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+    
+  def _table_short_uint(self, unpacker=Struct('>H')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+
+  def _table_long_int(self, unpacker=Struct('>i')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+    
+  def _table_long_uint(self, unpacker=Struct('>I')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+
+  def _table_long_long_int(self, unpacker=Struct('>q')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+    
+  def _table_long_long_uint(self, unpacker=Struct('>Q')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+
+  def _table_float(self, unpacker=Struct('>f')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+    
+  def _table_double(self, unpacker=Struct('>d')):
+    rval = unpacker.unpack_from( self._input, self._pos )[0]
+    self._pos += unpacker.size
+    return rval
+
+  def _table_decimal(self):
+    d = self._table_short_short_uint()
+    n = self._table_short_int()
+    return Decimal(n) / Decimal(10 ** d)
+
+  def _table_shortstr(self):
+    slen = self._table_short_short_uint()
+    rval = self._input[ self._pos:self._pos+slen ]
+    self._pos += slen
+    return rval
+  
+  def _table_longstr(self):
+    slen = self._table_long_uint()
+    rval = self._input[ self._pos:self._pos+slen ]
+    self._pos += slen
+    return rval
+
+  def _table_array(self):
+    alen = self.read_long()
+    end_pos = self._pos + alen
+    rval = []
+    while self._pos < end_pos:
+      rval.append( self._read_field() )
+    return rval
+     
+  def _table_timestamp(self):
+    """
+    Read and AMQP timestamp, which is a 64-bit integer representing
+    seconds since the Unix epoch in 1-second resolution.  Return as
+    a Python datetime.datetime object, expressed as localtime.
+
+    Will raise BufferUnderflow if there's not enough bytes in the buffer.
+    Will raise struct.error if the data is malformed
+    """
+    return datetime.fromtimestamp( self._table_long_long_uint() )
+
+  # A mapping for quick lookups
+  field_type_map = {
+    't' : _table_bool,
+    'b' : _table_short_short_int,
+    'B' : _table_short_short_uint,
+    'U' : _table_short_int,
+    'u' : _table_short_uint,
+    'I' : _table_long_int,
+    'i' : _table_long_uint,
+    'L' : _table_long_long_int,
+    'l' : _table_long_long_uint,
+    'f' : _table_float,
+    'd' : _table_double,
+    'D' : _table_decimal,
+    's' : _table_shortstr,
+    'S' : _table_longstr,
+    'A' : _table_array,
+    'T' : _table_timestamp,
+    'F' : read_table,
+  }

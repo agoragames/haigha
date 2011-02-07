@@ -43,11 +43,12 @@ class QueueClass(ProtocolClass):
     else:
       args.write_short(self.default_ticket)
     args.write_shortstr(queue)
-    args.write_bit(passive)
-    args.write_bit(durable)
-    args.write_bit(exclusive)
-    args.write_bit(auto_delete)
-    args.write_bit(nowait)
+    #args.write_bit(passive)
+    #args.write_bit(durable)
+    #args.write_bit(exclusive)
+    #args.write_bit(auto_delete)
+    #args.write_bit(nowait)
+    args.write_bits(passive, durable, exclusive, auto_delete, nowait)
     args.write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 50, 10, args) )
 
@@ -155,9 +156,10 @@ class QueueClass(ProtocolClass):
        args.write_short(self.default_ticket)
 
     args.write_shortstr(queue)
-    args.write_bit(if_unused)
-    args.write_bit(if_empty)
-    args.write_bit(nowait)
+    #args.write_bit(if_unused)
+    #args.write_bit(if_empty)
+    #args.write_bit(nowait)
+    args.write_bits(if_unused, if_empty, nowait)
     self.send_frame( MethodFrame(self.channel_id, 50, 40, args) )
 
     if not nowait:

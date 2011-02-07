@@ -30,7 +30,7 @@ class Frame(object):
     raise NotImplementedError()
 
   @classmethod
-  def read_frames(cls, stream):
+  def read_frames(cls, reader):
     '''
     Read one or more frames from an IO stream.  Buffer must support file object
     interface.
@@ -46,9 +46,9 @@ class Frame(object):
     rval = []
 
     while True:
-      frame_start_pos = stream.tell()
+      frame_start_pos = reader.tell()
       try:
-        frame = Frame._read_frame(stream)
+        frame = Frame._read_frame( reader )
       except Reader.BufferUnderflow:
         # No more data in the stream
         frame = None
@@ -59,7 +59,7 @@ class Frame(object):
         raise Frame.FormatError()
 
       if frame is None: 
-        stream.seek( frame_start_pos )
+        reader.seek( frame_start_pos )
         break
 
       rval.append( frame )
@@ -67,21 +67,21 @@ class Frame(object):
     return rval
 
   @classmethod
-  def _read_frame(cls, stream):
+  def _read_frame(cls, reader):
     '''
-    Read a single frame from a stream.  Will return None if there is an incomplete
+    Read a single frame from a Reader.  Will return None if there is an incomplete
     frame in the stream.
 
     Raise MissingFooter if there's a problem reading the footer byte.
     '''
-    reader = Reader(stream)
     frame_type = reader.read_octet()
     channel_id = reader.read_short()
     size = reader.read_long()
-    payload = reader.read( size )
+    
+    payload = Reader(reader, reader.tell(), size)
 
-    if len(payload) != size:
-      return None
+    # Seek to end of payload
+    reader.seek( size, 1 )
 
     ch = reader.read_octet()  # footer
     if ch != 0xce:
@@ -122,5 +122,11 @@ class Frame(object):
   def write_frame(self, stream):
     '''
     Write this frame.
+    '''
+    raise NotImplementedError()
+
+  def buffer(self):
+    '''
+    Get the frame buffer.
     '''
     raise NotImplementedError()
