@@ -41,8 +41,7 @@ class Reader(object):
       self._end_pos = self._start_pos + size
 
   def __str__(self):
-    #return ''.join( ['\\x%s'%(c.encode('hex')) for c in self.input.getvalue()] )
-    return ''.join( ['\\x%s'%(c.encode('hex')) for c in self._input] )
+    return ''.join( ['\\x%s'%(c.encode('hex')) for c in self._input[self._start_pos:self._end_pos]] )
 
   def tell(self):
     '''
@@ -66,7 +65,6 @@ class Reader(object):
     Raise BufferUnderflow if there's not enough bytes to satisfy the request.
     '''
     if self._pos+n > self._end_pos:
-      #print 'DEBUG: underflow ', self._pos, n, self._end_pos, len(self._input), str(self)
       raise self.BufferUnderflow()
 
   def __len__(self):

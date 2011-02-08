@@ -1,7 +1,7 @@
 from collections import deque
 
 from haigha.classes import *
-from haigha.frames import Frame, HeaderFrame, ContentFrame
+from haigha.frames import *
 from haigha.exceptions import *
 
 class Channel(object):
@@ -135,12 +135,22 @@ class Channel(object):
 
         # If not all content arrived yet, re-queue and abort.  By definition
         # there were no non-content frames left in the buffer because that
-        # would have resulted in an error.
+        # would have resulted in an error. Note the playful manipulation of
+        # order.
         if total < header.size:
-          self._frame_buffer.append( frame )
-          self._frame_buffer.extend( content_frames )
+          content_frames.reverse()
+          self._frame_buffer.extendleft( content_frames )
+          self._frame_buffer.appendleft( frame )
           return
-      
+
+      # HACK: This is a temporary measure to address ticket #113 until a better
+      # solution is in place. That better solution should also improve upon
+      # dispatching overhead in general, which is currently a top consumer of
+      # cycles.
+      if isinstance(frame,MethodFrame) and frame.class_id==60 and frame.method_id in (60,90) and not content_frames:
+        self._frame_buffer.appendleft( frame )
+        return
+
       try:
         self.dispatch(frame, content_frames)
       except:
