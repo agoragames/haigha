@@ -438,13 +438,10 @@ class ConnectionChannel(Channel):
       51 : self._recv_close_ok,
     }
 
-  def dispatch(self, frame, content_frames):
+  def dispatch(self, frame):
     '''
     Override the default dispatch since we don't need the rest of the stack.
     '''
-    if content_frames:
-      raise Frame.FrameError("504: content frames on channel %d", self.channel_id)
-
     if frame.type()==HeartbeatFrame.type():
       self._send_heartbeat()
 

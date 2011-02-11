@@ -84,15 +84,15 @@ class Channel(object):
     self.basic.publish( *args, **kwargs )
     self.tx.commit( cb=cb )
 
-  def dispatch(self, method_frame, content_frames):
+  def dispatch(self, method_frame):
     '''
     Dispatch a method.
     '''
     klass = self._class_map.get( method_frame.class_id )
     if klass:
-      klass.dispatch( method_frame, content_frames)
+      klass.dispatch( method_frame )
     else:
-      raise Channel.InvalidClass( "class %d is not support on channel %d", 
+      raise Channel.InvalidClass( "class %d is not supported on channel %d", 
         method_frame.class_id, self.channel_id )
 
   def buffer_frame(self, frame):
@@ -107,56 +107,31 @@ class Channel(object):
     Process the input buffer.
     '''
     while len(self._frame_buffer):
-      content_frames = None
-      frame = self._frame_buffer.popleft()
-
-      if isinstance(frame, (HeaderFrame,ContentFrame)):
-        self.connection.close(
-          505, 
-          "Unexpected %s on channel %d"%(frame.__class__.__name__, self.channel_id)
-        )
-        return
-
-      if len(self._frame_buffer) and isinstance(self._frame_buffer[0],HeaderFrame):
-        header = self._frame_buffer.popleft()
-        content_frames = [ header ]
-        total = 0
-        while total < header.size and len(self._frame_buffer):
-          content = self._frame_buffer.popleft()
-          content_frames.append( content )
-          if not isinstance( content, ContentFrame ):
-            self.connection.close(
-              505, 
-              "Expecting content frame, received %s on channel %d"%\
-                (frame.__class__.__name__, self.channel_id)
-            )
-            return
-          total += len( content.payload )
-
-        # If not all content arrived yet, re-queue and abort.  By definition
-        # there were no non-content frames left in the buffer because that
-        # would have resulted in an error. Note the playful manipulation of
-        # order.
-        if total < header.size:
-          content_frames.reverse()
-          self._frame_buffer.extendleft( content_frames )
-          self._frame_buffer.appendleft( frame )
-          return
-
-      # HACK: This is a temporary measure to address ticket #113 until a better
-      # solution is in place. That better solution should also improve upon
-      # dispatching overhead in general, which is currently a top consumer of
-      # cycles.
-      if isinstance(frame,MethodFrame) and frame.class_id==60 and frame.method_id in (60,90) and not content_frames:
-        self._frame_buffer.appendleft( frame )
-        return
-
       try:
-        self.dispatch(frame, content_frames)
+        self.dispatch( self.next_frame() )
+      except ProtocolClass.FrameUnderflow:
+        return
       except:
         self.logger.error( 
-          "Failed to dispatch %s, %s", frame, content_frames, exc_info=True )
+          "Failed to dispatch %s", frame, exc_info=True )
         self.close( 500, "Failed to dispatch %s"%(str(frame)) )
+
+  def next_frame(self):
+    '''
+    Pop the next frame off the input queue. If the queue is empty, will return
+    None.
+    '''
+    if len( self._frame_buffer ):
+      return self._frame_buffer.popleft()
+    return None
+
+  def requeue_frames(self, frames):
+    '''
+    Reque a list of frames. Will append to the head of the frame buffer.
+    Frames should be in reverse order. Really only used to support BasicClass
+    content consumers
+    '''
+    self._frame_buffer.extendleft( frames )
 
   def send_frame(self, frame):
     '''

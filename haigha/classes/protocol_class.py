@@ -6,6 +6,7 @@ class ProtocolClass(object):
   
   class ProtocolError(Exception): pass
   class InvalidMethod(ProtocolError): pass
+  class FrameUnderflow(ProtocolError): pass
   
   dispatch_map = {}
 
@@ -31,7 +32,7 @@ class ProtocolClass(object):
   def default_ticket(self):
     return 0
 
-  def dispatch(self, method_frame, content_frames):
+  def dispatch(self, method_frame):
     '''
     Dispatch a method for this protocol.
     '''
@@ -40,15 +41,10 @@ class ProtocolClass(object):
     # attr.
     method = self.dispatch_map.get( method_frame.method_id )
     if method:
-      self.channel.logger.debug("Dispatching method_id : %s %s", method_frame.method_id, method)
-
       method = getattr(self, method.im_func.__name__)
       
       self.channel.clear_synchronous_cb( method )
-      if content_frames:
-        method(method_frame, *content_frames )
-      else:
-        method(method_frame)
+      method(method_frame)
     else:
       raise self.InvalidMethod("no method is registered with id: %d" % method_frame.method_id)
 

@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import deque
 from io import BytesIO
 
 from haigha.message import Message
@@ -166,7 +166,28 @@ class BasicClass(ProtocolClass):
   def _recv_return(self):
     pass
 
-  def _recv_deliver(self, method_frame, header, *content_frames):
+  def _recv_deliver(self, method_frame):
+    # No need to assert that is instance of Header or Content frames because
+    # failure to access as such will result in exception that channel will
+    # pick up and handle accordingly.
+    header_frame = self.channel.next_frame()
+    if header_frame:
+      size = header_frame.size
+      body = bytearray()
+      rbuf_frames = deque([header_frame, method_frame])
+      
+      while len(body) < size:
+        content_frame = self.channel.next_frame()
+        if content_frame:
+          rbuf_frames.appendleft( content_frame )
+          body.extend( content_frame.payload.buffer() )
+        else:
+          self.channel.requeue_frames( [rbuf_frames] )
+          raise self.FrameUnderflow()
+    else:
+      self.channel.requeue_frames( [method_frame] )
+      raise self.FrameUnderflow()
+
     consumer_tag = method_frame.args.read_shortstr()
     delivery_tag = method_frame.args.read_longlong()
     redelivered = method_frame.args.read_bit()
@@ -181,7 +202,7 @@ class BasicClass(ProtocolClass):
       'exchange': exchange,
       'routing_key': routing_key,
     }
-    msg = self._message_from_frames( content_frames, delivery_info, header.properties )
+    msg = Message( body=body, delivery_info=delivery_info, **header_frame.properties )
     
     func = self._consumer_cb.get(consumer_tag, None)
     if func: func(msg)
@@ -216,6 +237,27 @@ class BasicClass(ProtocolClass):
       self._recv_get_empty( method_frame )
 
   def _recv_get_ok(self, method_frame, header, *content_frames):
+    # No need to assert that is instance of Header or Content frames because
+    # failure to access as such will result in exception that channel will
+    # pick up and handle accordingly.
+    header_frame = self.channel.next_frame()
+    if header_frame:
+      size = header_frame.size
+      body = bytearray()
+      rbuf_frames = deque([header_frame, method_frame])
+      
+      while len(body) < size:
+        content_frame = self.channel.next_frame()
+        if content_frame:
+          rbuf_frames.appendleft( content_frame )
+          body.extend( content_frame.payload.buffer() )
+        else:
+          self.channel.requeue_frames( [rbuf_frames] )
+          raise self.FrameUnderflow()
+    else:
+      self.channel.requeue_frames( [method_frame] )
+      raise self.FrameUnderflow()
+
     delivery_tag = method_frame.args.read_longlong()
     redelivered = method_frame.args.read_bit()
     exchange = method_frame.args.read_shortstr()
@@ -230,7 +272,7 @@ class BasicClass(ProtocolClass):
       'routing_key': routing_key,
       'message_count' : message_count,
     }
-    msg = self._message_from_frames( content_frames, delivery_info, header.properties )
+    msg = Message( body=body, delivery_info=delivery_info, **header_frame.properties )
 
     cb = self._get_cb.pop(0)
     if cb: cb( msg )
@@ -286,17 +328,3 @@ class BasicClass(ProtocolClass):
   def _recv_recover_ok(self):
     cb = self._recover_cb.pop(0)
     if cb is not None: cb()
-
-  def _message_from_frames(self, content_frames, delivery_info, properties):
-    # NOTE: Using a buffer here for joining to reduce space, but also to set
-    # the stage for Message.body being an IO stream.  The plan is for ContentFrame
-    # payload to be a slice of a buffer as received by the socket, and to use
-    # "MultiIO" object to join them back together, so that the Message body
-    # will be a handle to a seemless read of bytes directly out of memory that
-    # the socket data was read into.
-    #buffer = BytesIO()
-    body = bytearray()
-    for frame in content_frames:
-      body.extend( frame.payload.buffer() )
-
-    return Message( body=body, delivery_info=delivery_info, **properties )

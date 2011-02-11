@@ -1,4 +1,5 @@
 import struct
+from collections import deque
 from haigha.reader import Reader
 
 class Frame(object):
@@ -43,7 +44,7 @@ class Frame(object):
     sequence, they are responsible for buffering those frames until the rest of
     the frames in the sequence have arrived.
     '''
-    rval = []
+    rval = deque()
 
     while True:
       frame_start_pos = reader.tell()
