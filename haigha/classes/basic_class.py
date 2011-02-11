@@ -182,7 +182,7 @@ class BasicClass(ProtocolClass):
           rbuf_frames.appendleft( content_frame )
           body.extend( content_frame.payload.buffer() )
         else:
-          self.channel.requeue_frames( [rbuf_frames] )
+          self.channel.requeue_frames( rbuf_frames )
           raise self.FrameUnderflow()
     else:
       self.channel.requeue_frames( [method_frame] )
@@ -252,7 +252,7 @@ class BasicClass(ProtocolClass):
           rbuf_frames.appendleft( content_frame )
           body.extend( content_frame.payload.buffer() )
         else:
-          self.channel.requeue_frames( [rbuf_frames] )
+          self.channel.requeue_frames( rbuf_frames )
           raise self.FrameUnderflow()
     else:
       self.channel.requeue_frames( [method_frame] )
