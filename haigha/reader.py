@@ -227,7 +227,7 @@ class Reader(object):
     ftype = self._input[ self._pos ]
     self._pos += 1
     
-    reader = field_type_map[ ftype ]
+    reader = self.field_type_map[ ftype ]
     if reader:
       return reader(self)
 
