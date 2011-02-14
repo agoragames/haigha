@@ -200,7 +200,10 @@ class Connection(object):
     '''
     Callback when there's data to read on the socket.
     '''
-    self._read_frames()
+    try:
+      self._read_frames()
+    except:
+      self.logger.error("Failed to read frames from %s", self._host, exc_info=True)
 
   def _sock_close_cb(self, sock):
     """
