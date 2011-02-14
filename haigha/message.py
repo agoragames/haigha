@@ -43,4 +43,4 @@ class Message(object):
 
   def __str__(self):
     return "Message[body: %s, delivery_info: %s, properties: %s]"%\
-      ( self._body.encode('string_escape'), self._delivery_info, self._properties )
+      ( str(self._body).encode('string_escape'), self._delivery_info, self._properties )
