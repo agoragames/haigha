@@ -8,6 +8,9 @@ from haigha.writer import Writer
 
 class WriterTest(mox.MoxTestBase):
 
+  # Tests commented out because they don't really apply, but there's a lot that
+  # can be copied
+  '''
   def test_write_methods(self):
     writer = Writer()
     writer.write( 'foo' )
@@ -32,23 +35,6 @@ class WriterTest(mox.MoxTestBase):
     self.assertEquals( (writer._write_longstr, 'hellowurld'), writer._output_buffer[7] )
     self.assertEquals( (writer._write_table, {'cats':'dogs'}), writer._output_buffer[8] )
     self.assertEquals( (writer._write_timestamp, 'now'), writer._output_buffer[9] )
-
-  def test_flush(self):
-    # TODO: test the datatypes in more depth
-    writer = Writer()
-    writer.write( 'foo' )
-    writer.write_bit( 1 )
-    writer.write_octet( 5 )
-    writer.write_short( 42 )
-    writer.write_long( 12345 )
-    writer.write_longlong( 123456789 )
-    writer.write_shortstr( "bar" )
-    writer.write_longstr( "hellowurld" )
-    writer.write_table( {'cats':'dogs'} )
-    writer.write_timestamp( datetime.now() )
-
-    stream = StringIO()
-    writer.flush( stream )
 
   def test_writing_bits(self):
     writer = Writer(); stream = StringIO()
@@ -105,3 +91,4 @@ class WriterTest(mox.MoxTestBase):
     writer.write_shortstr('bar')
     writer.flush( stream )
     self.assertEquals( '\x03foo\x15\x03bar', stream.getvalue() )
+    '''

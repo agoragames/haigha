@@ -1,5 +1,6 @@
 
 import mox
+from collections import deque
 
 from haigha.channel import Channel
 from haigha.exceptions import ChannelError, ChannelClosed
@@ -23,7 +24,7 @@ class ChannelTest(mox.MoxTestBase):
     self.assertEquals( c._class_map[60], c.basic )
     self.assertEquals( c._class_map[90], c.tx )
     self.assertEquals( [], c._pending_events )
-    self.assertEquals( [], c._frame_buffer )
+    self.assertEquals( deque([]), c._frame_buffer )
 
   def test_properties(self):
     connection = self.create_mock_anything()
@@ -92,7 +93,7 @@ class ChannelTest(mox.MoxTestBase):
     self.replay_all()
     c.buffer_frame( 'f1' )
     c.buffer_frame( 'f2' )
-    self.assertEquals( ['f1', 'f2'], c._frame_buffer )
+    self.assertEquals( deque(['f1', 'f2']), c._frame_buffer )
 
   def test_process_frames_when_no_frames(self):
     # Not that this should ever happen, but to be sure
@@ -102,129 +103,50 @@ class ChannelTest(mox.MoxTestBase):
     self.replay_all()
     c.process_frames()
 
-  def test_process_frames_when_just_a_method_frame(self):
+  def test_process_frames_stops_when_buffer_is_empty(self):
     c = Channel(None, None)
     self.mock( c, 'dispatch' )
-    frame = MethodFrame('ch_id', 'c_id', 'm_id')
-    c._frame_buffer = [ frame ]
+    f0 = MethodFrame('ch_id', 'c_id', 'm_id')
+    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
+    c._frame_buffer = deque([ f0, f1 ])
 
-    c.dispatch( frame )
+    c.dispatch( f0 )
+    c.dispatch( f1 )
 
     self.replay_all()
     c.process_frames()
-    self.assertEquals( [], c._frame_buffer )
 
-  def test_process_frames_when_just_a_heartbeat_frame(self):
+  def test_process_frames_stops_when_frameunderflow_raised(self):
     c = Channel(None, None)
     self.mock( c, 'dispatch' )
-    frame = HeartbeatFrame()
-    c._frame_buffer = [ frame ]
+    f0 = MethodFrame('ch_id', 'c_id', 'm_id')
+    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
+    c._frame_buffer = deque([ f0, f1 ])
 
-    c.dispatch( frame )
-
-    self.replay_all()
-    c.process_frames()
-    self.assertEquals( [], c._frame_buffer )
-
-  def test_process_frames_when_just_a_header_or_content_frame(self):
-    conn = self.create_mock_anything()
-    c = Channel(conn, 32)
-    self.mock( c, 'dispatch' )
-    c._frame_buffer = [ HeaderFrame(1,2,3,4), ContentFrame(1, 'foo') ]
-
-    conn.close(505, mox.IsA(str))
-    conn.close(505, mox.IsA(str))
+    c.dispatch( f0 ).AndRaise( ProtocolClass.FrameUnderflow )
 
     self.replay_all()
     c.process_frames()
-    c.process_frames()
-
-  def test_process_frames_when_includes_just_a_header_frame(self):
+    self.assertEquals( f1, c._frame_buffer[0] )
+  
+  def test_process_frames_logs_and_closes_when_dispatch_error_raised(self):
     c = Channel(None, None)
-    self.mock( c, 'dispatch' )
-    method_frame = MethodFrame('ch_id', 'c_id', 'm_id')
-    header_frame = HeaderFrame('ch_id', 'c_id', 0, 5)
-    c._frame_buffer = [ method_frame, header_frame ]
-
-    self.replay_all()
-    c.process_frames()
-    self.assertEquals( [method_frame, header_frame], c._frame_buffer )
-
-  def test_process_frames_when_includes_all_content(self):
-    c = Channel(None, None)
-    self.mock( c, 'dispatch' )
-    method_frame = MethodFrame('ch_id', 'c_id', 'm_id')
-    header_frame = HeaderFrame('ch_id', 'c_id', 0, 5)
-    content_frame = ContentFrame('ch_id', 'hello')
-    c._frame_buffer = [ method_frame, header_frame, content_frame ]
-
-    c.dispatch( method_frame, header_frame, content_frame )
-
-    self.replay_all()
-    c.process_frames()
-    self.assertEquals( [], c._frame_buffer )
-
-  def test_process_frames_when_partial_content(self):
-    c = Channel(None, None)
-    self.mock( c, 'dispatch' )
-    method_frame = MethodFrame('ch_id', 'c_id', 'm_id')
-    header_frame = HeaderFrame('ch_id', 'c_id', 0, 50)
-    content_frame = ContentFrame('ch_id', 'hello')
-    c._frame_buffer = [ method_frame, header_frame, content_frame ]
-
-    self.replay_all()
-    c.process_frames()
-    self.assertEquals( [method_frame, header_frame, content_frame], c._frame_buffer )
-
-  def test_process_frames_when_partial_content_followed_by_another_frame(self):
-    conn = self.create_mock_anything()
-    c = Channel(conn, 32)
-    self.mock( c, 'dispatch' )
-    method_frame = MethodFrame('ch_id', 'c_id', 'm_id')
-    header_frame = HeaderFrame('ch_id', 'c_id', 0, 50)
-    content_frame = ContentFrame('ch_id', 'hello')
-    c._frame_buffer = [ method_frame, header_frame, content_frame, MethodFrame('a','b','c') ]
-
-    conn.close( 505, mox.IsA(str) )
-
-    self.replay_all()
-    c.process_frames()
-
-  def test_process_frames_processes_the_whole_buffer(self):
-    c = Channel(None, None)
-    self.mock( c, 'dispatch' )
-    method_frame = MethodFrame('ch_id', 'c_id', 'm_id')
-    header_frame = HeaderFrame('ch_id', 'c_id', 0, 5)
-    content_frame = ContentFrame('ch_id', 'hello')
-    method2 = MethodFrame('a','b','c')
-    heart = HeartbeatFrame()
-    c._frame_buffer = [ method_frame, header_frame, content_frame, method2, heart ]
-
-    c.dispatch( method_frame, header_frame, content_frame )
-    c.dispatch( method2 )
-    c.dispatch( heart )
-
-    self.replay_all()
-    c.process_frames()
-    self.assertEquals( [], c._frame_buffer )
-
-  def test_process_frames_handles_dispatch_error_by_closing_channel(self):
-    conn = self.create_mock_anything()
-    conn.logger = self.create_mock_anything()
-    c = Channel(conn, 32)
+    c._connection = self.create_mock_anything()
+    c._connection.logger = self.create_mock_anything()
     self.mock( c, 'dispatch' )
     self.mock( c, 'close' )
-    frame = MethodFrame(32, 20, 40)
-    c._frame_buffer = [ frame ]
+    
+    f0 = MethodFrame(20, 30, 40)
+    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
+    c._frame_buffer = deque([ f0, f1 ])
 
-    c.dispatch( frame ).AndRaise( Exception("failwhale") )
-    conn.logger.error( mox.IsA(str), frame, None, exc_info=True )
+    c.dispatch( f0 ).AndRaise( Exception("zomg it broked") )
+    c._connection.logger.error( "Failed to dispatch %s", f0, exc_info=True )
     c.close( 500, mox.IsA(str) )
 
     self.replay_all()
     c.process_frames()
-    self.assertEquals( [], c._frame_buffer )
-
+    
   def test_send_frame_when_not_closed_no_flow_control_no_pending_events(self):
     conn = self.create_mock_anything()
     c = Channel(conn, 32)

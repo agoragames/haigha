@@ -27,10 +27,10 @@ class Message(object):
     '''Have to define this because length is defined.'''
     return True
 
-  def __eq__(self, rhs):
-    if isinstance(rhs,Message):
-      return self.properties == rhs.properties and \
-             self.body_text == rhs.body_text
+  def __eq__(self, other):
+    if isinstance(other,Message):
+      return self._properties == other._properties and \
+             self._body == other._body
     return False
 
   @property
@@ -42,4 +42,5 @@ class Message(object):
     return self._properties
 
   def __str__(self):
-    return "Message[body: %s, delivery_info: %s, properties: %s]"%( self._body.getvalue(), self._delivery_info, self._properties )
+    return "Message[body: %s, delivery_info: %s, properties: %s]"%\
+      ( self._body.encode('string_escape'), self._delivery_info, self._properties )

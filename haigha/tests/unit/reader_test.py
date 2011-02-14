@@ -8,30 +8,42 @@ import struct
 class ReaderTest(mox.MoxTestBase):
 
   def test_init(self):
+    ba = Reader(bytearray('foo'))
+    self.assertTrue( isinstance(ba._input, buffer) )
+    self.assertEquals( 'foo', ba._input )
+    self.assertEquals( 0, ba._start_pos )
+    self.assertEquals( 0, ba._pos )
+    self.assertEquals( 3, ba._end_pos )
+
     s = Reader('foo')
-    self.assertEquals( 'foo', s.input.getvalue() )
+    self.assertEquals( 'foo', s._input )
     self.assertEquals( 0, s.bitcount )
     self.assertEquals( 0, s.bits )
 
     u = Reader(u'D\xfcsseldorf')
-    self.assertEquals( 'D\xc3\xbcsseldorf', u.input.getvalue() )
+    self.assertEquals( 'D\xc3\xbcsseldorf', u._input )
 
     b = StringIO('foo')
     i = Reader(b)
-    self.assertEquals( b, i.input )
+    self.assertEquals( 'foo', i._input )
+
+    src = Reader( 'foo' )
+    r = Reader( src )
+    self.assertEquals( id(src._input), id(r._input) )
+    self.assertEquals( 0, r._start_pos )
+    self.assertEquals( 3, r._end_pos )
+
+    src = Reader( 'hello world' )
+    r = Reader( src, 3, 5 )
+    self.assertEquals( id(src._input), id(r._input) )
+    self.assertEquals( 3, r._start_pos )
+    self.assertEquals( 8, r._end_pos )
+    self.assertEquals( 3, r._pos )
 
     self.assertRaises( ValueError, Reader, 1 )
 
   def test_str(self):
     self.assertEquals( '\\x66\\x6f\\x6f', str(Reader('foo')) )
-
-  def test_close(self):
-    b = Reader('foo')
-    b.input = self.create_mock_anything()
-    b.input.close()
-
-    self.replay_all()
-    b.close()
 
   def test_read(self):
     b = Reader('foo')
@@ -47,20 +59,14 @@ class ReaderTest(mox.MoxTestBase):
     self.assertRaises( Reader.BufferUnderflow, b.read, 4 )
 
   def test_read_bit(self):
-    b = Reader('\xff')
-    for x in xrange(8):
-      self.assertTrue( b.read_bit() )
-    self.assertRaises( Reader.BufferUnderflow, b.read_bit )
+    b = Reader('\x01')
+    self.assertTrue( b.read_bit() )
     
     b = Reader('\x00')
-    for x in xrange(8):
-      self.assertFalse( b.read_bit() )
-
-    b = Reader('\x0f')
-    for x in xrange(4):
-      self.assertTrue( b.read_bit() )
-    for x in xrange(4):
-      self.assertFalse( b.read_bit() )
+    self.assertFalse( b.read_bit() )
+    
+    b = Reader('\x02')
+    self.assertFalse( b.read_bit() )
 
 
   def test_read_octet(self):

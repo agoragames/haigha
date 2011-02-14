@@ -108,7 +108,10 @@ class Channel(object):
     '''
     while len(self._frame_buffer):
       try:
-        self.dispatch( self.next_frame() )
+        # It would make sense to call next_frame, but it's technically faster
+        # to repeat the code here.
+        frame = self._frame_buffer.popleft()
+        self.dispatch( frame )
       except ProtocolClass.FrameUnderflow:
         return
       except:
