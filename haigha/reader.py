@@ -85,7 +85,7 @@ class Reader(object):
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     """
-    self._check_underflow(n)
+    self._check_underflow( n )
     rval = self._input[ self._pos:self._pos+n ]
     self._pos += n
     return rval
@@ -96,7 +96,8 @@ class Reader(object):
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     """
-    self._check_underflow(1)
+    # self._check_underflow(1)
+    if self._pos >= self._end_pos: raise self.BufferUnderflow()
     result = ord(self._input[ self._pos ]) & 1
     self._pos += 1
     return result
@@ -108,7 +109,8 @@ class Reader(object):
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise ValueError if num < 0 or num > 9
     '''
-    self._check_underflow(1)
+    # self._check_underflow(1)
+    if self._pos >= self._end_pos: raise self.BufferUnderflow()
     if num < 0 or num > 9: raise ValueError("8 bits per field")
     field = ord(self._input[self._pos])
     result = map(lambda x: field>>x & 1, xrange(num) )
@@ -122,7 +124,9 @@ class Reader(object):
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    self._check_underflow( unpacker.size )
+    # Technically should look at unpacker.size, but skipping that is way
+    # faster and this method is the most-called of the readers
+    if self._pos >= self._end_pos: raise self.BufferUnderflow()
     rval = unpacker.unpack_from( self._input, self._pos )[0]
     self._pos += unpacker.size
     return rval

@@ -1,5 +1,7 @@
 
 import struct
+from collections import deque
+
 from haigha.writer import Writer
 from haigha.reader import Reader
 from haigha.frames.frame import Frame
@@ -9,20 +11,20 @@ class HeaderFrame(Frame):
   Header frame for content.
   '''
   PROPERTIES = [
-    ('content_type', 'shortstr'),
-    ('content_encoding', 'shortstr'),
-    ('application_headers', 'table'),
-    ('delivery_mode', 'octet'),
-    ('priority', 'octet'),
-    ('correlation_id', 'shortstr'),
-    ('reply_to', 'shortstr'),
-    ('expiration', 'shortstr'),
-    ('message_id', 'shortstr'),
-    ('timestamp', 'timestamp'),
-    ('type', 'shortstr'),
-    ('user_id', 'shortstr'),
-    ('app_id', 'shortstr'),
-    ('cluster_id', 'shortstr')
+    ('content_type', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('content_encoding', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('application_headers', 'table', Reader.read_table, Writer.write_table),
+    ('delivery_mode', 'octet', Reader.read_octet, Writer.write_octet),
+    ('priority', 'octet', Reader.read_octet, Writer.write_octet),
+    ('correlation_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('reply_to', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('expiration', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('message_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('timestamp', 'timestamp', Reader.read_timestamp, Writer.write_timestamp),
+    ('type', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('user_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('app_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr),
+    ('cluster_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr)
   ]
 
 
@@ -70,14 +72,16 @@ class HeaderFrame(Frame):
 
     shift = 0
     d = {}
-    for key, proptype in self.PROPERTIES:
+    for key, proptype, rfunc, wfunc in self.PROPERTIES:
+    #for prop in self.PROPERTIES:
       if shift == 0:
         if not flags:
           break
         flag_bits, flags = flags[0], flags[1:]
         shift = 15
       if flag_bits & (1 << shift):
-        d[key] = getattr(payload, 'read_' + proptype)()
+        #d[key] = getattr(payload, 'read_' + proptype)()
+        d[ key ] = rfunc( payload )
       shift -= 1
 
     return HeaderFrame( channel_id, class_id, weight, size, d)
@@ -118,8 +122,9 @@ class HeaderFrame(Frame):
     shift = 15
     flag_bits = 0
     flags = []
-    stack = []
-    for key, proptype in self.PROPERTIES:
+    stack = deque()
+    for key, proptype, rfunc, wfunc in self.PROPERTIES:
+    #for prop in self.PROPERTIES:
       val = self._properties.get(key, None)
       if val is not None:
         if shift == 0:
@@ -128,9 +133,10 @@ class HeaderFrame(Frame):
           shift = 15
 
         flag_bits |= (1 << shift)
-        if proptype != 'bit':
-          #getattr(raw_bytes, 'write_' + proptype)(val)
-          stack.append( ('write_%s'%(proptype), val) )
+        #if proptype != 'bit':
+        #  #getattr(raw_bytes, 'write_' + proptype)(val)
+        #  stack.append( ('write_%s'%(proptype), val) )
+        stack.append( (wfunc, val) )
 
       shift -= 1
 
@@ -140,7 +146,8 @@ class HeaderFrame(Frame):
       #writer.write_short(flag_bits)
       writer.write_short(flag_bits)
     for method,val in stack:
-      getattr(writer, method)( val )
+      #getattr(writer, method)( val )
+      method(writer, val)
     #writer.flush( stream )
     #stream_end_args_pos = stream.tell()
     stream_end_args_pos = len(buf)
