@@ -28,7 +28,7 @@ class ContentFrame(Frame):
     offset = 0
     while True:
       payload = buf[offset:(offset+size)]
-      #if len(payload)==0: break
+      if len(payload)==0: break
       offset += size
       
       yield ContentFrame(channel_id, payload)
