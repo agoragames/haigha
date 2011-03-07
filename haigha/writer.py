@@ -177,4 +177,4 @@ class Writer(object):
     representing seconds since the Unix epoch.
     """
     # Double check timestamp, can't imagine why it would be signed
-    self._output_buffer.extend( pack('>Q', long(mktime(v.timetuple()))) )
+    self._output_buffer.extend( pack('>Q', long(mktime(t.timetuple()))) )

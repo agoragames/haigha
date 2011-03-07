@@ -2,7 +2,7 @@
 Unit tests for the header frame
 """
 
-import mox
+from chai import Chai
 import struct
 import time
 from datetime import datetime
@@ -13,7 +13,7 @@ from haigha.frames.header_frame import HeaderFrame
 from haigha.reader import Reader
 from haigha.writer import Writer
 
-class HeaderFrameTest(mox.MoxTestBase):
+class HeaderFrameTest(Chai):
 
   def test_parse_for_standard_properties(self):
     bit_writer = Writer()
@@ -24,7 +24,7 @@ class HeaderFrameTest(mox.MoxTestBase):
     now = datetime.fromtimestamp( long(time.mktime(datetime.now().timetuple())) )
 
     bit_field = 0
-    for pname, ptype in HeaderFrame.PROPERTIES:
+    for pname, ptype, reader, writer in HeaderFrame.PROPERTIES:
       bit_field = (bit_field << 1) | 1
 
       if ptype=='shortstr':
@@ -37,18 +37,16 @@ class HeaderFrameTest(mox.MoxTestBase):
         val_writer.write_table( {'foo':'bar'} )
 
     bit_field <<= (16- len(HeaderFrame.PROPERTIES))
-
     bit_writer.write_short( bit_field )
-    bit_writer.flush( stream )
-
-    val_writer.flush( stream )
     
     payload = struct.pack( '>HHQ', 5, 6, 7 )
-    payload += stream.getvalue()
+    payload += bit_writer.buffer()
+    payload += val_writer.buffer()
 
-    frame = HeaderFrame.parse(4, payload)
+    reader = Reader(payload)
+    frame = HeaderFrame.parse(4, reader)
 
-    for pname,ptype in HeaderFrame.PROPERTIES:
+    for pname, ptype, reader, writer in HeaderFrame.PROPERTIES:
       if ptype=='shortstr':
         self.assertEquals( pname, frame.properties[pname] )
       elif ptype=='octet':
