@@ -120,7 +120,7 @@ class ChannelTest(Chai):
     expect( c.close ).args( 500, str )
 
     c.process_frames()
-    
+  
   def test_send_frame_when_not_closed_no_flow_control_no_pending_events(self):
     conn = mock()
     c = Channel(conn, 32)

@@ -118,6 +118,7 @@ class Channel(object):
         self.logger.error( 
           "Failed to dispatch %s", frame, exc_info=True )
         self.close( 500, "Failed to dispatch %s"%(str(frame)) )
+        return
 
   def next_frame(self):
     '''
