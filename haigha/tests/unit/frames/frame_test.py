@@ -1,61 +1,58 @@
-import mox
+from chai import Chai
 import struct
+from collections import deque
 
 from haigha.frames import frame
 from haigha.frames import Frame
 from haigha.reader import Reader
 
-class FrameTest(mox.MoxTestBase):
+class FrameTest(Chai):
 
   def test_register(self):
     class DummyFrame(Frame):
       @classmethod
       def type(self): return 42
 
-    self.assertEquals( None, Frame._frame_type_map.get(42) )
+    assertEquals( None, Frame._frame_type_map.get(42) )
     DummyFrame.register()
-    self.assertEquals( DummyFrame, Frame._frame_type_map[42] )
+    assertEquals( DummyFrame, Frame._frame_type_map[42] )
 
   def test_type_raises_not_implemented(self):
-    self.assertRaises( NotImplementedError, Frame.type )
+    assertRaises( NotImplementedError, Frame.type )
 
   def test_read_frames_reads_until_buffer_underflow(self):
-    stream = self.create_mock_anything()
-    self.mock( Frame, '_read_frame' )
+    reader = mock()
 
-    stream.tell().AndReturn( 0 )
-    Frame._read_frame(stream).AndReturn('frame1')
+    expect( reader.tell ).returns( 0 )
+    expect( Frame._read_frame ).args(reader).returns('frame1')
 
-    stream.tell().AndReturn( 2 )
-    Frame._read_frame(stream).AndReturn('frame2')
+    expect( reader.tell ).returns( 2 )
+    expect( Frame._read_frame ).args(reader).returns('frame2')
 
-    stream.tell().AndReturn( 3 )
-    Frame._read_frame(stream).AndRaise( Reader.BufferUnderflow )
+    expect( reader.tell ).returns( 3 )
+    expect( Frame._read_frame ).args(reader).raises( Reader.BufferUnderflow )
 
-    stream.seek( 3 )
+    expect( reader.seek ).args( 3 )
 
-    self.replay_all()
-    self.assertEquals( ['frame1','frame2'], Frame.read_frames(stream) )
+    assertEquals( deque(['frame1','frame2']), Frame.read_frames(reader) )
 
   def test_read_frames_handles_reader_errors(self):
-    stream = self.create_mock_anything()
+    reader = mock()
     self.mock( Frame, '_read_frame' )
     
-    stream.tell().AndReturn( 0 )
-    Frame._read_frame(stream).AndRaise( Reader.ReaderError("bad!") )
+    expect( reader.tell ).returns( 0 )
+    expect( Frame._read_frame ).args(reader).raises( Reader.ReaderError("bad!") )
 
-    self.replay_all()
-    self.assertRaises( Frame.FormatError, Frame.read_frames, stream )
+    assertRaises( Frame.FormatError, Frame.read_frames, reader )
 
   def test_read_frames_handles_struct_errors(self):
-    stream = self.create_mock_anything()
+    reader = mock()
     self.mock( Frame, '_read_frame' )
     
-    stream.tell().AndReturn( 0 )
-    Frame._read_frame(stream).AndRaise( struct.error("bad!") )
+    expect( reader.tell ).returns( 0 )
+    expect( Frame._read_frame ).args(reader).raises( struct.error("bad!") )
 
-    self.replay_all()
-    self.assertRaises( Frame.FormatError, Frame.read_frames, stream )
+    self.assertRaises( Frame.FormatError, Frame.read_frames, reader )
 
   def test_read_frame_on_full_frame(self):
     class FrameReader(Frame):
@@ -64,59 +61,69 @@ class FrameTest(mox.MoxTestBase):
 
       @classmethod
       def parse(self, channel_id, payload):
-        return 'a_frame'
+        return 'no_frame'
     FrameReader.register()
 
-    self.mock( frame, 'Reader', use_mock_anything=True )
-    reader = self.create_mock_anything()
+    self.mock( frame, 'Reader' )
+    reader = self.mock()
+    payload = self.mock()
+
+    expect( reader.read_octet ).returns( 45 ) # frame type
+    expect( reader.read_short ).returns( 32 ) # channel id
+    expect( reader.read_long ).returns( 42 )  # size
     
-    frame.Reader('stream').AndReturn( reader )
-    reader.read_octet().AndReturn( 45 )
-    reader.read_short().AndReturn( 32 )
-    reader.read_long().AndReturn( 5 )
-    reader.read(5).AndReturn( 'hello' )
-    reader.read_octet().AndReturn( 0xce )
+    expect( reader.tell ).returns( 5 )
+    expect( frame.Reader ).args(reader, 5, 42).returns( payload )
+    expect( reader.seek ).args( 42, 1 )
 
-    self.replay_all()
-    self.assertEquals( 'a_frame', Frame._read_frame('stream') )
+    expect( reader.read_octet ).returns( 0xce )
+    expect( FrameReader.parse ).args( 32, payload ).returns( 'a_frame' )
 
-  def test_read_frame_returns_none_when_incomplete_payload(self):
-    self.mock( frame, 'Reader', use_mock_anything=True )
-    reader = self.create_mock_anything()
+    assertEquals( 'a_frame', Frame._read_frame(reader) )
+
+  def test_read_frame_raises_bufferunderflow_when_incomplete_payload(self):
+    self.mock( frame, 'Reader' )
+    reader = self.mock()
+
+    expect( reader.read_octet ).returns( 45 ) # frame type
+    expect( reader.read_short ).returns( 32 ) # channel id
+    expect( reader.read_long ).returns( 42 )  # size
     
-    frame.Reader('stream').AndReturn( reader )
-    reader.read_octet().AndReturn( 45 )
-    reader.read_short().AndReturn( 32 )
-    reader.read_long().AndReturn( 5 )
-    reader.read(5).AndReturn( 'hell' )
+    expect( reader.tell ).returns( 5 )
+    expect( frame.Reader ).args(reader, 5, 42).returns( 'payload' )
+    expect( reader.seek ).args( 42, 1 )
 
-    self.replay_all()
-    self.assertEquals( None, Frame._read_frame('stream') )
+    expect( reader.read_octet ).raises( Reader.BufferUnderflow )
+    assert_raises( Reader.BufferUnderflow, Frame._read_frame, reader )
 
   def test_read_frame_raises_formaterror_if_bad_footer(self):
-    self.mock( frame, 'Reader', use_mock_anything=True )
-    reader = self.create_mock_anything()
+    self.mock( frame, 'Reader' )
+    reader = self.mock()
+
+    expect( reader.read_octet ).returns( 45 ) # frame type
+    expect( reader.read_short ).returns( 32 ) # channel id
+    expect( reader.read_long ).returns( 42 )  # size
     
-    frame.Reader('stream').AndReturn( reader )
-    reader.read_octet().AndReturn( 45 )
-    reader.read_short().AndReturn( 32 )
-    reader.read_long().AndReturn( 5 )
-    reader.read(5).AndReturn( 'hello' )
-    reader.read_octet().AndReturn( 0xff )
+    expect( reader.tell ).returns( 5 )
+    expect( frame.Reader ).args(reader, 5, 42).returns( 'payload' )
+    expect( reader.seek ).args( 42, 1 )
+    expect( reader.read_octet ).returns( 0xff )
 
-    self.replay_all()
-    self.assertRaises( Frame.FormatError, Frame._read_frame, 'stream' )
+    assert_raises( Frame.FormatError, Frame._read_frame, reader )
 
-  def test_read_frame_raises_invalidframetype_for_unregistered_frame(self):
-    self.mock( frame, 'Reader', use_mock_anything=True )
-    reader = self.create_mock_anything()
+  def test_read_frame_raises_invalidframetype_for_unregistered_frame_type(self):
+    self.mock( frame, 'Reader' )
+    reader = self.mock()
+    payload = self.mock()
+
+    expect( reader.read_octet ).returns( 54 ) # frame type
+    expect( reader.read_short ).returns( 32 ) # channel id
+    expect( reader.read_long ).returns( 42 )  # size
     
-    frame.Reader('stream').AndReturn( reader )
-    reader.read_octet().AndReturn( 420 )
-    reader.read_short().AndReturn( 32 )
-    reader.read_long().AndReturn( 5 )
-    reader.read(5).AndReturn( 'hello' )
-    reader.read_octet().AndReturn( 0xce )
+    expect( reader.tell ).returns( 5 )
+    expect( frame.Reader ).args(reader, 5, 42).returns( payload )
+    expect( reader.seek ).args( 42, 1 )
 
-    self.replay_all()
-    self.assertRaises( Frame.InvalidFrameType, Frame._read_frame, 'stream' )
+    expect( reader.read_octet ).returns( 0xce )
+
+    assertRaises( Frame.InvalidFrameType, Frame._read_frame, reader )
