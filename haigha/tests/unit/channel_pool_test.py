@@ -1,8 +1,8 @@
-import mox
+from chai import Chai
 
 from haigha.channel_pool import ChannelPool
 
-class ChannelPoolTest(mox.MoxTestBase):
+class ChannelPoolTest(Chai):
 
   def test_init(self):
     c = ChannelPool('connection')
@@ -10,55 +10,56 @@ class ChannelPoolTest(mox.MoxTestBase):
     self.assertEquals(set(), c._free_channels)
 
   def test_publish_without_user_cb(self):
-    ch = self.create_mock_anything()
+    ch = mock()
     ch.__hash__ = lambda: 42
     cp = ChannelPool(None)
-    self.mock( cp, '_get_channel' )
 
     def test_committed_cb(cb):
-      cb()
+      # Because using this for side effects is kinda fugly, protect it
+      if not getattr(cb,'_called_yet',False):
+        cb()
+        setattr(cb, '_called_yet', True)
       return True
 
-    cp._get_channel().AndReturn( ch )
-    ch.publish_synchronous( 'arg1', 'arg2', cb=mox.Func(test_committed_cb), doit='harder' )
+    expect(cp._get_channel).returns( ch )
+    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=func(test_committed_cb), doit='harder' )
 
-    self.replay_all()
     self.assertEquals( set(), cp._free_channels )
     cp.publish( 'arg1', 'arg2', doit='harder' )
     self.assertEquals( set([ch]), cp._free_channels )
 
   def test_publish_with_user_cb(self):
-    ch = self.create_mock_anything()
+    ch = mock()
     ch.__hash__ = lambda: 42
     cp = ChannelPool(None)
-    self.mock( cp, '_get_channel' )
-    user_cb = self.create_mock_anything()
+    user_cb = mock()
 
     def test_committed_cb(cb):
-      cb()
+      # Because using this for side effects is kinda fugly, protect it
+      if not getattr(cb,'_called_yet',False):
+        cb()
+        setattr(cb, '_called_yet', True)
       return True
 
-    cp._get_channel().AndReturn( ch )
-    ch.publish_synchronous( 'arg1', 'arg2', cb=mox.Func(test_committed_cb), doit='harder' )
-    user_cb()
+    expect(cp._get_channel).returns( ch )
+    expect(user_cb).any_order()
+    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=func(test_committed_cb), doit='harder' )
 
-    self.replay_all()
     self.assertEquals( set(), cp._free_channels )
     cp.publish( 'arg1', 'arg2', cb=user_cb, doit='harder' )
     self.assertEquals( set([ch]), cp._free_channels )
 
   def test_get_channel_when_none_free(self):
-    conn = self.create_mock_anything()
+    conn = mock()
     cp = ChannelPool(conn)
 
-    conn.channel().AndReturn( 'channel' )
+    expect(conn.channel).returns( 'channel' )
     
-    self.replay_all()
     self.assertEquals( 'channel', cp._get_channel() )
     self.assertEquals( set(), cp._free_channels )
 
   def test_get_channel_when_one_free(self):
-    conn = self.create_mock_anything()
+    conn = self.mock()
     cp = ChannelPool(conn)
     cp._free_channels = set(['channel'])
 
