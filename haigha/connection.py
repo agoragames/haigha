@@ -66,7 +66,6 @@ class Connection(object):
 
     self._closed = False
     self._connected = False
-    self._output_buffer = []
     self._close_info = {
       'reply_code'    : 0,
       'reply_text'    : 'first connect',
@@ -365,7 +364,9 @@ class Connection(object):
       ch.buffer_frame( frame )
       p_channels.add( ch )
 
-    # Still not clear on what's the best approach here
+    # Still not clear on what's the best approach here. It seems there's a
+    # slight speedup by calling this directly rather than delaying, but the
+    # delay allows for pending IO with higher priority to execute.
     self._process_channels( p_channels )
     #event.timeout(0, self._process_channels, p_channels)
 
@@ -378,8 +379,11 @@ class Connection(object):
     if reader.tell() < len(data):
       self._sock.buffer( data[reader.tell():] )
 
-
   def _process_channels(self, channels):
+    '''
+    Walk through a set of channels and process their frame buffer. Will
+    collect all socket output and flush in one write.
+    '''
     self._output_buffer = bytearray()
     for channel in channels:
       channel.process_frames()
@@ -397,6 +401,10 @@ class Connection(object):
       self.send_frame( frame )
   
   def send_frame(self, frame):
+    '''
+    Send a single frame. If there is an output buffer, write to that, else send
+    immediately to the socket.
+    '''
     if self._closed:
       if self._close_info and len(self._close_info['reply_text'])>0:
         raise ConnectionClosed("connection is closed: %s : %s"%\

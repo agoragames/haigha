@@ -1,17 +1,17 @@
-import mox
 import logging
+from chai import Chai
 
 from haigha import connection, VERSION
 from haigha.connection import Connection
 
-class ConnectionTestCase(mox.MoxTestBase):
+class ConnectionTest(Chai):
   
   def setUp(self):
-    mox.MoxTestBase.setUp( self )
+    super(ConnectionTest,self).setUp()
 
     self.connection = Connection.__new__( Connection )
     self.connection._debug = False
-    self.connection._logger = self.create_mock_anything()
+    self.connection._logger = self.mock()
     self.connection._user = 'guest'
     self.connection._password = 'guest'
     self.connection._host = 'localhost'
@@ -20,8 +20,8 @@ class ConnectionTestCase(mox.MoxTestBase):
     self.connection._sock_opts = None
     self.connection._sock = None # mock anything?
     self.connection._heartbeat = None
-    self.connection._reconnect_cb = self.create_mock_anything()
-    self.connection._close_cb = self.create_mock_anything()
+    self.connection._reconnect_cb = self.mock()
+    self.connection._close_cb = self.mock()
     self.connection._login_method = 'AMQPLAIN'
     self.connection._locale = 'en_US'
     self.connection._client_properties = None
@@ -31,7 +31,6 @@ class ConnectionTestCase(mox.MoxTestBase):
     }
     self.connection._closed = False
     self.connection._connected = False
-    self.connection._output_buffer = []
     self.connection._close_info = {
       'reply_code'    : -1,
       'reply_text'    : 'first connect',
@@ -39,27 +38,26 @@ class ConnectionTestCase(mox.MoxTestBase):
       'method_id'     : -1
     }
     self.connection._channels = {
-      0 : self.create_mock_anything()
+      0 : self.mock()
     }
     self.connection._login_response = 'loginresponse'
     self.connection._channel_counter = 0
     self.connection._channel_max = 65535
     self.connection._frame_max = 65535
-    self.connection._strategy = self.create_mock_anything()
+    self.connection._strategy = self.mock()
+    self.connection._output_buffer = None
     self.connection._output_frame_buffer = []
-
 
   def test_init_without_keyword_args(self):
     conn = Connection.__new__( Connection )
-    strategy = self.create_mock_anything()
-    self.mock( connection, 'ConnectionChannel', use_mock_anything=True )
-    self.mock( connection, 'ConnectionStrategy', use_mock_anything=True )
+    strategy = mock()
+    mock( connection, 'ConnectionChannel' )
+    mock( connection, 'ConnectionStrategy' )
 
-    connection.ConnectionChannel( conn, 0 ).AndReturn( 'connection_channel' )
-    connection.ConnectionStrategy( conn, 'localhost', reconnect_cb=None ).AndReturn( strategy )
-    strategy.connect()
+    expect(connection.ConnectionChannel).args( conn, 0 ).returns( 'connection_channel' )
+    expect(connection.ConnectionStrategy).args( conn, 'localhost', reconnect_cb=None ).returns( strategy )
+    expect(strategy.connect)
 
-    self.replay_all()
     conn.__init__()
     
     self.assertFalse( conn._debug )
@@ -83,12 +81,11 @@ class ConnectionTestCase(mox.MoxTestBase):
     } )
     self.assertFalse( conn._closed )
     self.assertFalse( conn._connected )
-    self.assertEqual( [], conn._output_buffer )
     self.assertEqual( conn._close_info, {
-      'reply_code'    : -1,
+      'reply_code'    : 0,
       'reply_text'    : 'first connect',
-      'class_id'      : -1,
-      'method_id'     : -1
+      'class_id'      : 0,
+      'method_id'     : 0
     } )
     self.assertEqual( {0:'connection_channel'}, conn._channels )
     self.assertEqual( '\x05LOGINS\x00\x00\x00\x05guest\x08PASSWORDS\x00\x00\x00\x05guest', conn._login_response )
@@ -96,4 +93,5 @@ class ConnectionTestCase(mox.MoxTestBase):
     self.assertEqual( 65535, conn._channel_max )
     self.assertEqual( 65535, conn._frame_max )
     self.assertEqual( strategy, conn._strategy )
+    self.assertEqual( None, conn._output_buffer )
     self.assertEqual( [], conn._output_frame_buffer )
