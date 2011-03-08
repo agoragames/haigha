@@ -2,21 +2,20 @@
 Unit tests for the connection strategy
 """
 
-import mox
+from chai import Chai
 import socket
 import logging
 import haigha as connection_strategy
 
 from haigha.connection_strategy import ConnectionStrategy, Host, UNCONNECTED, CONNECTED, FAILED
 
-class ConnectionStrategyTest(mox.MoxTestBase):
+class ConnectionStrategyTest(Chai):
 
   def setUp(self):
-    mox.MoxTestBase.setUp( self )
+    super(ConnectionStrategyTest,self).setUp()
 
-    connection_strategy.event = self.mox.CreateMockAnything()
-    self.connection = self.mox.CreateMockAnything()
-    self.connection.logger = self.create_mock_anything()
+    self.connection = mock()
+    self.connection.logger = mock()
     self.strategy = ConnectionStrategy( self.connection, 'localhost' )
 
   def test_init_is_doin_it_right(self):
@@ -47,24 +46,20 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._orig_host = Host('foo:5678')
     self.strategy._known_hosts = [ self.strategy._orig_host ]
 
-    self.connection.logger.warning( 
+    expect(self.connection.logger.warning).args(
       "current host %s not in known hosts %s, reconnecting to %s in %ds!",
       self.strategy._cur_host, [Host('foo:5678'),Host('foo:1234')], self.strategy._orig_host, 5 )
     
-    self.mox.StubOutWithMock( self.strategy, 'connect' )
-    self.strategy.connect( 5 )
+    expect(self.strategy.connect).args( 5 )
 
-    self.mox.ReplayAll()
     self.strategy.set_known_hosts( 'foo:1234' )
 
   def test_next_host_handles_simple_base_case(self):
     self.strategy._cur_host = Host('localhost')
     self.strategy._known_hosts = [Host('localhost'), Host('foo')]
     
-    self.mox.StubOutWithMock( self.strategy, 'connect' )
-    self.strategy.connect()
+    expect(self.strategy.connect)
 
-    self.mox.ReplayAll()
     self.strategy.next_host()
     self.assertEquals( Host('foo'), self.strategy._cur_host )
     self.assertFalse(self.strategy._reconnecting)
@@ -75,10 +70,8 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._known_hosts[0].state = CONNECTED
     self.strategy._known_hosts[1].state = CONNECTED
     
-    self.mox.StubOutWithMock( self.strategy, 'connect' )
-    self.strategy.connect()
+    expect(self.strategy.connect)
 
-    self.mox.ReplayAll()
     self.strategy.next_host()
     self.assertEquals( Host('bar'), self.strategy._cur_host )
     self.assertFalse(self.strategy._reconnecting)
@@ -91,10 +84,8 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._known_hosts[2].state = CONNECTED
     self.strategy._known_hosts[3].state = CONNECTED
     
-    self.mox.StubOutWithMock( self.strategy, 'connect' )
-    self.strategy.connect()
+    expect(self.strategy.connect)
 
-    self.mox.ReplayAll()
     self.strategy.next_host()
     self.assertEquals( Host('localhost'), self.strategy._cur_host )
   
@@ -106,10 +97,8 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._known_hosts[2].state = CONNECTED
     self.strategy._known_hosts[3].state = CONNECTED
     
-    self.mox.StubOutWithMock( self.strategy, 'connect' )
-    self.strategy.connect()
+    expect(self.strategy.connect)
 
-    self.mox.ReplayAll()
     self.strategy.next_host()
     self.assertEquals( Host('foo'), self.strategy._cur_host )
 
@@ -122,13 +111,11 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._known_hosts[2].state = FAILED
     self.strategy._known_hosts[3].state = FAILED
 
-    self.connection.logger.warning( 'Failed to connect to any of %s, will retry %s in %d seconds',
+    expect(self.connection.logger.warning).args( 
+      'Failed to connect to any of %s, will retry %s in %d seconds',
       self.strategy._known_hosts, self.strategy._orig_host, 5 )
-    
-    self.mox.StubOutWithMock( self.strategy, 'connect' )
-    self.strategy.connect( 5 )
+    expect(self.strategy.connect).args( 5 )
 
-    self.mox.ReplayAll()
     self.strategy.next_host()
     self.assertEquals( Host('foo'), self.strategy._cur_host )
     self.assertTrue(self.strategy._reconnecting)
@@ -137,14 +124,13 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._cur_host = Host('foo')
     self.assertEquals( UNCONNECTED, self.strategy._cur_host.state )
     
-    self.mox.StubOutWithMock( self.strategy, 'connect' )
-    self.mox.StubOutWithMock( self.strategy, 'next_host' )
+    stub(self.strategy.connect)
+    stub(self.strategy.next_host)
     
     self.strategy.fail()
-    self.mox.ReplayAll()
     self.assertEquals( FAILED, self.strategy._cur_host.state )
 
-# FIXME: These tests need to be fixed
+# FIXME: These tests need to be fixed and converted to Chai
 #  def test_connect_basics(self):
 #    self.strategy._pending_connect = None
 
@@ -186,12 +172,10 @@ class ConnectionStrategyTest(mox.MoxTestBase):
   def test_connect_had_single_pending_event(self):
     self.strategy._pending_connect = 'foo'
 
-    self.connection.logger.debug( "disconnecting connection" )
-    self.connection.disconnect()
+    expect(self.connection.logger.debug).args( "disconnecting connection" )
+    expect(self.connection.disconnect)
+    expect(self.connection.logger.debug).args("Pending connect: %s", 'foo')
 
-    self.connection.logger.debug("Pending connect: %s", 'foo')
-
-    self.mox.ReplayAll()
     self.strategy.connect()
     self.assertTrue( self.strategy._pending_connect, 'foo' )
 
@@ -200,30 +184,26 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._cur_host = Host('bar')
     self.strategy._reconnecting = False
 
-    self.connection.logger.debug( "Connecting to %s on %s", 'bar', 5672 )
-    self.connection.connect( 'bar', 5672 )
+    expect(self.connection.logger.debug).args( "Connecting to %s on %s", 'bar', 5672 )
+    expect(self.connection.connect).args( 'bar', 5672 )
+    expect(self.connection.logger.debug).args( 'Connected to %s', self.strategy._cur_host )
     
-    self.connection.logger.debug( 'Connected to %s', self.strategy._cur_host )
-    
-    self.replay_all()
     self.strategy._connect_cb()
     self.assertTrue( self.strategy._pending_connect is None )
     self.assertEquals( CONNECTED, self.strategy._cur_host.state )
 
   def test_connect_cb_when_successful_and_reconnecting(self):
-    mock = self.create_mock_anything()
+    reconnect_cb = mock()
     self.strategy._pending_connect = 'foo'
     self.strategy._cur_host = Host('bar')
     self.strategy._reconnecting = True
-    self.strategy.reconnect_callbacks = [lambda: mock.test_call()]
+    self.strategy.reconnect_callbacks = [ reconnect_cb ]
 
-    self.connection.logger.debug( "Connecting to %s on %s", 'bar', 5672 )
-    self.connection.connect( 'bar', 5672 )
+    expect(self.connection.logger.debug).args( "Connecting to %s on %s", 'bar', 5672 )
+    expect(self.connection.connect).args( 'bar', 5672 )
+    expect(self.connection.logger.info).args( 'Connected to %s', self.strategy._cur_host )
+    expect(reconnect_cb)
     
-    self.connection.logger.info( 'Connected to %s', self.strategy._cur_host )
-    
-    mock.test_call()
-    self.mox.ReplayAll()
     self.strategy._connect_cb()
     self.assertTrue( self.strategy._pending_connect is None )
     self.assertEquals( CONNECTED, self.strategy._cur_host.state )
@@ -232,15 +212,13 @@ class ConnectionStrategyTest(mox.MoxTestBase):
   def test_connect_cb_on_fail_and_first_connect_attempt(self):
     self.strategy._cur_host = Host('bar')
     
-    self.connection.logger.debug( "Connecting to %s on %s", 'bar', 5672 )
-    self.connection.connect( 'bar', 5672 ).AndRaise( socket.error('fail sauce') )
+    expect(self.connection.logger.debug).args( "Connecting to %s on %s", 'bar', 5672 )
+    expect(self.connection.connect).args( 'bar', 5672 ).raises( socket.error('fail sauce') )
 
-    self.connection.logger.exception(
+    expect(self.connection.logger.exception).args(
       "Failed to connect to %s, will try again in %d seconds", self.strategy._cur_host, 2 )
-    self.mock( self.strategy, 'connect' )
-    self.strategy.connect( 2 )
+    expect(self.strategy.connect).args( 2 )
     
-    self.replay_all()
     self.strategy._connect_cb()
     self.assertEquals( FAILED, self.strategy._cur_host.state )
   
@@ -248,22 +226,16 @@ class ConnectionStrategyTest(mox.MoxTestBase):
     self.strategy._cur_host = Host('bar')
     self.strategy._cur_host.state = FAILED
     
-    self.connection.logger.debug( "Connecting to %s on %s", 'bar', 5672 )
-    self.connection.connect( 'bar', 5672 ).AndRaise( socket.error('fail sauce') )
-
-    self.connection.logger.critical( "Failed to connect to %s", self.strategy._cur_host )
-    self.mock( self.strategy, 'next_host' )
-    self.strategy.next_host()
+    expect(self.connection.logger.debug).args( "Connecting to %s on %s", 'bar', 5672 )
+    expect(self.connection.connect).args( 'bar', 5672 ).raises( socket.error('fail sauce') )
+    expect(self.connection.logger.critical).args( "Failed to connect to %s", self.strategy._cur_host )
+    expect(self.strategy.next_host)
     
-    self.replay_all()
     self.strategy._connect_cb()
 
 
-class HostTest(mox.MoxTestBase):
+class HostTest(Chai):
   
-  def setUp(self):
-    mox.MoxTestBase.setUp( self )
-
   def test_init_localhost(self):
     h1 = Host( 'localhost' )
     h2 = Host( '127.0.0.1' )
