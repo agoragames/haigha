@@ -96,7 +96,7 @@ class Reader(object):
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     """
-    # self._check_underflow(1)
+    # Perform a faster check on underflow
     if self._pos >= self._end_pos: raise self.BufferUnderflow()
     result = ord(self._input[ self._pos ]) & 1
     self._pos += 1
@@ -104,14 +104,20 @@ class Reader(object):
 
   def read_bits(self, num):
     '''
-    Read several bits packed into the same field. Will return as a list. 
+    Read several bits packed into the same field. Will return as a list. The
+    bit field itself is little-endian, though the order of the returned array
+    looks big-endian for ease of decomposition.
+
+    Reader('\x02').read_bits(2) -> [False,True]
+    Reader('\x08').read_bits(2) -> [False,True,False,False,False,False,False,False]
+    first_field, second_field = Reader('\x02').read_bits(2)
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise ValueError if num < 0 or num > 9
     '''
-    # self._check_underflow(1)
+    # Perform a faster check on underflow
     if self._pos >= self._end_pos: raise self.BufferUnderflow()
-    if num < 0 or num > 9: raise ValueError("8 bits per field")
+    if num < 0 or num >= 9: raise ValueError("8 bits per field")
     field = ord(self._input[self._pos])
     result = map(lambda x: field>>x & 1, xrange(num) )
     self._pos += 1
