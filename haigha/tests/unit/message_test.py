@@ -1,10 +1,10 @@
-import mox
+from chai import Chai
 from cStringIO import StringIO
 
 from haigha.message import Message
 
 
-class MessageTest(mox.MoxTestBase):
+class MessageTest(Chai):
 
   def test_init_no_args(self):
     m = Message()

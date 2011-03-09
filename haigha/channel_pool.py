@@ -19,10 +19,23 @@ class ChannelPool(object):
   def publish(self, *args, **kwargs):
     '''
     Publish a message. Caller can supply an optional callback which will
-    be fired when the transaction is committed.
+    be fired when the transaction is committed. Tries very hard to avoid
+    closed and inactive channels, but a ChannelError or ConnectionError
+    may still be raised.
     '''
     user_cb = kwargs.pop('cb', None)
+
+    # If the first channel we grab is inactive, continue fetching until
+    # we get an active channel, then put the inactive channels back in
+    # the pool. Try to keep the overhead to a minimum.
     channel = self._get_channel()
+
+    if not channel.active:
+      inactive_channels = set()
+      while not channel.active:
+        inactive_channels.add( channel )
+        channel = self._get_channel()
+      self._free_channels.update( inactive_channels )
 
     def committed():
       self._free_channels.add( channel )
@@ -32,8 +45,10 @@ class ChannelPool(object):
 
   def _get_channel(self):
     '''
-    Fetch a channel from the pool. Will return a new one if necessary.
+    Fetch a channel from the pool. Will return a new one if necessary. If
+    a channel in the free pool is closed, will remove it.
     '''
-    if len(self._free_channels):
-      return self._free_channels.pop()
+    while len(self._free_channels):
+      rval = self._free_channels.pop()
+      if not rval.closed: return rval
     return self._connection.channel()

@@ -1,12 +1,11 @@
-
-import mox
+from chai import Chai
 from datetime import datetime
 from cStringIO import StringIO
 
 from haigha.writer import Writer
 
 
-class WriterTest(mox.MoxTestBase):
+class WriterTest(Chai):
 
   # Tests commented out because they don't really apply, but there's a lot that
   # can be copied

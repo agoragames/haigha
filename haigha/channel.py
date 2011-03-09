@@ -56,6 +56,10 @@ class Channel(object):
   def close_info(self):
     return self.channel.close_info
 
+  @property
+  def active(self):
+    return self.channel.active
+
   def open(self):
     '''
     Open this channel.  Routes to channel.open.
