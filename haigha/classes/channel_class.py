@@ -138,7 +138,9 @@ class ChannelClass(ProtocolClass):
     except:
       self.logger.error("Failed to close channel %d", 
         self.channel_id, exc_info=True)
-      self._closed = True
+
+    # Immediately set the closed flag so that no more frames can be sent
+    self._closed = True
 
   def _recv_close(self, method_frame):
     '''

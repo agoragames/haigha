@@ -359,6 +359,8 @@ class Connection(object):
       self.logger.exception( "Framing error", exc_info=True )
       
     for frame in frames:
+      if self._debug > 1:
+        self.logger.debug( "READ: %s", frame )
       self._frames_read += 1
       ch = self.channel( frame.channel_id )
       ch.buffer_frame( frame )
@@ -414,6 +416,9 @@ class Connection(object):
     if self._sock==None or (not self._connected and frame.channel_id!=0):
       self._output_frame_buffer.append( frame )
       return
+    
+    if self._debug > 1:
+      self.logger.debug( "WRITE: %s", frame )
 
     if self._output_buffer is None:
       buf = bytearray()
@@ -423,9 +428,6 @@ class Connection(object):
       frame.write_frame( self._output_buffer )
     
     self._frames_written += 1
-    
-    if self._debug > 1:
-      self.logger.debug( "WRITE: %s", frame )
     
 
 class ConnectionChannel(Channel):
