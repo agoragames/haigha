@@ -568,7 +568,7 @@ class ConnectionChannel(Channel):
     event.timeout(0, self.connection._close_cb)
 
   def _send_close_ok(self):
-    self.send_frame( MethodFrame(self.channel_id, 10, 61) )
+    self.send_frame( MethodFrame(self.channel_id, 10, 51) )
 
   def _recv_close_ok(self, method_frame):
     self.connection._close_socket()
