@@ -152,9 +152,12 @@ class ChannelClass(ProtocolClass):
       'class_id'      : method_frame.args.read_short(),
       'method_id'     : method_frame.args.read_short()
     }
-    self._closed = True
 
     self.send_frame( MethodFrame(self.channel_id, 20, 41) )
+
+    # Must set this *after* send_frame so that it doesn't throw an exception
+    self._closed = True
+
 
   def _recv_close_ok(self, method_frame):
     '''
