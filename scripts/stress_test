@@ -71,7 +71,8 @@ class ChannelTest:
     self._ch.queue.bind( self._queue, self._exchange, self._queue )
     self._ch.basic.consume( self._queue, self._consume )
 
-    self._publish()
+    #self._publish()
+    event.timeout( 1, self._publish )
 
   @property
   def _transactions(self):
@@ -88,7 +89,8 @@ class ChannelTest:
     # 2.4.0 can handle the handshake of channel close before we handshake the
     # connection close. Otherwise, it gets both close requests in rapid 
     # succession and doesn't ack either of them, resulting in a force quit
-    event.timeout( 0.3, channel_closed, self )
+    #event.timeout( 0.3, channel_closed, self )
+    channel_closed(self)
 
   def _publish(self):
     self._count += 1
