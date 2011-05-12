@@ -14,6 +14,7 @@ setup(
     install_requires = requirements,
     url='https://github.com/agoragames/haigha',
     license="LICENSE.txt",
+    description='Event driven AMQP client library',
     long_description=open('README.txt').read(),
     keywords=['python', 'amqp', 'event', 'rabbitmq'],
     classifiers=[
