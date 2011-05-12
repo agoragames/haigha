@@ -128,7 +128,7 @@ class Connection(object):
   
   def reconnect(self):
     '''Reconnect to the configured host and port.'''
-    self.strategy.connect()
+    self._strategy.connect()
   
   def connect(self, host, port):
     '''
@@ -156,15 +156,15 @@ class Connection(object):
     # Only after the socket has connected do we clear this state; closed must
     # be False so that writes can be buffered in writePacket().  The closed
     # state might have been set to True due to a socket error or a redirect.
+    self._host = "%s:%d"%(host,port)
     self._closed = False
     self._close_info = {
-      'reply_code'    : -1,
-      'reply_text'    : 'failed to connect to %s:%d'%(host,port),
-      'class_id'      : -1,
-      'method_id'     : -1
+      'reply_code'    : 0,
+      'reply_text'    : 'failed to connect to %s'%(self._host),
+      'class_id'      : 0,
+      'method_id'     : 0
     }
 
-    self._host = "%s:%d"%(host,port)
     self._sock.write( PROTOCOL_HEADER )
   
   def disconnect(self):
@@ -211,55 +211,43 @@ class Connection(object):
     """
     self.logger.warning( 'socket to %s closed unexpectedly', self._host )
     self._close_info = {
-      'reply_code'    : -1,
-      'reply_text'    : 'socket closed unexpectedly',
-      'class_id'      : -1,
-      'method_id'     : -1
+      'reply_code'    : 0,
+      'reply_text'    : 'socket closed unexpectedly to %s'%(self._host),
+      'class_id'      : 0,
+      'method_id'     : 0
     }
 
-    # we're not connected any more (we're not closed but we're definitely not
+    # We're not connected any more (we're not closed but we're definitely not
     # connected)
     self._connected = False
 
-    # 16 Aug 2010 - The connection strategy just isn't enough for dealing with
-    # disconnects, or at least not of the nature that we've encountered at TM.
-    # So for now, callback to our close callback handler which we know will raise
-    # a SystemExit.
+    # Call back to a user-provided close function
     self._close_cb and self._close_cb()
 
-    # Removed check for `self.connected==True` because the strategy does the
-    # right job in letting us reconnect when there's a transient error.  If
-    # you haven't configured permissions and that's why the socket is closing,
-    # at least it will only try to reconnect every few seconds.
+    # Fail and do nothing. If you haven't configured permissions and that's 
+    # why the socket is closing, this keeps us from looping.
     self._strategy.fail()
-#    self._strategy.next_host()
   
   def _sock_error_cb(self, sock, msg, exception=None):
     """
     Callback when there's an error on the socket.
     """
-    self.logger.error( 'error on connection to %s - %s', self._host, msg)
+    self.logger.error( 'error on connection to %s: %s', self._host, msg)
     self._close_info = {
-      'reply_code'    : -1,
-      'reply_text'    : "socket error: %s"%(msg),
-      'class_id'      : -1,
-      'method_id'     : -1
+      'reply_code'    : 0,
+      'reply_text'    : 'socket error on host %s: %s'%(self._host, msg),
+      'class_id'      : 0,
+      'method_id'     : 0
     }
     
     # we're not connected any more (we're not closed but we're definitely not
     # connected)
     self._connected = False
 
-    # 16 Aug 2010 - The connection strategy just isn't enough for dealing with
-    # disconnects, or at least not of the nature that we've encountered at TM.
-    # So for now, callback to our close callback handler which we know will raise
-    # a SystemExit.
+    # Call back to a user-provided close function
     self._close_cb and self._close_cb()
 
-    # Removed check for `self.connected==True` because the strategy does the
-    # right job in letting us reconnect when there's a transient error.  If
-    # you haven't configured permissions and that's why the socket is closing,
-    # at least it will only try to reconnect every few seconds.
+    # Fail and try to reconnect, because this is expected to be a transient error.
     self._strategy.fail()
     self._strategy.next_host()
 
@@ -291,7 +279,7 @@ class Connection(object):
     elif channel_id in self._channels:
       return self._channels[channel_id]
     else:
-      raise Connect.InvalidChannel("%s is not a valid channel id", channel_id )
+      raise Connection.InvalidChannel("%s is not a valid channel id", channel_id )
 
     # Call open() here so that ConnectionChannel doesn't have it called.  Could
     # also solve this other ways, but it's a HACK regardless.
