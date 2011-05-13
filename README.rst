@@ -23,13 +23,6 @@ By default, Haigha operates in a completely asynchronous mode, relying on callba
 
 This is a preview release, lacking full unit test coverage and documentation, and possibly including some errata. It is in production use however, and processes dozen of GBs per day of traffic.
 
-
-Installation
-============
-
-pip install -r requirements.txt
-
-
 Example
 =======
 
@@ -64,3 +57,24 @@ Future
 ======
 
 Planned updates include substantially more documentation, and full unit test coverage. Please report bugs to https://github.com/agoragames/haigha.
+
+Installation
+============
+
+To install using ``pip``,::
+
+  pip install -r requirements.txt
+
+Bug tracker
+===========
+
+If you have any suggestions, bug reports or annoyances please report them
+to our issue tracker at https://github.com/agoragames/haigha/issues
+
+License
+=======
+
+This software is licensed under the `New BSD License`. See the ``LICENSE.txt``
+file in the top distribution directory for the full license text.
+
+.. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
