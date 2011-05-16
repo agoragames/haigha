@@ -1,6 +1,10 @@
 import haigha
 import os
-from distutils.core import setup
+
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 
 requirements = map(str.strip, open('requirements.txt').readlines())
