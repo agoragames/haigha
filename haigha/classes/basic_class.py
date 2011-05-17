@@ -53,7 +53,7 @@ class BasicClass(ProtocolClass):
 
     self.channel.add_synchronous_cb( self._recv_qos_ok )
 
-  def _recv_qos_ok(self):
+  def _recv_qos_ok(self, _method_frame):
     # No arguments, nothing to do
     pass
     
