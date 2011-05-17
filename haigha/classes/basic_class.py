@@ -72,10 +72,6 @@ class BasicClass(ProtocolClass):
       args.write_short(self.default_ticket)
     args.write_shortstr(queue)
     args.write_shortstr(consumer_tag)
-    #args.write_bit(no_local)
-    #args.write_bit(no_ack)
-    #args.write_bit(exclusive)
-    #args.write_bit(nowait)
     args.write_bits( no_local, no_ack, exclusive, nowait )
     args.write_table({})
     self.send_frame( MethodFrame(self.channel_id, 60, 20, args) )
@@ -163,7 +159,9 @@ class BasicClass(ProtocolClass):
 
     self.send_frame( MethodFrame(self.channel_id, 60, 50, args) )
 
-  def _recv_return(self):
+  def _recv_return(self, _method_frame):
+    # This seems like the right place to callback that the operation has
+    # completed.
     pass
 
   def _recv_deliver(self, method_frame):
