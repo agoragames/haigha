@@ -159,7 +159,7 @@ class ConnectionTest(Chai):
     assert_false( self.connection._connected )
     assert_equals( None, sock.close_cb )
     assert_equals( None, self.connection._sock )
-    assert_equals( {0:'a'}, self.connection._channels )
+    assert_equals( { 0 : 'a', 1 : 'b', 2 : 'c' }, self.connection._channels )
 
   def test_add_reconnect_callback(self):
     # have to mock the list because strategy is a mock object and can't
