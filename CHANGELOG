@@ -1,0 +1,9 @@
+
+0.2.3
+=====
+
+First changelog.
+
+Removed manipulation of channels in Connection.disconnect(). It's now up to the application to manage channels when explicitly shutting down a connection or when the socket is dropped and the strategy reconnects. This fixed a problem wherein an application may have created a connection, created some channels and queued operations on them, but it takes the strategy a few attempts before completing a socket connection.
+
+Fixed character escpaing when logging outbound ContentFrames.
