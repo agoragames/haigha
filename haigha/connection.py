@@ -132,7 +132,8 @@ class Connection(object):
   
   def connect(self, host, port):
     '''
-    Connect to a host and port.
+    Connect to a host and port. Can be called directly, or is called by the
+    strategy as it tries to find and connect to hosts.
     '''
     # Clear the connect state immediately since we're no longer connected
     # at this point.
@@ -170,22 +171,16 @@ class Connection(object):
   def disconnect(self):
     '''
     Disconnect from the current host, but otherwise leave this object "open"
-    so that it can be reconnected.  All channels (except our own) are nuked as
-    they'll be useless when we reconnect.
+    so that it can be reconnected.
     '''
     self._connected = False
     if self._sock!=None:
       self._sock.close_cb = None
-      self._sock.close()
+      try:
+        self._sock.close()
+      except: 
+        self.logger.error("Failed to disconnect socket to %s", self._host, exc_info=True)
       self._sock = None
-    
-    # It's possible that this is being called after we've done a standard socket
-    # closure and the strategy is trying to reconnect.  In that case, we might
-    # not have a socket anymore but the channels are still around.  
-    for channel_id in self._channels.keys():
-      #if channel_id != self.channel_id: 
-      if channel_id != 0:
-        del self._channels[channel_id]
   
   def add_reconnect_callback(self, callback):
     '''Adds a reconnect callback to the strategy.  This can be used to
@@ -220,6 +215,7 @@ class Connection(object):
     # We're not connected any more (we're not closed but we're definitely not
     # connected)
     self._connected = False
+    self._sock = None
 
     # Call back to a user-provided close function
     self._close_cb and self._close_cb()
@@ -243,6 +239,7 @@ class Connection(object):
     # we're not connected any more (we're not closed but we're definitely not
     # connected)
     self._connected = False
+    self._sock = None
 
     # Call back to a user-provided close function
     self._close_cb and self._close_cb()
