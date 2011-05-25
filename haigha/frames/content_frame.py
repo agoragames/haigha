@@ -39,7 +39,12 @@ class ContentFrame(Frame):
     self._payload = payload
   
   def __str__(self):
-    return "%s[channel: %d, payload: %s]"%( self.__class__.__name__, self.channel_id, self._payload )
+    if isinstance(self._payload, str):
+      payload = ''.join( ['\\x%s'%(c.encode('hex')) for c in self._payload] )
+    else:
+      payload = str(self._payload)
+    
+    return "%s[channel: %d, payload: %s]"%( self.__class__.__name__, self.channel_id, payload )
 
   def write_frame(self, buf):
     writer = Writer( buf )
@@ -51,7 +56,6 @@ class ContentFrame(Frame):
     writer.write( self._payload )
 
     writer.write_octet( 0xce )
-    #writer.flush( stream )
 
 
 ContentFrame.register()
