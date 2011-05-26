@@ -135,8 +135,6 @@ class BasicClass(ProtocolClass):
       args.write_short(self.default_ticket)
     args.write_shortstr(exchange)
     args.write_shortstr(routing_key)
-    #args.write_bit(mandatory)
-    #args.write_bit(immediate)
     args.write_bits(mandatory, immediate)
 
     self.send_frame( MethodFrame(self.channel_id, 60, 40, args) )
