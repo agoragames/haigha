@@ -1,6 +1,7 @@
 from chai import Chai
 
 from haigha.classes import basic_class, ProtocolClass, BasicClass
+from haigha.frames import MethodFrame
 
 class BasicClassTest(Chai):
 
@@ -8,8 +9,10 @@ class BasicClassTest(Chai):
     super(BasicClassTest,self).setUp()
     ch = mock()
     ch.channel_id = 42
+    ch.logger = mock()
     self.klass = BasicClass( ch )
-
+    self.sample_tag = 'Consumer Tag'
+  
   def _BasicClass(self):
     # generator for instances
     ch = mock()
@@ -127,7 +130,80 @@ class BasicClassTest(Chai):
     assert_equals( {'ctag':'consumer'}, self.klass._consumer_cb )
     assert_equals( [], self.klass._pending_consumers )
 
-  def test_cancel_default_args(self):
+  def test_cancel_default_args0(self):
+    writer = mock()
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 30, ignore()).returns( 'frame' )
+    expect(self.klass.send_frame).args('frame')
+    expect(self.klass.logger.warning).args(ignore(), ignore())
+    self.klass.cancel()
+
+  def test_cancel_consumer_tag(self):
+    writer = mock()
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 30, ignore()).returns( 'frame' )
+    expect(self.klass.send_frame).args('frame')
+    expect(self.klass.logger.warning).args(ignore(), ignore())
+    self.klass.cancel(self.sample_tag)
+
+  def test_cancel_existing_consumer_tag(self):
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 30, ignore()).returns( 'frame' )
+    self.klass._consumer_cb[self.sample_tag] = object()
+    expect(self.klass.send_frame).args('frame')
+    self.klass.cancel(self.sample_tag)
+    assertTrue(self.sample_tag not in self.klass._consumer_cb)
+
+  def test_cancel_consumer_no_cb(self):
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 30, ignore()).returns( 'frame' )
+    expect(self.klass.send_frame).args('frame')
+    expect(self.klass.logger.warning).args(ignore(), ignore())
+    self.klass.cancel(consumer=object())
+
+  def test_cancel_consumer_with_cb(self):
+    consumer = object()
+    self.klass._consumer_cb[self.sample_tag] = consumer
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 30, ignore()).returns( 'frame' )
+    expect(self.klass.send_frame).args('frame')
+    self.klass.cancel(consumer_tag=self.sample_tag, consumer=consumer)
+    assertTrue(self.sample_tag not in self.klass._consumer_cb)
+    assertTrue(consumer not in self.klass._consumer_cb.values())
+
+  def test_cancel_nowait_false(self):
+    f = lambda:None
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 30, ignore()).returns( 'frame' )
+    expect(self.klass.send_frame).args('frame')
+    expect(self.klass.channel.add_synchronous_cb).args(self.klass._recv_cancel_ok)
+    self.klass.cancel(nowait=False, cb=f)
+    assertTrue(f in self.klass._cancel_cb)
+
+  def test_cancel_nowait_false_no_cb(self):
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 30, ignore()).returns( 'frame' )
+    expect(self.klass.send_frame).args('frame')
+    expect(self.klass.channel.add_synchronous_cb).args(self.klass._recv_cancel_ok)
+    self.klass.cancel(nowait=False)
+    assertTrue(None in self.klass._cancel_cb)
+
+  def test__recv_cancel_ok(self):
+    frame = mock()
+    expect(frame.args.read_shortstr).returns(self.sample_tag)
+    expect(self.klass.logger.warning).args(ignore(), ignore())
+    self.klass._recv_cancel_ok(frame)
+
+  def test__recv_cancel_ok_with_cb(self):
+    # python sucks
+    i = []
+    def f():
+      i.append(0)
+
+    frame = mock()
+    self.klass._consumer_cb[self.sample_tag] = f
+    self.klass._cancel_cb.append(f)
+    expect(frame.args.read_shortstr).returns(self.sample_tag)
+    assertEquals(i, [])
+    self.klass._recv_cancel_ok(frame)
+    assertEquals(i, [0])
+    assertTrue(f not in self.klass._consumer_cb)
+    assertTrue(f not in self.klass._cancel_cb)
+
+  def test_cancel_default_args1(self):
     writer = mock()
     expect( mock(basic_class, 'Writer') ).returns( writer )
     expect( writer.write_shortstr ).args( '' )
