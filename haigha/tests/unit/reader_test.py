@@ -1,6 +1,6 @@
 from chai import Chai
 from datetime import datetime
-from cStringIO import StringIO
+from io import BytesIO
 
 from haigha.reader import Reader
 import struct
@@ -23,7 +23,7 @@ class ReaderTest(Chai):
     assert_true( isinstance(u._input, buffer) )
     assert_equals( 'D\xc3\xbcsseldorf', str(u._input) )
 
-    b = StringIO('foo')
+    b = BytesIO('foo')
     i = Reader(b)
     assert_true( isinstance(i._input, buffer) )
     assert_equals( 'foo', str(i._input) )

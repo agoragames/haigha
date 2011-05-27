@@ -11,7 +11,6 @@ import socket
 import struct
 import haigha
 
-from cStringIO import StringIO
 from io import BytesIO
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from logging import root as root_logger
@@ -79,7 +78,7 @@ class Connection(object):
     
     login_response = Writer()
     login_response.write_table({'LOGIN': self._user, 'PASSWORD': self._password})
-    #stream = StringIO()
+    #stream = BytesIO()
     #login_response.flush(stream)
     #self._login_response = stream.getvalue()[4:]  #Skip the length
                                                       #at the beginning

@@ -1,6 +1,3 @@
-
-#from cStringIO import StringIO
-
 class Message(object):
   '''
   Represents an AMQP message.
