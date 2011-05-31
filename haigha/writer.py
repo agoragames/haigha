@@ -26,6 +26,11 @@ class Writer(object):
   def __str__(self):
     return ''.join( ['\\x%s'%(chr(c).encode('hex')) for c in self._output_buffer] )
 
+  __repr__ = __str__
+
+  def __eq__(self, other):
+    return self._output_buffer == other._output_buffer
+
   def buffer(self):
     '''
     Get the buffer that this has written to. Returns bytearray.
