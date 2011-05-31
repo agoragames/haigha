@@ -5,7 +5,7 @@ class Message(object):
 
   def __init__(self, body=None, delivery_info=None, **properties):
     if isinstance(body, unicode):
-      if properties.get('content_encoding', None) is None:
+      if 'content_encoding' not in properties:
         properties['content_encoding'] = 'utf-8'
       body = body.encode(properties['content_encoding'])
     
