@@ -37,6 +37,7 @@ class Writer(object):
     Write a plain Python string, with no special encoding.
     """
     self._output_buffer.extend( s )
+    return self
 
   def write_bits(self, *args):
     # Would be nice to make this a bit smarter
@@ -47,11 +48,14 @@ class Writer(object):
     self._output_buffer.append( pack('B',
       reduce(lambda x,y: xor(x,args[y]<<y), xrange(len(args)), 0)) )
 
+    return self
+
   def write_bit(self, b, packer=Struct('B')):
     '''
     Write a single bit. Convenience method for single bit args.
     '''
     self._output_buffer.append( packer.pack(b) )
+    return self
 
   def write_octet(self, n, packer=Struct('B')):
     """
@@ -61,6 +65,7 @@ class Writer(object):
       self._output_buffer.append( packer.pack(n) )
     else:
       raise ValueError('Octet %d out of range 0..255', n)
+    return self
 
   def write_short(self, n, packer=Struct('>H')):
     """
@@ -69,7 +74,8 @@ class Writer(object):
     if 0 <= n <= 0xFFFF:
       self._output_buffer.extend( packer.pack(n) )
     else:
-      raise ValueError('Octet %d out of range 0..0xFFFF', n)
+      raise ValueError('Short %d out of range 0..0xFFFF', n)
+    return self
 
   def write_long(self, n, packer=Struct('>I')):
     """
@@ -78,7 +84,8 @@ class Writer(object):
     if 0 <= n <= 0xFFFFFFFF:
       self._output_buffer.extend( packer.pack(n) )
     else:
-      raise ValueError('Octet %d out of range 0..0xFFFFFFFF', n)
+      raise ValueError('Long %d out of range 0..0xFFFFFFFF', n)
+    return self
 
   def write_long_at(self, n, pos, packer=Struct('>I')):
     '''
@@ -88,7 +95,8 @@ class Writer(object):
     if 0 <= n <= 0xFFFFFFFF:
       packer.pack_into(self._output_buffer, pos, n)
     else:
-      raise ValueError('Octet %d out of range 0..0xFFFFFFFF', n)
+      raise ValueError('Long %d out of range 0..0xFFFFFFFF', n)
+    return self
 
   def write_longlong(self, n, packer=Struct('>Q')):
     """
@@ -97,7 +105,8 @@ class Writer(object):
     if 0 <= n <= 0xFFFFFFFFFFFFFFFF:
       self._output_buffer.extend( packer.pack(n) )
     else:
-      raise ValueError('Octet %d out of range 0..0xFFFFFFFFFFFFFFFF', n)
+      raise ValueError('Longlong %d out of range 0..0xFFFFFFFFFFFFFFFF', n)
+    return self
 
   def write_shortstr(self, s):
     """
@@ -108,6 +117,7 @@ class Writer(object):
       s = s.encode('utf-8')
     self.write_octet( len(s) )
     self.write( s )
+    return self
 
   def write_longstr(self, s):
     """
@@ -118,6 +128,7 @@ class Writer(object):
       s = s.encode('utf-8')
     self.write_long( len(s) )
     self.write( s )
+    return self
 
   def write_table(self, d):
     """
@@ -170,6 +181,7 @@ class Writer(object):
     table_len = table_end_pos - table_data_pos
     
     self.write_long_at( table_len, table_len_pos )
+    return self
 
   def write_timestamp(self, t):
     """
@@ -178,3 +190,4 @@ class Writer(object):
     """
     # Double check timestamp, can't imagine why it would be signed
     self._output_buffer.extend( pack('>Q', long(mktime(t.timetuple()))) )
+    return self
