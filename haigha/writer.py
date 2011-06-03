@@ -141,71 +141,18 @@ class Writer(object):
     self.write( s )
     return self
 
-  def write_timestamp(self, t):
+  def write_timestamp(self, t, pack=Struct('>Q').pack):
     """
     Write out a Python datetime.datetime object as a 64-bit integer
     representing seconds since the Unix epoch.
     """
     # Double check timestamp, can't imagine why it would be signed
-    self._output_buffer.extend( pack('>Q', long(mktime(t.timetuple()))) )
+    self._output_buffer.extend( pack(long(mktime(t.timetuple())) ))
     return self
 
   # NOTE: coding this to http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3 and
   # NOT spec 0.9.1. It seems that Rabbit and other brokers disagree on this
   # section for now.
-  def write_table_OLD(self, d):
-    """
-    Write out a Python dictionary made of up string keys, and values
-    that are strings, signed integers, Decimal, datetime.datetime, or
-    sub-dictionaries following the same constraints.
-    """
-    # HACK: encoding of AMQP tables is broken because it requires the length of
-    # the /encoded/ data instead of the number of items.  To support streaming,
-    # fiddle with cursor position, rewinding to write the real length of the
-    # data.  Generally speaking, I'm not a fan of the AMQP encoding scheme, it
-    # could be much faster.
-    table_len_pos = len( self._output_buffer )
-    self.write_long( 0 )
-    table_data_pos = len(self._output_buffer )
-    
-    for k, v in d.iteritems():
-      # 6 April 09 aaron - Don't send table key unless the data type is
-      # supported.
-      if isinstance(v, basestring):
-        if isinstance(v, unicode):
-          v = v.encode('utf-8')
-        self.write_shortstr(k)
-        self._output_buffer.append('S')
-        self.write_longstr(v)
-      elif isinstance(v, (int, long)):
-        self.write_shortstr(k)
-        self._output_buffer.append('I')
-        self._output_buffer.extend(pack('>i', v))
-      elif isinstance(v, Decimal):
-        self.write_shortstr(k)
-        self._output_buffer.append('D')
-        sign, digits, exponent = v.as_tuple()
-        v = 0
-        for d in digits:
-          v = (v * 10) + d
-        if sign:
-          v = -v
-        self.write_octet(-exponent)
-        self._output_buffer.extend(pack('>i', v))
-      elif isinstance(v, datetime):
-        self.write_shortstr(k)
-        self._output_buffer.append('T')
-        self.write_timestamp(v)
-      elif isinstance(v, dict):
-        self.write_shortstr(k)
-        self._output_buffer.append('F')
-        self.write_table(v)
-    table_end_pos = len(self._output_buffer)
-    table_len = table_end_pos - table_data_pos
-    
-    self.write_long_at( table_len, table_len_pos )
-    return self
-  
   def write_table(self, d):
     """
     Write out a Python dictionary made of up string keys, and values
