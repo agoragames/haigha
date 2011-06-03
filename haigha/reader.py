@@ -8,7 +8,7 @@ from decimal import Decimal
 
 class Reader(object):
   """
-  Parse data from AMQP
+  A stream-like object that supports all the basic data types of AMQP.
   """
 
   class ReaderError(Exception): '''Base class for all reader errors.'''
@@ -18,7 +18,7 @@ class Reader(object):
   def __init__(self, source, start_pos=0, size=None):
     """
     source should be a bytearray, io object with a read() method, another
-    Reader, a plain or unicode string.  
+    Reader, a plain or unicode string. Can be allocated over a slice of source.
     """
     # Note: buffer used here because unpack_from can't accept an array,
     # which I think is related to http://bugs.python.org/issue7827
@@ -123,7 +123,7 @@ class Reader(object):
     self._pos += 1
     return result
 
-  def read_octet(self, unpacker=Struct('B')):
+  def read_octet(self, unpacker=Struct('B').unpack_from, size=Struct('B').size):
     """
     Read one byte, return as an integer
 
@@ -133,44 +133,44 @@ class Reader(object):
     # Technically should look at unpacker.size, but skipping that is way
     # faster and this method is the most-called of the readers
     if self._pos >= self._end_pos: raise self.BufferUnderflow()
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def read_short(self, unpacker=Struct('>H')):
+  def read_short(self, unpacker=Struct('>H').unpack_from, size=Struct('>H').size):
     """
     Read an unsigned 16-bit integer
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    self._check_underflow( unpacker.size )
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+    self._check_underflow( size )
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def read_long(self, unpacker=Struct('>I')):
+  def read_long(self, unpacker=Struct('>I').unpack_from, size=Struct('>I').size):
     """
     Read an unsigned 32-bit integer
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    self._check_underflow( unpacker.size )
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+    self._check_underflow( size )
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def read_longlong(self, unpacker=Struct('>Q')):
+  def read_longlong(self, unpacker=Struct('>Q').unpack_from, size=Struct('>Q').size):
     """
     Read an unsigned 64-bit integer
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    self._check_underflow( unpacker.size )
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+    self._check_underflow( size )
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
   def read_shortstr(self):
@@ -222,7 +222,7 @@ class Reader(object):
     end_pos = self._pos + tlen
     result = {}
     while self._pos < end_pos:
-      name = self._table_shortstr()
+      name = self._field_shortstr()
       result[name] = self._read_field()
     return result
 
@@ -233,85 +233,85 @@ class Reader(object):
     ftype = self._input[ self._pos ]
     self._pos += 1
     
-    reader = self.field_type_map[ ftype ]
+    reader = self.field_type_map.get( ftype )
     if reader:
       return reader(self)
 
     raise Reader.FieldError('Unknown field type %s', ftype)
     
-  def _table_bool(self):
+  def _field_bool(self):
     result = ord(self._input[ self._pos ]) & 1
     self._pos += 1
     return result
 
-  def _table_short_short_int(self, unpacker=Struct('b')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_short_short_int(self, unpacker=Struct('b').unpack_from, size=Struct('b').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
     
-  def _table_short_short_uint(self, unpacker=Struct('B')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_short_short_uint(self, unpacker=Struct('B').unpack_from, size=Struct('B').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def _table_short_int(self, unpacker=Struct('>h')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_short_int(self, unpacker=Struct('>h').unpack_from, size=Struct('>h').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
     
-  def _table_short_uint(self, unpacker=Struct('>H')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_short_uint(self, unpacker=Struct('>H').unpack_from, size=Struct('>H').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def _table_long_int(self, unpacker=Struct('>i')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_long_int(self, unpacker=Struct('>i').unpack_from, size=Struct('>i').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
     
-  def _table_long_uint(self, unpacker=Struct('>I')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_long_uint(self, unpacker=Struct('>I').unpack_from, size=Struct('>I').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def _table_long_long_int(self, unpacker=Struct('>q')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_long_long_int(self, unpacker=Struct('>q').unpack_from, size=Struct('>q').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
     
-  def _table_long_long_uint(self, unpacker=Struct('>Q')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_long_long_uint(self, unpacker=Struct('>Q').unpack_from, size=Struct('>Q').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def _table_float(self, unpacker=Struct('>f')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_float(self, unpacker=Struct('>f').unpack_from, size=Struct('>f').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
     
-  def _table_double(self, unpacker=Struct('>d')):
-    rval = unpacker.unpack_from( self._input, self._pos )[0]
-    self._pos += unpacker.size
+  def _field_double(self, unpacker=Struct('>d').unpack_from, size=Struct('>d').size):
+    rval = unpacker( self._input, self._pos )[0]
+    self._pos += size
     return rval
 
-  def _table_decimal(self):
-    d = self._table_short_short_uint()
-    n = self._table_short_int()
+  def _field_decimal(self):
+    d = self._field_short_short_uint()
+    n = self._field_short_int()
     return Decimal(n) / Decimal(10 ** d)
 
-  def _table_shortstr(self):
-    slen = self._table_short_short_uint()
+  def _field_shortstr(self):
+    slen = self._field_short_short_uint()
     rval = self._input[ self._pos:self._pos+slen ]
     self._pos += slen
     return rval
   
-  def _table_longstr(self):
-    slen = self._table_long_uint()
+  def _field_longstr(self):
+    slen = self._field_long_uint()
     rval = self._input[ self._pos:self._pos+slen ]
     self._pos += slen
     return rval
 
-  def _table_array(self):
+  def _field_array(self):
     alen = self.read_long()
     end_pos = self._pos + alen
     rval = []
@@ -319,7 +319,7 @@ class Reader(object):
       rval.append( self._read_field() )
     return rval
      
-  def _table_timestamp(self):
+  def _field_timestamp(self):
     """
     Read and AMQP timestamp, which is a 64-bit integer representing
     seconds since the Unix epoch in 1-second resolution.  Return as
@@ -328,25 +328,25 @@ class Reader(object):
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return datetime.fromtimestamp( self._table_long_long_uint() )
+    return datetime.fromtimestamp( self._field_long_long_uint() )
 
   # A mapping for quick lookups
   field_type_map = {
-    't' : _table_bool,
-    'b' : _table_short_short_int,
-    'B' : _table_short_short_uint,
-    'U' : _table_short_int,
-    'u' : _table_short_uint,
-    'I' : _table_long_int,
-    'i' : _table_long_uint,
-    'L' : _table_long_long_int,
-    'l' : _table_long_long_uint,
-    'f' : _table_float,
-    'd' : _table_double,
-    'D' : _table_decimal,
-    's' : _table_shortstr,
-    'S' : _table_longstr,
-    'A' : _table_array,
-    'T' : _table_timestamp,
+    't' : _field_bool,
+    'b' : _field_short_short_int,
+    'B' : _field_short_short_uint,
+    'U' : _field_short_int,
+    'u' : _field_short_uint,
+    'I' : _field_long_int,
+    'i' : _field_long_uint,
+    'L' : _field_long_long_int,
+    'l' : _field_long_long_uint,
+    'f' : _field_float,
+    'd' : _field_double,
+    'D' : _field_decimal,
+    's' : _field_shortstr,
+    'S' : _field_longstr,
+    'A' : _field_array,
+    'T' : _field_timestamp,
     'F' : read_table,
   }
