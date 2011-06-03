@@ -27,7 +27,9 @@ class Writer(object):
   __repr__ = __str__
 
   def __eq__(self, other):
-    return self._output_buffer == other._output_buffer
+    if isinstance(other, Writer):
+      return self._output_buffer == other._output_buffer
+    return False
 
   def buffer(self):
     '''
@@ -59,19 +61,19 @@ class Writer(object):
 
     return self
 
-  def write_bit(self, b):
+  def write_bit(self, b, pack=Struct('B').pack):
     '''
     Write a single bit. Convenience method for single bit args.
     '''
-    self._output_buffer.append( chr(b) )
+    self._output_buffer.append( pack(True if b else False) )
     return self
 
-  def write_octet(self, n):
+  def write_octet(self, n, pack=Struct('B').pack):
     """
     Write an integer as an unsigned 8-bit value.
     """
     if 0 <= n <= 255:
-      self._output_buffer.append( chr(n) )
+      self._output_buffer.append( pack(n) )
     else:
       raise ValueError('Octet %d out of range 0..255', n)
     return self
@@ -139,7 +141,19 @@ class Writer(object):
     self.write( s )
     return self
 
-  def write_table(self, d):
+  def write_timestamp(self, t):
+    """
+    Write out a Python datetime.datetime object as a 64-bit integer
+    representing seconds since the Unix epoch.
+    """
+    # Double check timestamp, can't imagine why it would be signed
+    self._output_buffer.extend( pack('>Q', long(mktime(t.timetuple()))) )
+    return self
+
+  # NOTE: coding this to http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3 and
+  # NOT spec 0.9.1. It seems that Rabbit and other brokers disagree on this
+  # section for now.
+  def write_table_OLD(self, d):
     """
     Write out a Python dictionary made of up string keys, and values
     that are strings, signed integers, Decimal, datetime.datetime, or
@@ -191,12 +205,116 @@ class Writer(object):
     
     self.write_long_at( table_len, table_len_pos )
     return self
+  
+  def write_table(self, d):
+    """
+    Write out a Python dictionary made of up string keys, and values
+    that are strings, signed integers, Decimal, datetime.datetime, or
+    sub-dictionaries following the same constraints.
+    """
+    # HACK: encoding of AMQP tables is broken because it requires the length of
+    # the /encoded/ data instead of the number of items.  To support streaming,
+    # fiddle with cursor position, rewinding to write the real length of the
+    # data.  Generally speaking, I'm not a fan of the AMQP encoding scheme, it
+    # could be much faster.
+    table_len_pos = len( self._output_buffer )
+    self.write_long( 0 )
+    table_data_pos = len(self._output_buffer )
 
-  def write_timestamp(self, t):
-    """
-    Write out a Python datetime.datetime object as a 64-bit integer
-    representing seconds since the Unix epoch.
-    """
-    # Double check timestamp, can't imagine why it would be signed
-    self._output_buffer.extend( pack('>Q', long(mktime(t.timetuple()))) )
+    for key,value in d.iteritems():
+      self._write_item( key, value )
+    
+    table_end_pos = len(self._output_buffer)
+    table_len = table_end_pos - table_data_pos
+    
+    self.write_long_at( table_len, table_len_pos )
     return self
+
+  def _write_item(self, key, value ):
+    self.write_shortstr(key)
+    self._write_field( value )
+
+  def _write_field(self, value ):
+    writer = self.field_type_map.get( type(value) )
+    if writer:
+      writer(self, value)
+    else:
+      # Write a None because we've already written a key
+      self._field_none( value )
+
+  def _field_bool(self, val, pack=Struct('B').pack):
+    self._output_buffer.append( 't' )
+    self._output_buffer.append( pack( True if val else False ) )
+
+  def _field_int(self, val, short_pack=Struct('>h').pack, \
+  int_pack=Struct('>i').pack, long_pack=Struct('>q').pack):
+    if -2**15 < val < 2**15:
+      self._output_buffer.append( 's' )
+      self._output_buffer.extend( short_pack(val) )
+    elif -2**31 < val < 2**31:
+      self._output_buffer.append( 'I' )
+      self._output_buffer.extend( int_pack(val) )
+    else:
+      self._output_buffer.append( 'l' )
+      self._output_buffer.extend( long_pack(val) )
+
+  def _field_double(self, val, pack=Struct('>d').pack):
+    self._output_buffer.append( 'd' )
+    self._output_buffer.extend( pack(val) )
+
+  def _field_decimal(self, val, exp_pack=Struct('B').pack, dig_pack=Struct('>I').pack):
+    self._output_buffer.append('D')
+    sign, digits, exponent = v.as_tuple()
+    v = 0
+    for d in digits:
+      v = (v * 10) + d
+    if sign:
+      v = -v
+    self._output_buffer.append( exp_pack(-exponent) )
+    self._output_buffer.extend( dig_pack(v) )
+
+  def _field_str(self, val):
+    self._output_buffer.append('S')
+    self.write_longstr(val)
+
+  def _field_unicode(self, val):
+    val = val.encode('utf-8')
+    self._output_buffer.append('S')
+    self.write_longstr( val )
+
+  def _field_timestamp(self, val):
+    self._output_buffer.append( 'T' )
+    self.write_timestamp( val )
+
+  def _field_table(self, val):
+    self._output_buffer.append('F')
+    self.write_table( val )
+
+  def _field_none(self, val):
+    self._output_buffer.append('V')
+
+  def _field_bytearray(self, val):
+    self._output_buffer.append('x')
+    self.write_longstr( val )
+
+  def _field_iterable(self, val):
+    self._output_buffer.append( 'A' )
+    for x in val:
+      self._write_field( x )
+
+  field_type_map = {
+    bool      : _field_bool,
+    int       : _field_int,
+    long      : _field_int,
+    float     : _field_double,
+    Decimal   : _field_decimal,
+    str       : _field_str,
+    unicode   : _field_unicode,
+    datetime  : _field_timestamp,
+    dict      : _field_table,
+    None      : _field_none,
+    bytearray : _field_bytearray,
+    list      : _field_iterable,
+    tuple     : _field_iterable,
+    set       : _field_iterable,
+  }

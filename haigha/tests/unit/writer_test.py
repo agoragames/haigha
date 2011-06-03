@@ -122,4 +122,28 @@ class WriterTest(Chai):
     # TODO: mock valueerror when chai fixes the '__len__' problems with Mocks
 
   def test_write_table(self):
-    pass
+    w = Writer()
+    expect( w._write_item ).args( 'a', 'foo' ).any_order().side_effect( 
+      lambda: (setattr(w,'_pos',20), w._output_buffer.extend('afoo')) )
+    expect( w._write_item ).args( 'b', 'bar' ).any_order().side_effect( 
+      lambda: (setattr(w,'_pos',20), w._output_buffer.extend('bbar')) )
+
+    assert_true( w is w.write_table({'a':'foo','b':'bar'}) )
+    assert_equals( '\x00\x00\x00\x08', w._output_buffer[:4] )
+    assert_equals( 12, len(w._output_buffer) )
+
+  def test_write_item(self):
+    w = Writer()
+    expect( w.write_shortstr ).args( 'key' )
+    expect( w._write_field ).args( 'value' )
+    w._write_item( 'key', 'value' )
+
+  def test_write_field(self):
+    w = Writer()
+    unknown = mock()
+    expect( w._field_none ).args( unknown )
+    w._write_field( unknown )
+    
+    Writer.field_type_map[type(unknown)] = unknown
+    expect( unknown ).args( w, unknown )
+    w._write_field( unknown )
