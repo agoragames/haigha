@@ -1,9 +1,24 @@
+Trunk 
+=====
 
-0.2.3
+[pending] Test coverage of basic protocol class
+
+[pending] Test coverage and bug fixes to Reader and Writer classes
+
+[pending] Reader and Writer conform to RabbitMQ and QPid errata as documented
+at http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3
+
+
+0.2.3 
 =====
 
 First changelog.
 
-Removed manipulation of channels in Connection.disconnect(). It's now up to the application to manage channels when explicitly shutting down a connection or when the socket is dropped and the strategy reconnects. This fixed a problem wherein an application may have created a connection, created some channels and queued operations on them, but it takes the strategy a few attempts before completing a socket connection.
+Removed manipulation of channels in Connection.disconnect(). It's now
+up to the application to manage channels when explicitly shutting down a
+connection or when the socket is dropped and the strategy reconnects. This
+fixed a problem wherein an application may have created a connection,
+created some channels and queued operations on them, but it takes the
+strategy a few attempts before completing a socket connection.
 
 Fixed character escpaing when logging outbound ContentFrames.
