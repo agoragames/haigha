@@ -2,7 +2,7 @@
 Definition of the Writer class.
 """
 
-from struct import pack, pack_into, Struct
+from struct import Struct, pack
 from time import mktime
 from datetime import datetime
 from decimal import Decimal
@@ -10,11 +10,9 @@ from operator import xor
     
 class Writer(object):
   """
-  Implements writing of structured data.  Operates as in 2 passes; first a write
-  which buffers the objects and their format, and a second which flushes the
-  structured data to a stream.  This setup allows for classes to make use of the
-  Writer without needing to have a direct handle to an output buffer, or in cases
-  where it's necessary to have finite control over the stream cursor.
+  Implements writing of structured AMQP data. Buffers data directly to a 
+  bytearray or a buffer supplied in the constructor. The buffer must
+  supply append, extend and struct.pack_into semantics.
   """
 
   def __init__(self, buf=None):
@@ -45,70 +43,76 @@ class Writer(object):
     return self
 
   def write_bits(self, *args):
+    '''
+    Write multiple bits in a single byte field. The bits will be written in
+    little-endian order, but should be supplied in big endian order. Will raise
+    ValueError when more than 8 arguments are supplied.
+
+    write_bits(True, False) => 0x02
+    '''
     # Would be nice to make this a bit smarter
     if len(args) > 8:
       raise ValueError("Can only write 8 bits at a time")
 
-    # It would be awesome if pack_into would understand how to extend
-    self._output_buffer.append( pack('B',
+    self._output_buffer.append( chr(
       reduce(lambda x,y: xor(x,args[y]<<y), xrange(len(args)), 0)) )
 
     return self
 
-  def write_bit(self, b, packer=Struct('B')):
+  def write_bit(self, b):
     '''
     Write a single bit. Convenience method for single bit args.
     '''
-    self._output_buffer.append( packer.pack(b) )
+    self._output_buffer.append( chr(b) )
     return self
 
-  def write_octet(self, n, packer=Struct('B')):
+  def write_octet(self, n):
     """
     Write an integer as an unsigned 8-bit value.
     """
     if 0 <= n <= 255:
-      self._output_buffer.append( packer.pack(n) )
+      self._output_buffer.append( chr(n) )
     else:
       raise ValueError('Octet %d out of range 0..255', n)
     return self
 
-  def write_short(self, n, packer=Struct('>H')):
+  def write_short(self, n, pack=Struct('>H').pack):
     """
     Write an integer as an unsigned 16-bit value.
     """
     if 0 <= n <= 0xFFFF:
-      self._output_buffer.extend( packer.pack(n) )
+      self._output_buffer.extend( pack(n) )
     else:
       raise ValueError('Short %d out of range 0..0xFFFF', n)
     return self
 
-  def write_long(self, n, packer=Struct('>I')):
+  def write_long(self, n, pack=Struct('>I').pack):
     """
     Write an integer as an unsigned 32-bit value.
     """
     if 0 <= n <= 0xFFFFFFFF:
-      self._output_buffer.extend( packer.pack(n) )
+      self._output_buffer.extend( pack(n) )
     else:
       raise ValueError('Long %d out of range 0..0xFFFFFFFF', n)
     return self
 
-  def write_long_at(self, n, pos, packer=Struct('>I')):
+  def write_long_at(self, n, pos, pack_into=Struct('>I').pack_into):
     '''
     Write an unsigned 32bit value at a specific position in the buffer.
     Used for writing tables and frames.
     '''
     if 0 <= n <= 0xFFFFFFFF:
-      packer.pack_into(self._output_buffer, pos, n)
+      pack_into(self._output_buffer, pos, n)
     else:
       raise ValueError('Long %d out of range 0..0xFFFFFFFF', n)
     return self
 
-  def write_longlong(self, n, packer=Struct('>Q')):
+  def write_longlong(self, n, pack=Struct('>Q').pack):
     """
     Write an integer as an unsigned 64-bit value.
     """
     if 0 <= n <= 0xFFFFFFFFFFFFFFFF:
-      self._output_buffer.extend( packer.pack(n) )
+      self._output_buffer.extend( pack(n) )
     else:
       raise ValueError('Longlong %d out of range 0..0xFFFFFFFFFFFFFFFF', n)
     return self
