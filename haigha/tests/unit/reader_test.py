@@ -293,25 +293,52 @@ class ReaderTest(Chai):
 
     assert_equals( d, b._field_timestamp() )
 
-  def test_field_type_map(self):
+  def test_field_bytearray(self):
+    b = Reader('\x00\x00\x00\x03\x04\x05\x06')
+    assert_equals( bytearray('\x04\x05\x06'), b._field_bytearray() )
+
+  def test_field_none(self):
+    b = Reader('')
+    assert_equals( None, b._field_none() )
+  
+  def test_field_type_map_rabbit_errata(self):
+    # http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3
     assert_equals(
       {
         't' : Reader._field_bool.im_func,
         'b' : Reader._field_short_short_int.im_func,
-        'B' : Reader._field_short_short_uint.im_func,
-        'U' : Reader._field_short_int.im_func,
-        'u' : Reader._field_short_uint.im_func,
+        's' : Reader._field_short_int.im_func,
         'I' : Reader._field_long_int.im_func,
-        'i' : Reader._field_long_uint.im_func,
-        'L' : Reader._field_long_long_int.im_func,
-        'l' : Reader._field_long_long_uint.im_func,
+        'l' : Reader._field_long_long_int.im_func,
         'f' : Reader._field_float.im_func,
         'd' : Reader._field_double.im_func,
         'D' : Reader._field_decimal.im_func,
-        's' : Reader._field_shortstr.im_func,
         'S' : Reader._field_longstr.im_func,
-        'A' : Reader._field_array.im_func,
         'T' : Reader._field_timestamp.im_func,
         'F' : Reader.read_table.im_func,
+        'V' : Reader._field_none.im_func,
+        'x' : Reader._field_bytearray.im_func,
       }, Reader.field_type_map )
+
+  #def test_field_type_map_091_spec(self):
+  #  assert_equals(
+  #    {
+  #      't' : Reader._field_bool.im_func,
+  #      'b' : Reader._field_short_short_int.im_func,
+  #      'B' : Reader._field_short_short_uint.im_func,
+  #      'U' : Reader._field_short_int.im_func,
+  #      'u' : Reader._field_short_uint.im_func,
+  #      'I' : Reader._field_long_int.im_func,
+  #      'i' : Reader._field_long_uint.im_func,
+  #      'L' : Reader._field_long_long_int.im_func,
+  #      'l' : Reader._field_long_long_uint.im_func,
+  #      'f' : Reader._field_float.im_func,
+  #      'd' : Reader._field_double.im_func,
+  #      'D' : Reader._field_decimal.im_func,
+  #      's' : Reader._field_shortstr.im_func,
+  #      'S' : Reader._field_longstr.im_func,
+  #      'A' : Reader._field_array.im_func,
+  #      'T' : Reader._field_timestamp.im_func,
+  #      'F' : Reader.read_table.im_func,
+  #    }, Reader.field_type_map )
 

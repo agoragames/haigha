@@ -177,6 +177,8 @@ class ConnectionTest(Chai):
     expect( self.connection._read_frames ).raises( Exception('fail') )
     expect( self.connection._logger.error ).args( 
       'Failed to read frames from %s', 'hostess', exc_info=True )
+    expect( self.connection.close ).args( 
+      reply_code=501, reply_text='Error parsing frames' )
     self.connection._sock_read_cb('sock')
 
   def test_sock_close_cb_when_no_user_close_cb(self):

@@ -1,4 +1,5 @@
 import struct
+import sys
 from collections import deque
 from haigha.reader import Reader
 
@@ -53,11 +54,11 @@ class Frame(object):
       except Reader.BufferUnderflow:
         # No more data in the stream
         frame = None
-      except Reader.ReaderError:
+      except Reader.ReaderError as e:
         # Some other format error
-        raise Frame.FormatError()
-      except struct.error, e:
-        raise Frame.FormatError()
+        raise Frame.FormatError, str(e), sys.exc_info()[-1]
+      except struct.error as e:
+        raise Frame.FormatError, str(e), sys.exc_info()[-1]
 
       if frame is None: 
         reader.seek( frame_start_pos )

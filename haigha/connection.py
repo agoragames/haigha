@@ -197,6 +197,7 @@ class Connection(object):
       self._read_frames()
     except:
       self.logger.error("Failed to read frames from %s", self._host, exc_info=True)
+      self.close( reply_code=501, reply_text='Error parsing frames' )
 
   def _sock_close_cb(self, sock):
     """
@@ -337,12 +338,7 @@ class Connection(object):
     reader = Reader( data )
     p_channels = set()
     
-    try:
-      frames = Frame.read_frames( reader )
-    except Frame.FrameError as e:
-      self.logger.exception( "Framing error", exc_info=True )
-      
-    for frame in frames:
+    for frame in Frame.read_frames( reader ):
       if self._debug > 1:
         self.logger.debug( "READ: %s", frame )
       self._frames_read += 1

@@ -1,12 +1,14 @@
-Trunk 
-=====
+master
+======
 
 [pending] Test coverage of basic protocol class
 
-[pending] Test coverage and bug fixes to Reader and Writer classes
+Test coverage, bug fixes and minor performance improvements to Reader and 
+Writer classes
 
-[pending] Reader and Writer conform to RabbitMQ and QPid errata as documented
-at http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3
+Reader and Writer conform to RabbitMQ and QPid errata as documented
+at http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3. Added 
+scripts/rabbit_table_test for integration testing.
 
 
 0.2.3 
