@@ -1,4 +1,3 @@
-
 from chai import Chai
 from collections import deque
 
@@ -45,6 +44,12 @@ class ChannelTest(Chai):
     c = Channel(None,None)
     expect( c.channel.open )
     c.open()
+ 
+  def test_active(self):
+    c = Channel(None, None)
+    expect( c.channel.open )
+    c.open()
+    assertTrue(c.active)
 
   def test_close_with_no_args(self):
     c = Channel(None,None)
@@ -77,6 +82,53 @@ class ChannelTest(Chai):
     c.buffer_frame( 'f1' )
     c.buffer_frame( 'f2' )
     assertEquals( deque(['f1', 'f2']), c._frame_buffer )
+
+  def test_process_frames_with_one_frame(self):
+    conn = mock()
+    conn.logger = mock()
+    c = Channel(conn, None)
+    ch_id, c_id, m_id = 0, 20, 2
+    f = MethodFrame(ch_id, c_id, m_id)
+    c._frame_buffer = deque([ f ])
+    expect(c.logger.error).args(ignore(), ignore(), exc_info=ignore())
+    expect(c.close).args(ignore(), ignore())
+
+    c.process_frames()
+
+  def test_process_frames_with_two_frames(self):
+    conn = mock()
+    conn.logger = mock()
+    c = Channel(conn, None)
+    ch_id, c_id, m_id = 0, 1, 2
+    f0 = MethodFrame(ch_id, c_id, m_id)
+    f1 = MethodFrame(ch_id, c_id, m_id)
+    c._frame_buffer = deque([ f0, f1 ])
+    expect(c.logger.error).args(ignore(), ignore(), exc_info=ignore())
+    expect(c.close).args(ignore(), ignore())
+
+    c.process_frames()
+
+  def test_next_frame_with_a_frame(self):
+    c = Channel(None, None)
+    ch_id, c_id, m_id = 0, 1, 2
+    f0 = MethodFrame(ch_id, c_id, m_id)
+    f1 = MethodFrame(ch_id, c_id, m_id)
+    c._frame_buffer = deque([ f0, f1 ])
+    assertEquals(c.next_frame(), f0)
+
+  def test_next_frame_with_no_frames(self):
+    c = Channel(None, None)
+    c._frame_buffer = deque()
+    assertEquals(c.next_frame(), None)
+
+  def test_requeue_frames(self):
+    c = Channel(None, None)
+    ch_id, c_id, m_id = 0, 1, 2
+    f = [MethodFrame(ch_id, c_id, m_id) for i in xrange(4)]
+    c._frame_buffer = deque(f[:2])
+
+    c.requeue_frames(f[2:])
+    assertEquals(c._frame_buffer, deque([f[i] for i in [3, 2, 0, 1]]))
 
   def test_process_frames_when_no_frames(self):
     # Not that this should ever happen, but to be sure

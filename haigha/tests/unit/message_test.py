@@ -1,5 +1,4 @@
 from chai import Chai
-from cStringIO import StringIO
 
 from haigha.message import Message
 

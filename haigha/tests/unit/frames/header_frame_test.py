@@ -6,7 +6,7 @@ from chai import Chai
 import struct
 import time
 from datetime import datetime
-from cStringIO import StringIO
+from io import BytesIO
 
 from haigha.frames import header_frame
 from haigha.frames.header_frame import HeaderFrame
@@ -18,7 +18,7 @@ class HeaderFrameTest(Chai):
   def test_parse_for_standard_properties(self):
     bit_writer = Writer()
     val_writer = Writer()
-    stream = StringIO()
+    stream = BytesIO()
 
     # strip ms because amqp doesn't include it
     now = datetime.fromtimestamp( long(time.mktime(datetime.now().timetuple())) )

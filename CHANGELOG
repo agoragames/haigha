@@ -1,0 +1,26 @@
+master
+======
+
+[pending] Test coverage of basic protocol class
+
+Test coverage, bug fixes and minor performance improvements to Reader and 
+Writer classes
+
+Reader and Writer conform to RabbitMQ and QPid errata as documented
+at http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3. Added 
+scripts/rabbit_table_test for integration testing.
+
+
+0.2.3 
+=====
+
+First changelog.
+
+Removed manipulation of channels in Connection.disconnect(). It's now
+up to the application to manage channels when explicitly shutting down a
+connection or when the socket is dropped and the strategy reconnects. This
+fixed a problem wherein an application may have created a connection,
+created some channels and queued operations on them, but it takes the
+strategy a few attempts before completing a socket connection.
+
+Fixed character escpaing when logging outbound ContentFrames.

@@ -1,8 +1,6 @@
-import struct
 from haigha.frames.frame import Frame
 from haigha.reader import Reader
 from haigha.writer import Writer
-from cStringIO import StringIO
 
 class MethodFrame(Frame):
   '''
@@ -49,50 +47,30 @@ class MethodFrame(Frame):
     writer = Writer(buf)
     writer.write_octet( self.type() )
     writer.write_short( self.channel_id )
-    #writer.flush( stream )
 
-
-    #stream_args_len_pos = stream.tell()
+    # Write a temporary value for the total length of the frame
     stream_args_len_pos = len(buf)
-    #writer = Writer()
-    #writer.write_long(0)  # temporary storage of total length
-    #writer.flush( stream )
     writer.write_long(0)
 
     # Mark the point in the stream where we start writing arguments, *including*
     # the class and method ids.
-    #stream_method_pos = stream.tell()
     stream_method_pos = len(buf)
 
-    #writer = Writer()
     writer.write_short(self.class_id)
     writer.write_short(self.method_id)
-    #writer.flush(stream)
-    #stream_end_args_pos = stream_end_method_pos = stream.tell()
-    stream_end_args_pos = stream_end_method_pos = len(buf)
+    stream_end_args_pos = len(buf)
 
     # This is assuming that args is a Writer
     if self._args != None:
-      #self._args.flush(stream)
-      #stream_end_args_pos = stream.tell()
       writer.write( self._args.buffer() )
       stream_end_args_pos = len(buf)
 
     stream_len = stream_end_args_pos - stream_method_pos
 
-    #stream.seek( stream_method_pos )
-    
-    # Seek all the way back to when we started writing the arguments and
-    # write the total length of the bytes we wrote.
-    #writer = Writer()
-    #writer.write_long( stream_len )
-    #stream.seek( stream_args_len_pos )
-    #writer.flush( stream )
+    # Write the total length back at the position we allocated
     writer.write_long_at( stream_len, stream_args_len_pos )
 
-    # Seek to end and write the footer
-    #stream.seek( 0, 2 )
-    #stream.write('\xce')
+    # Write the footer
     writer.write_octet(0xce)
     
   

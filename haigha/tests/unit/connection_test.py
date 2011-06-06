@@ -44,6 +44,8 @@ class ConnectionTest(Chai):
     self.connection._channel_counter = 0
     self.connection._channel_max = 65535
     self.connection._frame_max = 65535
+    self.connection._frames_read = 0
+    self.connection._frames_written = 0
     self.connection._strategy = self.mock()
     self.connection._output_buffer = None
     self.connection._output_frame_buffer = []
@@ -95,3 +97,197 @@ class ConnectionTest(Chai):
     self.assertEqual( strategy, conn._strategy )
     self.assertEqual( None, conn._output_buffer )
     self.assertEqual( [], conn._output_frame_buffer )
+
+  def test_properties(self):
+    self.assertEqual( self.connection._logger, self.connection.logger )
+    self.assertEqual( self.connection._debug, self.connection.debug )
+    self.assertEqual( self.connection._frame_max, self.connection.frame_max )
+    self.assertEqual( self.connection._channel_max, self.connection.channel_max )
+    self.assertEqual( self.connection._frames_read, self.connection.frames_read )
+    self.assertEqual( self.connection._frames_written, self.connection.frames_written )
+
+  def test_reconnect(self):
+    expect( self.connection._strategy.connect )
+    self.connection.reconnect()
+
+  def test_connect(self):
+    self.connection._connected = 'maybe'
+    self.connection._closed = 'possibly'
+    self.connection._debug = 'sure'
+    self.connection._connect_timeout = 42
+    self.connection._sock_opts = {
+      ('f1','t1') : 5,
+      ('f2','t2') : 6
+    }
+
+    sock = mock()
+    mock( connection, 'EventSocket' )
+    expect( connection.EventSocket ).args( 
+      read_cb = self.connection._sock_read_cb,
+      close_cb = self.connection._sock_close_cb,
+      error_cb = self.connection._sock_error_cb,
+      debug = 'sure',
+      logger = self.connection._logger ).returns( sock )
+    expect( sock.settimeout ).args( 42 )
+    expect( sock.setsockopt ).args( 'f1', 't1', 5 ).any_order()
+    expect( sock.setsockopt ).args( 'f2', 't2', 6 ).any_order()
+    expect( sock.connect ).args( ('host',5672) )
+    expect( sock.setblocking ).args( False )
+    expect( sock.write ).args( 'AMQP\x00\x00\x09\x01' )
+
+    self.connection.connect( 'host', 5672 )
+    assert_false( self.connection._connected )
+    assert_false( self.connection._closed )
+    assert_equals( self.connection._close_info,
+      {
+      'reply_code'    : 0,
+      'reply_text'    : 'failed to connect to host:5672',
+      'class_id'      : 0,
+      'method_id'     : 0
+      } )
+    assert_equals( 'host:5672', self.connection._host )
+
+  def test_disconnect(self):
+    sock = self.connection._sock = mock()
+    self.connection._connected = 'yup'
+    self.connection._sock.close_cb = 'something'
+    self.connection._channels = { 0 : 'a', 1 : 'b', 2 : 'c' }
+
+    expect( self.connection._sock.close )
+    self.connection.disconnect()
+
+    assert_false( self.connection._connected )
+    assert_equals( None, sock.close_cb )
+    assert_equals( None, self.connection._sock )
+    assert_equals( { 0 : 'a', 1 : 'b', 2 : 'c' }, self.connection._channels )
+
+  def test_add_reconnect_callback(self):
+    # have to mock the list because strategy is a mock object and can't
+    # mock builtin append()
+    self.connection._strategy.reconnect_callbacks = mock()
+    expect( self.connection._strategy.reconnect_callbacks.append ).args( 'foo' )
+    self.connection.add_reconnect_callback( 'foo' )
+
+  def test_sock_read_cb(self):
+    expect( self.connection._read_frames )
+    self.connection._sock_read_cb('sock')
+
+  def test_sock_read_cb_logs_when_read_frame_exception(self):
+    self.connection._host = 'hostess'
+    expect( self.connection._read_frames ).raises( Exception('fail') )
+    expect( self.connection._logger.error ).args( 
+      'Failed to read frames from %s', 'hostess', exc_info=True )
+    expect( self.connection.close ).args( 
+      reply_code=501, reply_text='Error parsing frames' )
+    self.connection._sock_read_cb('sock')
+
+  def test_sock_close_cb_when_no_user_close_cb(self):
+    self.connection._host = 'hostess'
+    self.connection._close_cb = None
+    self.connection._connected = 'yep'
+
+    expect( self.connection._logger.warning ).args(
+      'socket to %s closed unexpectedly', 'hostess' )
+    expect( self.connection._strategy.fail )
+
+    self.connection._sock_close_cb('sock')
+    assert_false( self.connection._connected )
+    assert_equals( self.connection._close_info,
+      {
+      'reply_code'    : 0,
+      'reply_text'    : 'socket closed unexpectedly to hostess',
+      'class_id'      : 0,
+      'method_id'     : 0
+      } )
+
+  def test_sock_close_cb_when_user_close_cb(self):
+    self.connection._host = 'hostess'
+    self.connection._close_cb = mock()
+
+    expect( self.connection._logger.warning ).args(
+      'socket to %s closed unexpectedly', 'hostess' )
+    expect( self.connection._close_cb )
+    expect( self.connection._strategy.fail )
+
+    self.connection._sock_close_cb('sock')
+
+  def test_sock_error_cb_when_no_user_close_cb(self):
+    self.connection._host = 'hostess'
+    self.connection._close_cb = None
+    self.connection._connected = 'yep'
+
+    expect( self.connection._logger.error ).args(
+      'error on connection to %s: %s', 'hostess', 'errormsg' )
+    expect( self.connection._strategy.fail )
+    expect( self.connection._strategy.next_host )
+
+    self.connection._sock_error_cb('sock', 'errormsg', 'exception')
+    assert_false( self.connection._connected )
+    assert_equals( self.connection._close_info,
+      {
+      'reply_code'    : 0,
+      'reply_text'    : 'socket error on host hostess: errormsg',
+      'class_id'      : 0,
+      'method_id'     : 0
+      } )
+
+  def test_sock_error_cb_when_user_close_cb(self):
+    self.connection._host = 'hostess'
+    self.connection._close_cb = mock()
+
+    expect( self.connection._logger.error ).args(
+      'error on connection to %s: %s', 'hostess', 'errormsg' )
+    expect( self.connection._close_cb )
+    expect( self.connection._strategy.fail )
+    expect( self.connection._strategy.next_host )
+
+    self.connection._sock_error_cb('sock', 'errormsg', 'exception')
+
+  def test_next_channel_id_when_less_than_max(self):
+    self.connection._channel_counter = 32
+    self.connection._channel_max = 23423
+    assert_equals( 33, self.connection._next_channel_id() )
+  
+  def test_next_channel_id_when_at_max(self):
+    self.connection._channel_counter = 32
+    self.connection._channel_max = 32
+    assert_equals( 1, self.connection._next_channel_id() )
+
+  def test_channel_creates_new_when_not_at_limit(self):
+    ch = mock()
+    expect( self.connection._next_channel_id ).returns( 1 )
+    mock( connection, 'Channel' )
+    expect( connection.Channel ).args( self.connection, 1).returns( ch )
+    expect( ch.open )
+
+    self.assert_equals( ch, self.connection.channel() )
+    self.assert_equals( ch, self.connection._channels[1] )
+
+  def test_channel_finds_the_first_free_channel_id(self):
+    self.connection._channels[1] = 'foo'
+    self.connection._channels[2] = 'bar'
+    self.connection._channels[4] = 'cat'
+    ch = mock()
+    expect( self.connection._next_channel_id ).returns( 1 )
+    expect( self.connection._next_channel_id ).returns( 2 )
+    expect( self.connection._next_channel_id ).returns( 3 )
+    mock( connection, 'Channel' )
+    expect( connection.Channel ).args( self.connection, 3 ).returns( ch )
+    expect( ch.open )
+
+    self.assert_equals( ch, self.connection.channel() )
+    self.assert_equals( ch, self.connection._channels[3] )
+
+  def test_channel_raises_toomanychannels(self):
+    self.connection._channels[1] = 'foo'
+    self.connection._channels[2] = 'bar'
+    self.connection._channels[4] = 'cat'
+    self.connection._channel_max = 3
+    assert_raises( Connection.TooManyChannels, self.connection.channel )
+
+  def test_channel_returns_cached_instance_if_known(self):
+    self.connection._channels[1] = 'foo'
+    assert_equals( 'foo', self.connection.channel(1) )
+
+  def test_channel_raises_invalidchannel_if_unknown_id(self):
+    assert_raises( Connection.InvalidChannel, self.connection.channel, 42 )

@@ -40,7 +40,7 @@ class BasicClass(ProtocolClass):
     '''
     self._consumer_tag_id += 1
     return "channel-%d-%d"%( self.channel_id, self._consumer_tag_id )
-  
+
   def qos(self, prefetch_size=0, prefetch_count=0, is_global=False):
     '''
     Set QoS on this channel.
@@ -53,10 +53,10 @@ class BasicClass(ProtocolClass):
 
     self.channel.add_synchronous_cb( self._recv_qos_ok )
 
-  def _recv_qos_ok(self):
+  def _recv_qos_ok(self, _method_frame):
     # No arguments, nothing to do
     pass
-    
+
   def consume(self, queue, consumer, consumer_tag='', no_local=False,
         no_ack=True, exclusive=False, nowait=True, ticket=None):
     '''
@@ -72,10 +72,6 @@ class BasicClass(ProtocolClass):
       args.write_short(self.default_ticket)
     args.write_shortstr(queue)
     args.write_shortstr(consumer_tag)
-    #args.write_bit(no_local)
-    #args.write_bit(no_ack)
-    #args.write_bit(exclusive)
-    #args.write_bit(nowait)
     args.write_bits( no_local, no_ack, exclusive, nowait )
     args.write_table({})
     self.send_frame( MethodFrame(self.channel_id, 60, 20, args) )
@@ -125,9 +121,11 @@ class BasicClass(ProtocolClass):
     except KeyError:
       self.logger.warning( 'no callback registered for consumer tag " %s "', consumer_tag )
 
-    cb = self._cancel_cb.pop(0)
-    if cb is not None: cb()
-    
+    if self._cancel_cb:
+      cb = self._cancel_cb.pop()
+      if cb is not None:
+        cb()
+
   def publish(self, msg, exchange, routing_key, mandatory=False, immediate=False, ticket=None):
     '''
     publish a message.
@@ -139,8 +137,6 @@ class BasicClass(ProtocolClass):
       args.write_short(self.default_ticket)
     args.write_shortstr(exchange)
     args.write_shortstr(routing_key)
-    #args.write_bit(mandatory)
-    #args.write_bit(immediate)
     args.write_bits(mandatory, immediate)
 
     self.send_frame( MethodFrame(self.channel_id, 60, 40, args) )
@@ -163,7 +159,9 @@ class BasicClass(ProtocolClass):
 
     self.send_frame( MethodFrame(self.channel_id, 60, 50, args) )
 
-  def _recv_return(self):
+  def _recv_return(self, _method_frame):
+    # This seems like the right place to callback that the operation has
+    # completed.
     pass
 
   def _recv_deliver(self, method_frame):
@@ -175,7 +173,7 @@ class BasicClass(ProtocolClass):
       size = header_frame.size
       body = bytearray()
       rbuf_frames = deque([header_frame, method_frame])
-      
+
       while len(body) < size:
         content_frame = self.channel.next_frame()
         if content_frame:
@@ -203,7 +201,7 @@ class BasicClass(ProtocolClass):
       'routing_key': routing_key,
     }
     msg = Message( body=body, delivery_info=delivery_info, **header_frame.properties )
-    
+
     func = self._consumer_cb.get(consumer_tag, None)
     if func: func(msg)
 
@@ -245,7 +243,7 @@ class BasicClass(ProtocolClass):
       size = header_frame.size
       body = bytearray()
       rbuf_frames = deque([header_frame, method_frame])
-      
+
       while len(body) < size:
         content_frame = self.channel.next_frame()
         if content_frame:
@@ -263,7 +261,7 @@ class BasicClass(ProtocolClass):
     exchange = method_frame.args.read_shortstr()
     routing_key = method_frame.args.read_shortstr()
     message_count = method_frame.args.read_long()
-    
+
     delivery_info = {
       'channel': self.channel,
       'delivery_tag': delivery_tag,
@@ -290,7 +288,7 @@ class BasicClass(ProtocolClass):
     args.write_bit(multiple)
 
     self.send_frame( MethodFrame(self.channel_id, 60, 80, args) )
-    
+
   def reject(self, delivery_tag, requeue=False):
     '''
     Reject a message.
@@ -304,7 +302,7 @@ class BasicClass(ProtocolClass):
   def recover_async(self, requeue=False):
     '''
     Redeliver all unacknowledged messaages on this channel.
-    
+
     This method is deprecated in favour of the synchronous recover/recover-ok
     '''
     args = Writer()

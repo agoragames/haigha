@@ -135,7 +135,7 @@ class Channel(object):
 
   def requeue_frames(self, frames):
     '''
-    Reque a list of frames. Will append to the head of the frame buffer.
+    Requeue a list of frames. Will append to the head of the frame buffer.
     Frames should be in reverse order. Really only used to support BasicClass
     content consumers
     '''

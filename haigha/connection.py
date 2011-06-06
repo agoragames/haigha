@@ -11,7 +11,6 @@ import socket
 import struct
 import haigha
 
-from cStringIO import StringIO
 from io import BytesIO
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
 from logging import root as root_logger
@@ -79,7 +78,7 @@ class Connection(object):
     
     login_response = Writer()
     login_response.write_table({'LOGIN': self._user, 'PASSWORD': self._password})
-    #stream = StringIO()
+    #stream = BytesIO()
     #login_response.flush(stream)
     #self._login_response = stream.getvalue()[4:]  #Skip the length
                                                       #at the beginning
@@ -128,11 +127,12 @@ class Connection(object):
   
   def reconnect(self):
     '''Reconnect to the configured host and port.'''
-    self.strategy.connect()
+    self._strategy.connect()
   
   def connect(self, host, port):
     '''
-    Connect to a host and port.
+    Connect to a host and port. Can be called directly, or is called by the
+    strategy as it tries to find and connect to hosts.
     '''
     # Clear the connect state immediately since we're no longer connected
     # at this point.
@@ -156,36 +156,30 @@ class Connection(object):
     # Only after the socket has connected do we clear this state; closed must
     # be False so that writes can be buffered in writePacket().  The closed
     # state might have been set to True due to a socket error or a redirect.
+    self._host = "%s:%d"%(host,port)
     self._closed = False
     self._close_info = {
-      'reply_code'    : -1,
-      'reply_text'    : 'failed to connect to %s:%d'%(host,port),
-      'class_id'      : -1,
-      'method_id'     : -1
+      'reply_code'    : 0,
+      'reply_text'    : 'failed to connect to %s'%(self._host),
+      'class_id'      : 0,
+      'method_id'     : 0
     }
 
-    self._host = "%s:%d"%(host,port)
     self._sock.write( PROTOCOL_HEADER )
   
   def disconnect(self):
     '''
     Disconnect from the current host, but otherwise leave this object "open"
-    so that it can be reconnected.  All channels (except our own) are nuked as
-    they'll be useless when we reconnect.
+    so that it can be reconnected.
     '''
     self._connected = False
     if self._sock!=None:
       self._sock.close_cb = None
-      self._sock.close()
+      try:
+        self._sock.close()
+      except: 
+        self.logger.error("Failed to disconnect socket to %s", self._host, exc_info=True)
       self._sock = None
-    
-    # It's possible that this is being called after we've done a standard socket
-    # closure and the strategy is trying to reconnect.  In that case, we might
-    # not have a socket anymore but the channels are still around.  
-    for channel_id in self._channels.keys():
-      #if channel_id != self.channel_id: 
-      if channel_id != 0:
-        del self._channels[channel_id]
   
   def add_reconnect_callback(self, callback):
     '''Adds a reconnect callback to the strategy.  This can be used to
@@ -203,6 +197,7 @@ class Connection(object):
       self._read_frames()
     except:
       self.logger.error("Failed to read frames from %s", self._host, exc_info=True)
+      self.close( reply_code=501, reply_text='Error parsing frames' )
 
   def _sock_close_cb(self, sock):
     """
@@ -211,55 +206,45 @@ class Connection(object):
     """
     self.logger.warning( 'socket to %s closed unexpectedly', self._host )
     self._close_info = {
-      'reply_code'    : -1,
-      'reply_text'    : 'socket closed unexpectedly',
-      'class_id'      : -1,
-      'method_id'     : -1
+      'reply_code'    : 0,
+      'reply_text'    : 'socket closed unexpectedly to %s'%(self._host),
+      'class_id'      : 0,
+      'method_id'     : 0
     }
 
-    # we're not connected any more (we're not closed but we're definitely not
+    # We're not connected any more (we're not closed but we're definitely not
     # connected)
     self._connected = False
+    self._sock = None
 
-    # 16 Aug 2010 - The connection strategy just isn't enough for dealing with
-    # disconnects, or at least not of the nature that we've encountered at TM.
-    # So for now, callback to our close callback handler which we know will raise
-    # a SystemExit.
+    # Call back to a user-provided close function
     self._close_cb and self._close_cb()
 
-    # Removed check for `self.connected==True` because the strategy does the
-    # right job in letting us reconnect when there's a transient error.  If
-    # you haven't configured permissions and that's why the socket is closing,
-    # at least it will only try to reconnect every few seconds.
+    # Fail and do nothing. If you haven't configured permissions and that's 
+    # why the socket is closing, this keeps us from looping.
     self._strategy.fail()
-#    self._strategy.next_host()
   
   def _sock_error_cb(self, sock, msg, exception=None):
     """
     Callback when there's an error on the socket.
     """
-    self.logger.error( 'error on connection to %s - %s', self._host, msg)
+    self.logger.error( 'error on connection to %s: %s', self._host, msg)
     self._close_info = {
-      'reply_code'    : -1,
-      'reply_text'    : "socket error: %s"%(msg),
-      'class_id'      : -1,
-      'method_id'     : -1
+      'reply_code'    : 0,
+      'reply_text'    : 'socket error on host %s: %s'%(self._host, msg),
+      'class_id'      : 0,
+      'method_id'     : 0
     }
     
     # we're not connected any more (we're not closed but we're definitely not
     # connected)
     self._connected = False
+    self._sock = None
 
-    # 16 Aug 2010 - The connection strategy just isn't enough for dealing with
-    # disconnects, or at least not of the nature that we've encountered at TM.
-    # So for now, callback to our close callback handler which we know will raise
-    # a SystemExit.
+    # Call back to a user-provided close function
     self._close_cb and self._close_cb()
 
-    # Removed check for `self.connected==True` because the strategy does the
-    # right job in letting us reconnect when there's a transient error.  If
-    # you haven't configured permissions and that's why the socket is closing,
-    # at least it will only try to reconnect every few seconds.
+    # Fail and try to reconnect, because this is expected to be a transient error.
     self._strategy.fail()
     self._strategy.next_host()
 
@@ -291,7 +276,7 @@ class Connection(object):
     elif channel_id in self._channels:
       return self._channels[channel_id]
     else:
-      raise Connect.InvalidChannel("%s is not a valid channel id", channel_id )
+      raise Connection.InvalidChannel("%s is not a valid channel id", channel_id )
 
     # Call open() here so that ConnectionChannel doesn't have it called.  Could
     # also solve this other ways, but it's a HACK regardless.
@@ -353,12 +338,7 @@ class Connection(object):
     reader = Reader( data )
     p_channels = set()
     
-    try:
-      frames = Frame.read_frames( reader )
-    except Frame.FrameError as e:
-      self.logger.exception( "Framing error", exc_info=True )
-      
-    for frame in frames:
+    for frame in Frame.read_frames( reader ):
       if self._debug > 1:
         self.logger.debug( "READ: %s", frame )
       self._frames_read += 1
