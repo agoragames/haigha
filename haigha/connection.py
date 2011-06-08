@@ -124,6 +124,12 @@ class Connection(object):
   def frames_written(self):
     '''Number of frames written in the lifetime of this connection.'''
     return self._frames_written
+
+  @property
+  def close_info(self):
+    '''Return dict with information on why this connection is closed.  Will
+    return None if the connections is open.'''
+    return self._close_info if self._closed else None
   
   def reconnect(self):
     '''Reconnect to the configured host and port.'''

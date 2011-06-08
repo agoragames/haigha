@@ -3,9 +3,6 @@ from chai import Chai
 from haigha.classes import channel_class, ProtocolClass, ChannelClass
 from haigha.frames import MethodFrame
 from haigha.writer import Writer
-#from haigha.reader import Reader
-#from haigha.message import Message
-#from haigha.connection import Connection
 
 class ChannelClassTest(Chai):
 

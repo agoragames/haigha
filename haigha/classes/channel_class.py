@@ -126,6 +126,7 @@ class ChannelClass(ProtocolClass):
       'method_id'     : method_id
     }
 
+    # exception likely due to race condition as connection is closing
     try:
       args = Writer()
       args.write_short( reply_code )
