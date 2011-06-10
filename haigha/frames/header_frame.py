@@ -50,12 +50,12 @@ class HeaderFrame(Frame):
   
   @classmethod
   def parse(self, channel_id, payload):
-    #class_id, weight, size = struct.unpack( '>HHQ', payload[:12] )
+    '''
+    Parse a header frame for a channel given a Reader payload.
+    '''
     class_id = payload.read_short()
     weight = payload.read_short()
     size = payload.read_longlong()
-
-    #r = Reader(payload[12:])
 
     # The AMQP spec is overly-complex when it comes to handling header frames.
     # The spec says that in addition to the first 16bit field, additional ones

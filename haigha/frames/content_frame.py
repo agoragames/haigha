@@ -47,15 +47,16 @@ class ContentFrame(Frame):
     return "%s[channel: %d, payload: %s]"%( self.__class__.__name__, self.channel_id, payload )
 
   def write_frame(self, buf):
+    '''
+    Write the frame into an existing buffer.
+    '''
     writer = Writer( buf )
 
-    writer.write_octet( self.type() )
-    writer.write_short(self.channel_id)
-    writer.write_long( len(self._payload) )
-
-    writer.write( self._payload )
-
-    writer.write_octet( 0xce )
+    writer.write_octet( self.type() ).\
+      write_short(self.channel_id).\
+      write_long( len(self._payload) ).\
+      write( self._payload ).\
+      write_octet( 0xce )
 
 
 ContentFrame.register()
