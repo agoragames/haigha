@@ -156,50 +156,15 @@ class BasicClass(ProtocolClass):
     pass
 
   def _recv_deliver(self, method_frame):
-    # No need to assert that is instance of Header or Content frames because
-    # failure to access as such will result in exception that channel will
-    # pick up and handle accordingly.
-    header_frame = self.channel.next_frame()
-    if header_frame:
-      size = header_frame.size
-      body = bytearray()
-      rbuf_frames = deque([header_frame, method_frame])
+    msg = self._read_msg( method_frame )
 
-      while len(body) < size:
-        content_frame = self.channel.next_frame()
-        if content_frame:
-          rbuf_frames.appendleft( content_frame )
-          body.extend( content_frame.payload.buffer() )
-        else:
-          self.channel.requeue_frames( rbuf_frames )
-          raise self.FrameUnderflow()
-    else:
-      self.channel.requeue_frames( [method_frame] )
-      raise self.FrameUnderflow()
-
-    consumer_tag = method_frame.args.read_shortstr()
-    delivery_tag = method_frame.args.read_longlong()
-    redelivered = method_frame.args.read_bit()
-    exchange = method_frame.args.read_shortstr()
-    routing_key = method_frame.args.read_shortstr()
-
-    delivery_info = {
-      'channel': self.channel,
-      'consumer_tag': consumer_tag,
-      'delivery_tag': delivery_tag,
-      'redelivered': redelivered,
-      'exchange': exchange,
-      'routing_key': routing_key,
-    }
-    msg = Message( body=body, delivery_info=delivery_info, **header_frame.properties )
-
-    func = self._consumer_cb.get(consumer_tag, None)
+    func = self._consumer_cb.get(msg.delivery_info['consumer_tag'], None)
     if func: func(msg)
 
   def get(self, queue, consumer, no_ack=True, ticket=None):
     '''
     Ask to fetch a single message from a queue.  The consumer will be called
-    if an actual message exists, but if not, the consumer will not be called.
+    with either a Message argument, or None if there is no message in queue.
     '''
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
@@ -223,50 +188,14 @@ class BasicClass(ProtocolClass):
       self._recv_get_empty( method_frame )
 
   def _recv_get_ok(self, method_frame):
-    # No need to assert that is instance of Header or Content frames because
-    # failure to access as such will result in exception that channel will
-    # pick up and handle accordingly.
-    header_frame = self.channel.next_frame()
-    if header_frame:
-      size = header_frame.size
-      body = bytearray()
-      rbuf_frames = deque([header_frame, method_frame])
-
-      while len(body) < size:
-        content_frame = self.channel.next_frame()
-        if content_frame:
-          rbuf_frames.appendleft( content_frame )
-          body.extend( content_frame.payload.buffer() )
-        else:
-          self.channel.requeue_frames( rbuf_frames )
-          raise self.FrameUnderflow()
-    else:
-      self.channel.requeue_frames( [method_frame] )
-      raise self.FrameUnderflow()
-
-    delivery_tag = method_frame.args.read_longlong()
-    redelivered = method_frame.args.read_bit()
-    exchange = method_frame.args.read_shortstr()
-    routing_key = method_frame.args.read_shortstr()
-    message_count = method_frame.args.read_long()
-
-    delivery_info = {
-      'channel': self.channel,
-      'delivery_tag': delivery_tag,
-      'redelivered': redelivered,
-      'exchange': exchange,
-      'routing_key': routing_key,
-      'message_count' : message_count,
-    }
-    msg = Message( body=body, delivery_info=delivery_info, **header_frame.properties )
-
+    msg = self._read_msg( method_frame )
     cb = self._get_cb.pop()
     if cb: cb( msg )
 
   def _recv_get_empty(self, _method_frame):
     # On empty, call back with None as the argument so that user code knows
     # it's empty and can take next action
-    self._get_cb.pop()
+    cb = self._get_cb.pop()
     if cb: cb( None )
 
   def ack(self, delivery_tag, multiple=False):
@@ -314,6 +243,48 @@ class BasicClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 60, 110, args) )
     self.channel.add_synchronous_cb( self._recv_recover_ok )
 
-  def _recv_recover_ok(self):
+  def _recv_recover_ok(self, _method_frame):
     cb = self._recover_cb.pop()
     if cb: cb()
+
+  def _read_msg(self, method_frame):
+    '''
+    Support method to read a Message from the current frame buffer. Will return
+    a Message, or re-queue current frames and raise a FrameUnderflow
+    '''
+    # No need to assert that is instance of Header or Content frames because
+    # failure to access as such will result in exception that channel will
+    # pick up and handle accordingly.
+    header_frame = self.channel.next_frame()
+    if header_frame:
+      size = header_frame.size
+      body = bytearray()
+      rbuf_frames = deque([header_frame, method_frame])
+
+      while len(body) < size:
+        content_frame = self.channel.next_frame()
+        if content_frame:
+          rbuf_frames.appendleft( content_frame )
+          body.extend( content_frame.payload.buffer() )
+        else:
+          self.channel.requeue_frames( rbuf_frames )
+          raise self.FrameUnderflow()
+    else:
+      self.channel.requeue_frames( [method_frame] )
+      raise self.FrameUnderflow()
+
+    consumer_tag = method_frame.args.read_shortstr()
+    delivery_tag = method_frame.args.read_longlong()
+    redelivered = method_frame.args.read_bit()
+    exchange = method_frame.args.read_shortstr()
+    routing_key = method_frame.args.read_shortstr()
+
+    delivery_info = {
+      'channel': self.channel,
+      'consumer_tag': consumer_tag,
+      'delivery_tag': delivery_tag,
+      'redelivered': redelivered,
+      'exchange': exchange,
+      'routing_key': routing_key,
+    }
+    return Message( body=body, delivery_info=delivery_info, **header_frame.properties )

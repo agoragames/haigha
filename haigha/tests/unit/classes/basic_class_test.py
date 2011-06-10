@@ -251,6 +251,7 @@ class BasicClassTest(Chai):
         .write_shortstr('routing_key')\
         .write_bits(False, False)
     self.klass.channel.connection.frame_max = 3
+    
     expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 40, args).returns( 'methodframe' )
     expect( mock(basic_class, 'HeaderFrame') ).args(42, 60, 0, len(msg), msg.properties).returns( 'headerframe' )
     expect(mock(basic_class, 'ContentFrame').create_frames).args(42, msg.body, 3).returns(['f0', 'f1', 'f2'])
@@ -259,78 +260,293 @@ class BasicClassTest(Chai):
     expect(self.klass.send_frame).args('f0')
     expect(self.klass.send_frame).args('f1')
     expect(self.klass.send_frame).args('f2')
-    self.klass.publish(msg, 'exchange', 'routing_key', ticket=0)
+    self.klass.publish(msg, 'exchange', 'routing_key')
 
-  def test_publish_with_ticket(self):
-    args = Writer()
+  def test_publish_with_args(self):
+    w = mock()
     msg = Message('hello, world')
-    args.write_short(3)\
-        .write_shortstr('exchange')\
-        .write_shortstr('routing_key')\
-        .write_bits(False, False)
-    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 40, args).returns( 'methodframe' )
-    expect( mock(basic_class, 'HeaderFrame') ).args(42, 60, 0, len(msg), msg.properties).returns( 'headerframe' )
+    expect( mock(basic_class, 'Writer') ).returns( w )
+    expect( w.write_short ).args( 'ticket' ).returns( w )
+    expect( w.write_shortstr ).args( 'exchange' ).returns( w )
+    expect( w.write_shortstr ).args( 'route' ).returns( w )
+    expect( w.write_bits ).args( 'm','i' )
     self.klass.channel.connection.frame_max = 3
-    expect(mock(basic_class, 'ContentFrame').create_frames)\
-      .args(42, msg.body, 3).returns(['f0', 'f1', 'f2'])
+    
+    expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 40, w).returns( 'methodframe' )
+    expect( mock(basic_class, 'HeaderFrame') ).args(42, 60, 0, len(msg), msg.properties).returns( 'headerframe' )
+    expect(mock(basic_class, 'ContentFrame').create_frames).args(42, msg.body, 3).returns(['f0', 'f1', 'f2'])
     expect(self.klass.send_frame).args('methodframe')
     expect(self.klass.send_frame).args('headerframe')
     expect(self.klass.send_frame).args('f0')
     expect(self.klass.send_frame).args('f1')
     expect(self.klass.send_frame).args('f2')
-    self.klass.publish(msg, 'exchange', 'routing_key', ticket=3)
+
+    self.klass.publish(msg, 'exchange', 'route', mandatory='m', immediate='i', ticket='ticket' )
 
   def test_return_msg(self):
-    method_frame = mock()
     args = Writer()
     args.write_short(3)
     args.write_shortstr('reply_text')
     args.write_shortstr('exchange')
     args.write_shortstr('routing_key')
-    expect(mock(basic_class, 'MethodFrame')).args(42, 60, 50, args).returns(method_frame)
-    expect(self.klass.send_frame).args(method_frame)
+    expect(mock(basic_class, 'MethodFrame')).args(42, 60, 50, args).returns('frame')
+    expect(self.klass.send_frame).args('frame')
     self.klass.return_msg(3, 'reply_text', 'exchange', 'routing_key')
 
-  def test__recv_return(self):
-    pass
+  def test_recv_return(self):
+    self.klass._recv_return( 'frame' )
 
-  def test__recv_deliver_no_frames(self):
+  def test_recv_deliver_with_cb(self):
+    msg = mock()
+    msg.delivery_info = {'consumer_tag':'ctag'}
+    cb = mock()
+    self.klass._consumer_cb['ctag'] = cb
+
+    expect( self.klass._read_msg ).args( 'frame').returns( msg )
+    expect( cb ).args( msg )
+
+    self.klass._recv_deliver('frame')
+
+  def test_recv_deliver_without_cb(self):
+    msg = mock()
+    msg.delivery_info = {'consumer_tag':'ctag'}
+
+    expect( self.klass._read_msg ).args( 'frame').returns( msg )
+
+    self.klass._recv_deliver('frame')
+
+  def test_get_default_args(self):
+    w = mock()
+    expect( mock(basic_class, 'Writer') ).returns( w )
+    expect( w.write_short ).args( self.klass.default_ticket ).returns( w )
+    expect( w.write_shortstr ).args( 'queue' ).returns( w )
+    expect( w.write_bit ).args( True )
+    expect( mock(basic_class,'MethodFrame') ).args(42, 60, 70, w).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_get_response )
+
+    assert_equals( deque(), self.klass._get_cb )
+    self.klass.get('queue', 'consumer')
+    assert_equals( deque(['consumer']), self.klass._get_cb )
+
+  def test_get_with_args(self):
+    w = mock()
+    expect( mock(basic_class, 'Writer') ).returns( w )
+    expect( w.write_short ).args( 'ticket' ).returns( w )
+    expect( w.write_shortstr ).args( 'queue' ).returns( w )
+    expect( w.write_bit ).args( 'ack' )
+    expect( mock(basic_class,'MethodFrame') ).args(42, 60, 70, w).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_get_response )
+
+    self.klass._get_cb = deque(['blargh'])
+    self.klass.get('queue', 'consumer', no_ack='ack', ticket='ticket')
+    assert_equals( deque(['blargh','consumer']), self.klass._get_cb )
+
+  def test_recv_get_response(self):
+    frame = mock()
+    frame.method_id = 71
+    expect( self.klass._recv_get_ok ).args( frame )
+    self.klass._recv_get_response(frame)
+
+    frame.method_id = 72
+    expect( self.klass._recv_get_empty ).args( frame )
+    self.klass._recv_get_response(frame)
+
+  def test_recv_get_ok_with_cb(self):
+    cb = mock()
+    self.klass._get_cb.append( mock() )
+    self.klass._get_cb.append( cb )
+
+    expect( self.klass._read_msg ).args( 'frame' ).returns( 'msg' )
+    expect( cb ).args( 'msg' )
+
+    self.klass._recv_get_ok( 'frame' )
+    assert_equals( 1, len(self.klass._get_cb) )
+    assert_false( cb in self.klass._get_cb )
+
+  def test_recv_get_ok_without_cb(self):
+    self.klass._get_cb.append( mock() )
+    self.klass._get_cb.append( None )
+
+    expect( self.klass._read_msg ).args( 'frame' ).returns( 'msg' )
+
+    self.klass._recv_get_ok( 'frame' )
+    assert_equals( 1, len(self.klass._get_cb) )
+    assert_false( None in self.klass._get_cb )
+
+  def test_recv_get_empty_with_cb(self):
+    cb = mock()
+    self.klass._get_cb.append( mock() )
+    self.klass._get_cb.append( cb )
+
+    expect( cb ).args( None )
+
+    self.klass._recv_get_empty( 'frame' )
+    assert_equals( 1, len(self.klass._get_cb) )
+    assert_false( cb in self.klass._get_cb )
+
+  def test_recv_get_empty_without_cb(self):
+    self.klass._get_cb.append( mock() )
+    self.klass._get_cb.append( None )
+
+    self.klass._recv_get_empty( 'frame' )
+    assert_equals( 1, len(self.klass._get_cb) )
+    assert_false( None in self.klass._get_cb )
+  
+  def test_ack_default_args(self):
+    w = mock()
+    expect( mock( basic_class, 'Writer' ) ).returns( w )
+    expect( w.write_longlong ).args( 8675309 ).returns( w )
+    expect( w.write_bit ).args( False )
+    expect( mock( basic_class, 'MethodFrame' ) ).args( 42, 60, 80, w ).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+
+    self.klass.ack( 8675309 )
+  
+  def test_ack_with_args(self):
+    w = mock()
+    expect( mock( basic_class, 'Writer' ) ).returns( w )
+    expect( w.write_longlong ).args( 8675309 ).returns( w )
+    expect( w.write_bit ).args( 'many' )
+    expect( mock( basic_class, 'MethodFrame' ) ).args( 42, 60, 80, w ).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+
+    self.klass.ack( 8675309, multiple='many' )
+  
+  def test_reject_default_args(self):
+    w = mock()
+    expect( mock( basic_class, 'Writer' ) ).returns( w )
+    expect( w.write_longlong ).args( 8675309 ).returns( w )
+    expect( w.write_bit ).args( False )
+    expect( mock( basic_class, 'MethodFrame' ) ).args( 42, 60, 90, w ).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+
+    self.klass.reject( 8675309 )
+  
+  def test_reject_with_args(self):
+    w = mock()
+    expect( mock( basic_class, 'Writer' ) ).returns( w )
+    expect( w.write_longlong ).args( 8675309 ).returns( w )
+    expect( w.write_bit ).args( 'sure' )
+    expect( mock( basic_class, 'MethodFrame' ) ).args( 42, 60, 90, w ).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+
+    self.klass.reject( 8675309, requeue='sure' )
+
+  def test_recover_async(self):
+    w = mock()
+    expect( mock( basic_class, 'Writer' ) ).returns( w )
+    expect( w.write_bit ).args( False )
+    expect( mock( basic_class, 'MethodFrame' ) ).args( 42, 60, 100, w ).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+
+    self.klass.recover_async()
+
+  def test_recover_default_args(self):
+    w = mock()
+    expect( mock( basic_class, 'Writer' ) ).returns( w )
+    expect( w.write_bit ).args( False )
+    expect( mock( basic_class, 'MethodFrame' ) ).args( 42, 60, 110, w ).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_recover_ok )
+
+    self.klass.recover()
+    assert_equals( deque([None]), self.klass._recover_cb )
+
+  def test_recover_with_args(self):
+    w = mock()
+    expect( mock( basic_class, 'Writer' ) ).returns( w )
+    expect( w.write_bit ).args( 'requeue' )
+    expect( mock( basic_class, 'MethodFrame' ) ).args( 42, 60, 110, w ).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_recover_ok )
+
+    self.klass._recover_cb = deque(['blargh'])
+    self.klass.recover(requeue='requeue', cb='callback')
+    assert_equals( deque(['blargh','callback']), self.klass._recover_cb )
+
+  def test_recv_recover_ok_with_cb(self):
+    cb = mock()
+    self.klass._recover_cb.append( mock() )
+    self.klass._recover_cb.append( cb )
+
+    expect( cb )
+
+    self.klass._recv_recover_ok( 'frame' )
+    assert_equals( 1, len(self.klass._recover_cb) )
+    assert_false( cb in self.klass._recover_cb )
+
+  def test_recv_recover_ok_without_cb(self):
+    self.klass._recover_cb.append( mock() )
+    self.klass._recover_cb.append( None )
+
+    self.klass._recv_recover_ok( 'frame' )
+    assert_equals( 1, len(self.klass._recover_cb) )
+    assert_false( None in self.klass._recover_cb )
+    
+  def test_read_msg_raises_frameunderflow_when_no_header_frame(self):
     expect(self.klass.channel.next_frame).returns(None)
     expect(self.klass.channel.requeue_frames).args(['method_frame'])
-    assert_raises(self.klass.FrameUnderflow, self.klass._recv_deliver, 'method_frame')
-
-  def test__recv_deliver_underflow(self):
+    assert_raises(self.klass.FrameUnderflow, self.klass._read_msg, 'method_frame')
+  
+  def test_read_msg_raises_frameunderflow_when_no_content_frames(self):
     header_frame = mock()
     header_frame.size = 1000000
     expect(self.klass.channel.next_frame).returns(header_frame)
     expect(self.klass.channel.next_frame).returns(None)
     expect(self.klass.channel.requeue_frames).args(deque([header_frame, 'method_frame']))
-    assert_raises(self.klass.FrameUnderflow, self.klass._recv_deliver, 'method_frame')
+    assert_raises(self.klass.FrameUnderflow, self.klass._read_msg, 'method_frame')
 
-  def test__recv_deliver_no_cb(self):
-    i = []
-    def f():
-      i.append(0)
-
-    args = mock()
+  def test_read_msg_when_body_length_0_no_cb(self):
     method_frame = mock()
     header_frame = mock()
-    header_frame.size = 100
-    header_frame.properties = {}
-    frame = mock()
+    header_frame.size = 0
+    header_frame.properties = {'foo':'bar'}
     delivery_info = {'channel': self.klass.channel,
                      'consumer_tag': 'consumer_tag',
                      'delivery_tag': 9,
                      'redelivered': False,
                      'exchange': 'exchange',
                      'routing_key': 'routing_key'}
+
     expect(self.klass.channel.next_frame).returns(header_frame)
-    expect(self.klass.channel.next_frame).returns(frame)
-    expect(frame.payload.buffer).returns('x'*100)
     expect(method_frame.args.read_shortstr).returns('consumer_tag')
     expect(method_frame.args.read_longlong).returns(9)
     expect(method_frame.args.read_bit).returns(False)
     expect(method_frame.args.read_shortstr).returns('exchange')
     expect(method_frame.args.read_shortstr).returns('routing_key')
-    expect(mock(basic_class, 'Message')).args(body=bytearray('x'*100), delivery_info=delivery_info, **header_frame.properties)
-    self.klass._recv_deliver(method_frame)
+    expect(mock(basic_class, 'Message')).args(
+      body=bytearray(), delivery_info=delivery_info, foo='bar').returns('message')
+
+    assert_equals( 'message', self.klass._read_msg(method_frame) )
+
+  def test_read_msg_when_body_length_greater_than_0_with_cb(self):
+    method_frame = mock()
+    header_frame = mock()
+    header_frame.size = 100
+    header_frame.properties = {}
+    cframe1 = mock()
+    cframe2 = mock()
+    self.klass._consumer_cb['ctag'] = mock()
+    delivery_info = {'channel': self.klass.channel,
+                     'consumer_tag': 'ctag',
+                     'delivery_tag': 'dtag',
+                     'redelivered': 'no',
+                     'exchange': 'exchange',
+                     'routing_key': 'routing_key'}
+
+    expect(self.klass.channel.next_frame).returns(header_frame)
+    expect(self.klass.channel.next_frame).returns(cframe1)
+    expect(cframe1.payload.buffer).returns('x'*50)
+    expect(self.klass.channel.next_frame).returns(cframe2)
+    expect(cframe2.payload.buffer).returns('x'*50)
+    expect(method_frame.args.read_shortstr).returns('ctag')
+    expect(method_frame.args.read_longlong).returns('dtag')
+    expect(method_frame.args.read_bit).returns('no')
+    expect(method_frame.args.read_shortstr).returns('exchange')
+    expect(method_frame.args.read_shortstr).returns('routing_key')
+    expect(mock(basic_class, 'Message')).args(
+      body=bytearray('x'*100), delivery_info=delivery_info).returns('message')
+
+    assert_equals( 'message', self.klass._read_msg(method_frame) )
