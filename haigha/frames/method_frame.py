@@ -40,7 +40,7 @@ class MethodFrame(Frame):
       return "%s[channel: %d, class_id: %d, method_id: %d, args: %s]"%\
         (self.__class__.__name__, self.channel_id, self.class_id, self.method_id, str(self.args))
     else:
-      return "%s[channel: %d, class_id : %d, method_id: %d, args: None]"%\
+      return "%s[channel: %d, class_id: %d, method_id: %d, args: None]"%\
         ( self.__class__.__name__, self.channel_id, self.class_id, self.method_id)
   
   def write_frame(self, buf):
@@ -58,16 +58,13 @@ class MethodFrame(Frame):
 
     writer.write_short(self.class_id)
     writer.write_short(self.method_id)
-    stream_end_args_pos = len(buf)
 
     # This is assuming that args is a Writer
     if self._args != None:
       writer.write( self._args.buffer() )
-      stream_end_args_pos = len(buf)
-
-    stream_len = stream_end_args_pos - stream_method_pos
 
     # Write the total length back at the position we allocated
+    stream_len = len(buf) - stream_method_pos
     writer.write_long_at( stream_len, stream_args_len_pos )
 
     # Write the footer
