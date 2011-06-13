@@ -27,9 +27,5 @@ class HeartbeatFrame(Frame):
     writer.write_short( self.channel_id )
     writer.write_long( 0 )
     writer.write_octet( 0xce )
-    #writer.flush( stream )
-
-  def __init__(self, *args, **kwargs):
-    Frame.__init__(self, *args, **kwargs)
 
 HeartbeatFrame.register()

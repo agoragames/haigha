@@ -1,5 +1,4 @@
 from collections import deque
-from io import BytesIO
 
 from haigha.message import Message
 from haigha.writer import Writer
@@ -25,11 +24,11 @@ class BasicClass(ProtocolClass):
     }
 
     self._consumer_tag_id = 0
-    self._pending_consumers = []
+    self._pending_consumers = deque()
     self._consumer_cb = {}
-    self._get_cb = []
-    self._recover_cb = []
-    self._cancel_cb = []
+    self._get_cb = deque()
+    self._recover_cb = deque()
+    self._cancel_cb = deque()
 
   def _generate_consumer_tag(self):
     '''
@@ -46,9 +45,9 @@ class BasicClass(ProtocolClass):
     Set QoS on this channel.
     '''
     args = Writer()
-    args.write_long(prefetch_size)
-    args.write_short(prefetch_count)
-    args.write_bit(is_global)
+    args.write_long(prefetch_size).\
+      write_short(prefetch_count).\
+      write_bit(is_global)
     self.send_frame( MethodFrame(self.channel_id, 60, 10, args) )
 
     self.channel.add_synchronous_cb( self._recv_qos_ok )
@@ -66,14 +65,11 @@ class BasicClass(ProtocolClass):
       consumer_tag = self._generate_consumer_tag()
 
     args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-      args.write_short(self.default_ticket)
-    args.write_shortstr(queue)
-    args.write_shortstr(consumer_tag)
-    args.write_bits( no_local, no_ack, exclusive, nowait )
-    args.write_table({})
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(queue).\
+      write_shortstr(consumer_tag).\
+      write_bits( no_local, no_ack, exclusive, nowait ).\
+      write_table({}) # unused according to spec
     self.send_frame( MethodFrame(self.channel_id, 60, 20, args) )
 
     if not nowait:
@@ -84,7 +80,7 @@ class BasicClass(ProtocolClass):
 
   def _recv_consume_ok(self, method_frame):
     consumer_tag = method_frame.args.read_shortstr()
-    self._consumer_cb[ consumer_tag ] = self._pending_consumers.pop(0)
+    self._consumer_cb[ consumer_tag ] = self._pending_consumers.pop()
 
   def cancel(self, consumer_tag='', nowait=True, consumer=None, cb=None):
     '''
@@ -101,8 +97,8 @@ class BasicClass(ProtocolClass):
           break
 
     args = Writer()
-    args.write_shortstr(consumer_tag)
-    args.write_bit(nowait)
+    args.write_shortstr(consumer_tag).\
+      write_bit(nowait)
     self.send_frame( MethodFrame(self.channel_id, 60, 30, args) )
 
     if not nowait:
@@ -121,23 +117,18 @@ class BasicClass(ProtocolClass):
     except KeyError:
       self.logger.warning( 'no callback registered for consumer tag " %s "', consumer_tag )
 
-    if self._cancel_cb:
-      cb = self._cancel_cb.pop()
-      if cb is not None:
-        cb()
+    cb = self._cancel_cb.pop()
+    if cb: cb()
 
   def publish(self, msg, exchange, routing_key, mandatory=False, immediate=False, ticket=None):
     '''
     publish a message.
     '''
     args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-      args.write_short(self.default_ticket)
-    args.write_shortstr(exchange)
-    args.write_shortstr(routing_key)
-    args.write_bits(mandatory, immediate)
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(exchange).\
+      write_shortstr(routing_key).\
+      write_bits(mandatory, immediate)
 
     self.send_frame( MethodFrame(self.channel_id, 60, 40, args) )
     self.send_frame( HeaderFrame(self.channel_id, 60, 0, len(msg), msg.properties) )
@@ -152,10 +143,10 @@ class BasicClass(ProtocolClass):
     can't deal with that.
     '''
     args = Writer()
-    args.write_short( reply_code )
-    args.write_shortstr( reply_text )
-    args.write_shortstr( exchange )
-    args.write_shortstr( routing_key )
+    args.write_short( reply_code ).\
+      write_shortstr( reply_text ).\
+      write_shortstr( exchange ).\
+      write_shortstr( routing_key )
 
     self.send_frame( MethodFrame(self.channel_id, 60, 50, args) )
 
@@ -165,6 +156,102 @@ class BasicClass(ProtocolClass):
     pass
 
   def _recv_deliver(self, method_frame):
+    msg = self._read_msg( method_frame )
+
+    func = self._consumer_cb.get(msg.delivery_info['consumer_tag'], None)
+    if func: func(msg)
+
+  def get(self, queue, consumer, no_ack=True, ticket=None):
+    '''
+    Ask to fetch a single message from a queue.  The consumer will be called
+    with either a Message argument, or None if there is no message in queue.
+    '''
+    args = Writer()
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(queue).\
+      write_bit(no_ack)
+
+    self._get_cb.append( consumer )
+    self.send_frame( MethodFrame(self.channel_id, 60, 70, args) )
+    self.channel.add_synchronous_cb( self._recv_get_response )
+
+  def _recv_get_response(self, method_frame):
+    '''
+    Handle either get_ok or get_empty.  This is a hack because the synchronous
+    callback stack is expecting one method to satisfy the expectation.  To
+    keep that loop as tight as possible, work within those constraints. Use
+    of get is not recommended anyway.
+    '''
+    if method_frame.method_id==71:
+      self._recv_get_ok( method_frame )
+    elif method_frame.method_id==72:
+      self._recv_get_empty( method_frame )
+
+  def _recv_get_ok(self, method_frame):
+    msg = self._read_msg( method_frame )
+    cb = self._get_cb.pop()
+    if cb: cb( msg )
+
+  def _recv_get_empty(self, _method_frame):
+    # On empty, call back with None as the argument so that user code knows
+    # it's empty and can take next action
+    cb = self._get_cb.pop()
+    if cb: cb( None )
+
+  def ack(self, delivery_tag, multiple=False):
+    '''
+    Acknowledge delivery of a message.  If multiple=True, acknowledge up-to
+    and including delivery_tag.
+    '''
+    args = Writer()
+    args.write_longlong(delivery_tag).\
+      write_bit(multiple)
+
+    self.send_frame( MethodFrame(self.channel_id, 60, 80, args) )
+
+  def reject(self, delivery_tag, requeue=False):
+    '''
+    Reject a message.
+    '''
+    args = Writer()
+    args.write_longlong( delivery_tag ).\
+      write_bit( requeue )
+
+    self.send_frame( MethodFrame(self.channel_id, 60, 90, args) )
+
+  def recover_async(self, requeue=False):
+    '''
+    Redeliver all unacknowledged messaages on this channel.
+
+    This method is deprecated in favour of the synchronous recover/recover-ok
+    '''
+    args = Writer()
+    args.write_bit( requeue )
+
+    self.send_frame( MethodFrame(self.channel_id, 60, 100, args) )
+
+  def recover(self, requeue=False, cb=None):
+    '''
+    Ask server to redeliver all unacknowledged messages.
+    '''
+    args = Writer()
+    args.write_bit( requeue )
+
+    # The XML spec is incorrect; this method is always synchronous
+    #  http://lists.rabbitmq.com/pipermail/rabbitmq-discuss/2011-January/010738.html
+    self._recover_cb.append( cb )
+    self.send_frame( MethodFrame(self.channel_id, 60, 110, args) )
+    self.channel.add_synchronous_cb( self._recv_recover_ok )
+
+  def _recv_recover_ok(self, _method_frame):
+    cb = self._recover_cb.pop()
+    if cb: cb()
+
+  def _read_msg(self, method_frame):
+    '''
+    Support method to read a Message from the current frame buffer. Will return
+    a Message, or re-queue current frames and raise a FrameUnderflow
+    '''
     # No need to assert that is instance of Header or Content frames because
     # failure to access as such will result in exception that channel will
     # pick up and handle accordingly.
@@ -200,129 +287,4 @@ class BasicClass(ProtocolClass):
       'exchange': exchange,
       'routing_key': routing_key,
     }
-    msg = Message( body=body, delivery_info=delivery_info, **header_frame.properties )
-
-    func = self._consumer_cb.get(consumer_tag, None)
-    if func: func(msg)
-
-  def get(self, queue, consumer, no_ack=True, ticket=None):
-    '''
-    Ask to fetch a single message from a queue.  The consumer will be called
-    if an actual message exists, but if not, the consumer will not be called.
-    '''
-    args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-      args.write_short(self.default_ticket)
-    args.write_shortstr(queue)
-    args.write_bit(no_ack)
-
-    self._get_cb.append( consumer )
-    self.send_frame( MethodFrame(self.channel_id, 60, 70, args) )
-    self.channel.add_synchronous_cb( self._recv_get_response )
-
-  def _recv_get_response(self, method_frame, *content_frames):
-    '''
-    Handle either get_ok or get_empty.  This is a hack because the synchronous
-    callback stack is expecting one method to satisfy the expectation.  To
-    keep that loop as tight as possible, work within those constraints. Use
-    of get is not recommended anyway.
-    '''
-    if method_frame.method_id==71:
-      self._recv_get_ok( method_frame, *content_frames )
-    elif method_frame.method_id==72:
-      self._recv_get_empty( method_frame )
-
-  def _recv_get_ok(self, method_frame, header, *content_frames):
-    # No need to assert that is instance of Header or Content frames because
-    # failure to access as such will result in exception that channel will
-    # pick up and handle accordingly.
-    header_frame = self.channel.next_frame()
-    if header_frame:
-      size = header_frame.size
-      body = bytearray()
-      rbuf_frames = deque([header_frame, method_frame])
-
-      while len(body) < size:
-        content_frame = self.channel.next_frame()
-        if content_frame:
-          rbuf_frames.appendleft( content_frame )
-          body.extend( content_frame.payload.buffer() )
-        else:
-          self.channel.requeue_frames( rbuf_frames )
-          raise self.FrameUnderflow()
-    else:
-      self.channel.requeue_frames( [method_frame] )
-      raise self.FrameUnderflow()
-
-    delivery_tag = method_frame.args.read_longlong()
-    redelivered = method_frame.args.read_bit()
-    exchange = method_frame.args.read_shortstr()
-    routing_key = method_frame.args.read_shortstr()
-    message_count = method_frame.args.read_long()
-
-    delivery_info = {
-      'channel': self.channel,
-      'delivery_tag': delivery_tag,
-      'redelivered': redelivered,
-      'exchange': exchange,
-      'routing_key': routing_key,
-      'message_count' : message_count,
-    }
-    msg = Message( body=body, delivery_info=delivery_info, **header_frame.properties )
-
-    cb = self._get_cb.pop(0)
-    if cb: cb( msg )
-
-  def _recv_get_empty(self):
-    self._get_cb.pop(0)
-
-  def ack(self, delivery_tag, multiple=False):
-    '''
-    Acknowledge delivery of a message.  If multiple=True, acknowledge up-to
-    and including delivery_tag.
-    '''
-    args = Writer()
-    args.write_longlong(delivery_tag)
-    args.write_bit(multiple)
-
-    self.send_frame( MethodFrame(self.channel_id, 60, 80, args) )
-
-  def reject(self, delivery_tag, requeue=False):
-    '''
-    Reject a message.
-    '''
-    args = Writer()
-    args.write_longlong( delivery_tag )
-    args.write_bit( requeue )
-
-    self.send_frame( MethodFrame(self.channel_id, 60, 90, args) )
-
-  def recover_async(self, requeue=False):
-    '''
-    Redeliver all unacknowledged messaages on this channel.
-
-    This method is deprecated in favour of the synchronous recover/recover-ok
-    '''
-    args = Writer()
-    args.write_bit( requeue )
-
-    self.send_frame( MethodFrame(self.channel_id, 60, 100, args) )
-
-  def recover(self, requeue=False, cb=None):
-    '''
-    Ask server to redeliver all unacknowledged messages.
-    '''
-    args = Writer()
-    args.write_bit( requeue )
-
-    # The XML spec is incorrect; this method is synchronous
-    #  http://lists.rabbitmq.com/pipermail/rabbitmq-discuss/2011-January/010738.html
-    self._recover_cb.append( cb )
-    self.send_frame( MethodFrame(self.channel_id, 60, 110, args) )
-    self.channel.add_synchronous_cb( self._recv_recover_ok )
-
-  def _recv_recover_ok(self):
-    cb = self._recover_cb.pop(0)
-    if cb is not None: cb()
+    return Message( body=body, delivery_info=delivery_info, **header_frame.properties )

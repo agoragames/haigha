@@ -65,6 +65,14 @@ class WriterTest(Chai):
     assert_raises( ValueError, w.write_short, -1 )
     assert_raises( ValueError, w.write_short, 2**16 )
 
+  def test_write_short_at(self):
+    w = Writer( bytearray('\x00'*6) )
+    assert_true( w is w.write_short_at(2**16-1,2) )
+    assert_equals( bytearray('\x00\x00\xff\xff\x00\x00'), w._output_buffer )
+    
+    assert_raises( ValueError, w.write_short_at, -1, 2 )
+    assert_raises( ValueError, w.write_short_at, 2**16, 3 )
+
   def test_write_long(self):
     w = Writer()
     assert_true( w is w.write_long(0) )

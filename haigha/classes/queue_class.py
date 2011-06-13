@@ -2,6 +2,8 @@ from haigha.writer import Writer
 from haigha.frames import MethodFrame
 from haigha.classes import ProtocolClass
 
+from collections import deque
+
 class QueueClass(ProtocolClass):
   '''
   Implements the AMQP Queue class
@@ -17,11 +19,11 @@ class QueueClass(ProtocolClass):
       51 : self._recv_unbind_ok,
     }
 
-    self._declare_cb = []
-    self._bind_cb = []
-    self._unbind_cb = []
-    self._delete_cb = []
-    self._purge_cb = []
+    self._declare_cb = deque()
+    self._bind_cb = deque()
+    self._unbind_cb = deque()
+    self._delete_cb = deque()
+    self._purge_cb = deque()
 
   def declare(self, queue='', passive=False, durable=False,
       exclusive=False, auto_delete=True, nowait=True,
@@ -38,18 +40,10 @@ class QueueClass(ProtocolClass):
     if cb: nowait = False
 
     args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-      args.write_short(self.default_ticket)
-    args.write_shortstr(queue)
-    #args.write_bit(passive)
-    #args.write_bit(durable)
-    #args.write_bit(exclusive)
-    #args.write_bit(auto_delete)
-    #args.write_bit(nowait)
-    args.write_bits(passive, durable, exclusive, auto_delete, nowait)
-    args.write_table(arguments)
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(queue).\
+      write_bits(passive, durable, exclusive, auto_delete, nowait).\
+      write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 50, 10, args) )
 
     if not nowait:
@@ -61,8 +55,9 @@ class QueueClass(ProtocolClass):
     message_count = method_frame.args.read_long()
     consumer_count = method_frame.args.read_long()
 
-    cb = self._declare_cb.pop(0)
-    if cb: cb( queue, message_count, consumer_count )
+    cb = self._declare_cb.pop()
+    if cb:
+      cb( queue, message_count, consumer_count )
     
   def bind(self, queue, exchange, routing_key='', nowait=True, arguments={}, ticket=None, cb=None):
     '''
@@ -72,49 +67,41 @@ class QueueClass(ProtocolClass):
     if cb: nowait = False
 
     args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-      args.write_short(self.default_ticket)
-    args.write_shortstr(queue)
-    args.write_shortstr(exchange)
-    args.write_shortstr(routing_key)
-    args.write_bit(nowait)
-    args.write_table(arguments)
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(queue).\
+      write_shortstr(exchange).\
+      write_shortstr(routing_key).\
+      write_bit(nowait).\
+      write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 50, 20, args) )
     
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_bind_ok )
       self._bind_cb.append( cb )
 
-  def _recv_bind_ok(self, method_frame):
+  def _recv_bind_ok(self, _method_frame):
     # No arguments defined.
-    cb = self._bind_cb.pop(0)
+    cb = self._bind_cb.pop()
     if cb: cb()
 
-  def unbind(self, queue, exchange, routing_key, arguments=None, ticket=None, cb=None):
+  def unbind(self, queue, exchange, routing_key='', arguments={}, ticket=None, cb=None):
     '''
     Unbind a queue from an exchange.  This is always synchronous.
     '''
-    if arguments is None: arguments = {}
-
     args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-      args.write_short(self.default_ticket)
-    args.write_shortstr(queue)
-    args.write_shortstr(exchange)
-    args.write_shortstr(routing_key)
-    args.write_table(arguments)
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(queue).\
+      write_shortstr(exchange).\
+      write_shortstr(routing_key).\
+      write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 50, 50, args) )
 
     self.channel.add_synchronous_cb( self._recv_unbind_ok )
     self._unbind_cb.append( cb )
 
-  def _recv_unbind_ok(self):
+  def _recv_unbind_ok(self, _method_frame):
     # No arguments defined
-    cb = self._unbind_cb.pop(0)
+    cb = self._unbind_cb.pop()
     if cb: cb()
     
   def purge(self, queue, nowait=True, ticket=None, cb=None):
@@ -125,12 +112,9 @@ class QueueClass(ProtocolClass):
     if cb: nowait = False
     
     args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-      args.write_short(self.default_ticket)
-    args.write_shortstr(queue)
-    args.write_bit(nowait)
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(queue).\
+      write_bit(nowait)
     self.send_frame( MethodFrame(self.channel_id, 50, 30, args) )
 
     if not nowait:
@@ -139,7 +123,7 @@ class QueueClass(ProtocolClass):
 
   def _recv_purge_ok(self, method_frame):
     message_count = method_frame.args.read_long()
-    cb = self._purge_cb.pop(0)
+    cb = self._purge_cb.pop()
     if cb: cb( message_count )
 
   def delete(self, queue, if_unused=False, if_empty=False, nowait=True, ticket=None, cb=None):
@@ -150,16 +134,9 @@ class QueueClass(ProtocolClass):
     if cb: nowait = False
 
     args = Writer()
-    if ticket is not None:
-      args.write_short(ticket)
-    else:
-       args.write_short(self.default_ticket)
-
-    args.write_shortstr(queue)
-    #args.write_bit(if_unused)
-    #args.write_bit(if_empty)
-    #args.write_bit(nowait)
-    args.write_bits(if_unused, if_empty, nowait)
+    args.write_short(ticket or self.default_ticket).\
+      write_shortstr(queue).\
+      write_bits(if_unused, if_empty, nowait)
     self.send_frame( MethodFrame(self.channel_id, 50, 40, args) )
 
     if not nowait:
@@ -168,5 +145,5 @@ class QueueClass(ProtocolClass):
 
   def _recv_delete_ok(self, method_frame):
     message_count = method_frame.args.read_long()
-    cb = self._delete_cb.pop(0)
+    cb = self._delete_cb.pop()
     if cb: cb( message_count )

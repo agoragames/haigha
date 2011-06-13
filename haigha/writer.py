@@ -88,6 +88,17 @@ class Writer(object):
       raise ValueError('Short %d out of range 0..0xFFFF', n)
     return self
 
+  def write_short_at(self, n, pos, pack_into=Struct('>H').pack_into):
+    '''
+    Write an unsigned 16bit value at a specific position in the buffer.
+    Used for writing tables and frames.
+    '''
+    if 0 <= n <= 0xFFFF:
+      pack_into(self._output_buffer, pos, n)
+    else:
+      raise ValueError('Short %d out of range 0..0xFFFF', n)
+    return self
+
   def write_long(self, n, pack=Struct('>I').pack):
     """
     Write an integer as an unsigned 32-bit value.
