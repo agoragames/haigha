@@ -294,9 +294,11 @@ class Reader(object):
     self._pos += size
     return rval
 
+  # Coding to http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3 which
+  # differs from spec in that the value is signed.
   def _field_decimal(self):
     d = self._field_short_short_uint()
-    n = self._field_long_uint()
+    n = self._field_long_int()
     return Decimal(n) / Decimal(10 ** d)
 
   def _field_shortstr(self):

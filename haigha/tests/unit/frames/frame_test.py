@@ -127,3 +127,23 @@ class FrameTest(Chai):
     expect( reader.read_octet ).returns( 0xce )
 
     assertRaises( Frame.InvalidFrameType, Frame._read_frame, reader )
+  
+  def test_parse_raises_not_implemented(self):
+    assertRaises( NotImplementedError, Frame.parse, 'channel_id', 'payload' )
+
+  def test_properties(self):
+    frame = Frame('channel_id')
+    assert_equals('channel_id', frame.channel_id)
+
+  def test_str(self):
+    frame = Frame(42)
+    assert_equals('Frame[channel: 42]', str(frame))
+
+  def test_repr(self):
+    expect(Frame.__str__).returns('foo')
+    frame = Frame(42)
+    assert_equals('foo', repr(frame))
+
+  def test_write_frame(self):
+    frame = Frame(42)
+    assert_raises( NotImplementedError, frame.write_frame, 'stream' )

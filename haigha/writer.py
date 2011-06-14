@@ -220,7 +220,9 @@ class Writer(object):
     self._output_buffer.append( 'd' )
     self._output_buffer.extend( pack(val) )
 
-  def _field_decimal(self, val, exp_pack=Struct('B').pack, dig_pack=Struct('>I').pack):
+  # Coding to http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3 which
+  # differs from spec in that the value is signed.
+  def _field_decimal(self, val, exp_pack=Struct('B').pack, dig_pack=Struct('>i').pack):
     self._output_buffer.append('D')
     sign, digits, exponent = val.as_tuple()
     v = 0

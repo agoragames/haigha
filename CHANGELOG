@@ -1,7 +1,7 @@
 master
 ======
 
-[pending] Test coverage of basic protocol class
+Test coverage of all protocol and frame classes
 
 Test coverage, bug fixes and minor performance improvements to Reader and 
 Writer classes

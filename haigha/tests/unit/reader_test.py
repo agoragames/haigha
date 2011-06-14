@@ -264,8 +264,12 @@ class ReaderTest(Chai):
     assert_equals( 8, r._pos )
 
   def test_field_decimal(self):
-    r = Reader( struct.pack('>BI', 2, 5) )
+    r = Reader( struct.pack('>Bi', 2, 5) )
     assert_equals( Decimal('0.05'), r._field_decimal() )
+    assert_equals( 5, r._pos )
+    
+    r = Reader( struct.pack('>Bi', 2, -5) )
+    assert_equals( Decimal('-0.05'), r._field_decimal() )
     assert_equals( 5, r._pos )
 
   def test_field_shortstr(self):

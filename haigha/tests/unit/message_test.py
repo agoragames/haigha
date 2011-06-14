@@ -60,6 +60,7 @@ class MessageTest(Chai):
     l=Message('hello', foo='bar'); r=Message('hello', foo='brah')
     self.assertNotEquals( l, r )
 
+    self.assertNotEquals( Message(), object() )
 
   def test_str(self):
     m = Message( 'foo', 'delivery', foo='bar' )
