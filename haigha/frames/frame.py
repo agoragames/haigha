@@ -126,9 +126,3 @@ class Frame(object):
     Write this frame.
     '''
     raise NotImplementedError()
-
-  def buffer(self):
-    '''
-    Get the frame buffer.
-    '''
-    raise NotImplementedError()

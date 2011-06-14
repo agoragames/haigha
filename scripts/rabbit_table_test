@@ -78,7 +78,7 @@ class ChannelTest:
       'int'    : 2**15-1,
       'long'   : 2**63-1,
       'float' : 42.55,
-      'decimal' : Decimal('3.14'),
+      'decimal' : Decimal('-3.14'),
       'str'   : 'hello',
       'unicode' : 'Au\xc3\x9ferdem'.decode('utf8'),
       'datetime' : datetime(1985, 10, 25, 4, 20, 20),

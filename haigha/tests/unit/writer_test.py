@@ -196,6 +196,10 @@ class WriterTest(Chai):
     w = Writer()
     w._field_decimal( Decimal('1.50') )
     assert_equals( 'D\x02\x00\x00\x00\x96', w._output_buffer )
+    
+    w = Writer()
+    w._field_decimal( Decimal('-1.50') )
+    assert_equals( 'D\x02\xff\xff\xff\x6a', w._output_buffer )
 
   def test_field_str(self):
     w = Writer()
@@ -204,7 +208,7 @@ class WriterTest(Chai):
 
   def test_field_unicode(self):
     w = Writer()
-    w._field_str( 'Au\xc3\x9ferdem'.decode('utf8') )
+    w._field_unicode( 'Au\xc3\x9ferdem'.decode('utf8') )
     assert_equals( 'S\x00\x00\x00\x09Au\xc3\x9ferdem', w._output_buffer )
 
   def test_field_timestamp(self):
