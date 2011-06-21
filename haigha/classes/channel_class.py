@@ -1,3 +1,9 @@
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
+
 from haigha.classes import ProtocolClass
 from haigha.frames import MethodFrame
 from haigha.writer import Writer

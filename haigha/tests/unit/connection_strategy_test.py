@@ -1,6 +1,8 @@
-"""
-Unit tests for the connection strategy
-"""
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
 
 from chai import Chai
 import socket

@@ -1,6 +1,8 @@
-"""
-Definition of the Writer class.
-"""
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
 
 from struct import Struct, pack
 from time import mktime

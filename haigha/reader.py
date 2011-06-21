@@ -1,6 +1,8 @@
-"""
-Defines the Reader class.
-"""
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
 
 from struct import unpack, unpack_from, Struct
 from datetime import datetime
@@ -8,7 +10,7 @@ from decimal import Decimal
 
 class Reader(object):
   """
-  A stream-like object that supports all the basic data types of AMQP.
+  A stream-like reader object that supports all the basic data types of AMQP.
   """
 
   class ReaderError(Exception): '''Base class for all reader errors.'''
