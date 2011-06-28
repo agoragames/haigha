@@ -85,6 +85,7 @@ class ChannelTest:
       'dict' : {'foo':'bar'},
       'none' : None,
       'bytearray' : bytearray('\x02\x03'),
+      'list' : [],
     }
 
     self._publish()
@@ -116,7 +117,10 @@ class ChannelTest:
     for k,v in self._headers.iteritems():
       if k=='unicode':
         v = v.encode('utf8')
-      eq = msg.properties['application_headers'][k] == v
+      if k=='list':
+        eq = msg.properties['application_headers'][k] is None
+      else:
+        eq = msg.properties['application_headers'][k] == v
       print k, 'passed? ', eq
     stop_test()
 

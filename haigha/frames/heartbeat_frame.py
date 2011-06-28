@@ -1,3 +1,8 @@
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
 
 from haigha.frames.frame import Frame
 from haigha.writer import Writer
@@ -15,6 +20,7 @@ class HeartbeatFrame(Frame):
     # Using Rabbit 2.1.1 and protocol 0.9.1 it seems that 8 is indeed the correct type @AW
     # PDF spec: http://www.amqp.org/confluence/download/attachments/720900/amqp0-9-1.pdf?version=1&modificationDate=1227526523000
     # XML spec: http://www.amqp.org/confluence/download/attachments/720900/amqp0-9-1.xml?version=1&modificationDate=1227526672000
+    # This is addressed in http://dev.rabbitmq.com/wiki/Amqp091Errata#section_29
     return 8
   
   @classmethod

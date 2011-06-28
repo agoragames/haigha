@@ -1,5 +1,11 @@
-master
-======
+0.3.1
+=====
+
+Removed encoding of arrays as table fields
+
+
+0.3.0
+=====
 
 Test coverage of all protocol and frame classes
 

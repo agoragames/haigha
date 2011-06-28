@@ -1,6 +1,8 @@
-"""
-Definition of the Writer class.
-"""
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
 
 from struct import Struct, pack
 from time import mktime
@@ -261,7 +263,7 @@ class Writer(object):
     self._output_buffer.append( 'A' )
     for x in val:
       self._write_field( x )
-
+  
   field_type_map = {
     bool      : _field_bool,
     int       : _field_int,
@@ -274,7 +276,22 @@ class Writer(object):
     dict      : _field_table,
     None      : _field_none,
     bytearray : _field_bytearray,
-    list      : _field_iterable,
-    tuple     : _field_iterable,
-    set       : _field_iterable,
   }
+
+  # 0.9.1 spec mapping
+  # field_type_map = {
+  #   bool      : _field_bool,
+  #   int       : _field_int,
+  #   long      : _field_int,
+  #   float     : _field_double,
+  #   Decimal   : _field_decimal,
+  #   str       : _field_str,
+  #   unicode   : _field_unicode,
+  #   datetime  : _field_timestamp,
+  #   dict      : _field_table,
+  #   None      : _field_none,
+  #   bytearray : _field_bytearray,
+  #   list      : _field_iterable,
+  #   tuple     : _field_iterable,
+  #   set       : _field_iterable,
+  # }

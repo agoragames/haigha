@@ -1,3 +1,9 @@
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
+
 from haigha.channel import Channel
 from haigha.connection_strategy import ConnectionStrategy
 from eventsocket import EventSocket

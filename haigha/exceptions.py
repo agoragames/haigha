@@ -1,5 +1,7 @@
 '''
-Public exceptions that can be used by clients
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 class ConnectionError(Exception): '''Base class for all connection errors.'''

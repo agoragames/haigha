@@ -1,3 +1,9 @@
+'''
+Copyright (c) 2011, Agora Games, LLC All rights reserved.
+
+https://github.com/agoragames/haigha/blob/master/LICENSE.txt
+'''
+
 from collections import deque
 
 from haigha.classes import *
