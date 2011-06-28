@@ -1,3 +1,9 @@
+0.3.1
+=====
+
+Removed encoding of arrays as table fields
+
+
 0.3.0
 =====
 
