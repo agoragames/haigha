@@ -278,8 +278,5 @@ class WriterTest(Chai):
         dict      : Writer._field_table.im_func,
         None      : Writer._field_none.im_func,
         bytearray : Writer._field_bytearray.im_func,
-        list      : Writer._field_iterable.im_func,
-        tuple     : Writer._field_iterable.im_func,
-        set       : Writer._field_iterable.im_func,
       }, Writer.field_type_map )
 
