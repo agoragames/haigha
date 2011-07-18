@@ -1,0 +1,4 @@
+-r requirements.txt
+
+chai>=0.1.9
+unittest2
