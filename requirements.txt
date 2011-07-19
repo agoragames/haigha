@@ -1,4 +1,2 @@
 py-eventsocket==0.1.4
 event-agora==0.4.1
-chai==0.1.9
-unittest2

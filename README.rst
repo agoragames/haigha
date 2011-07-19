@@ -74,9 +74,15 @@ Haigha is available on `pypi <http://pypi.python.org/pypi/haigha>`_ and can be i
 
   pip install haigha
 
-If installing from source, dependencies can be satisfied from the ``requirements.txt`` file ::
+If installing from source:
 
-  pip install -r requirements.txt
+* with development requirements (e.g. testing frameworks) ::
+
+    pip install -r development.txt
+
+* without development requirements ::
+
+    pip install -r requirements.txt
 
 
 Testing
