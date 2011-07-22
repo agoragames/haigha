@@ -230,7 +230,7 @@ class Connection(object):
     self._sock = None
 
     # Call back to a user-provided close function
-    self._close_cb and self._close_cb()
+    self._callback_close()
 
     # Fail and do nothing. If you haven't configured permissions and that's 
     # why the socket is closing, this keeps us from looping.
@@ -254,7 +254,7 @@ class Connection(object):
     self._sock = None
 
     # Call back to a user-provided close function
-    self._close_cb and self._close_cb()
+    self._callback_close()
 
     # Fail and try to reconnect, because this is expected to be a transient error.
     self._strategy.fail()
@@ -325,10 +325,10 @@ class Connection(object):
         self.logger.error( 'error closing socket' )
       self._sock = None
 
-  def _close_cb(self):
+  def _callback_close(self):
     '''Callback to any close handler.'''
     if self._close_cb:
-      try: self._close_cb( self )
+      try: self._close_cb()
       except SystemExit: raise
       except: self.logger.error( 'error calling close callback' )
 
@@ -557,11 +557,11 @@ class ConnectionChannel(Channel):
     event.timeout(0, self.connection._close_socket)
 
     # Likewise, call any potential close callback on a delay
-    event.timeout(0, self.connection._close_cb)
+    event.timeout(0, self.connection._callback_close)
 
   def _send_close_ok(self):
     self.send_frame( MethodFrame(self.channel_id, 10, 51) )
 
   def _recv_close_ok(self, method_frame):
     self.connection._close_socket()
-    self.connection._close_cb()
+    self.connection._callback_close()

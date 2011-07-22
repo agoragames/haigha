@@ -194,6 +194,7 @@ class ConnectionTest(Chai):
 
     expect( self.connection._logger.warning ).args(
       'socket to %s closed unexpectedly', 'hostess' )
+    expect( self.connection._callback_close )
     expect( self.connection._strategy.fail )
 
     self.connection._sock_close_cb('sock')
@@ -206,17 +207,6 @@ class ConnectionTest(Chai):
       'method_id'     : 0
       } )
 
-  def test_sock_close_cb_when_user_close_cb(self):
-    self.connection._host = 'hostess'
-    self.connection._close_cb = mock()
-
-    expect( self.connection._logger.warning ).args(
-      'socket to %s closed unexpectedly', 'hostess' )
-    expect( self.connection._close_cb )
-    expect( self.connection._strategy.fail )
-
-    self.connection._sock_close_cb('sock')
-
   def test_sock_error_cb_when_no_user_close_cb(self):
     self.connection._host = 'hostess'
     self.connection._close_cb = None
@@ -224,6 +214,7 @@ class ConnectionTest(Chai):
 
     expect( self.connection._logger.error ).args(
       'error on connection to %s: %s', 'hostess', 'errormsg' )
+    expect( self.connection._callback_close )
     expect( self.connection._strategy.fail )
     expect( self.connection._strategy.next_host )
 
@@ -236,18 +227,6 @@ class ConnectionTest(Chai):
       'class_id'      : 0,
       'method_id'     : 0
       } )
-
-  def test_sock_error_cb_when_user_close_cb(self):
-    self.connection._host = 'hostess'
-    self.connection._close_cb = mock()
-
-    expect( self.connection._logger.error ).args(
-      'error on connection to %s: %s', 'hostess', 'errormsg' )
-    expect( self.connection._close_cb )
-    expect( self.connection._strategy.fail )
-    expect( self.connection._strategy.next_host )
-
-    self.connection._sock_error_cb('sock', 'errormsg', 'exception')
 
   def test_next_channel_id_when_less_than_max(self):
     self.connection._channel_counter = 32
@@ -297,3 +276,35 @@ class ConnectionTest(Chai):
 
   def test_channel_raises_invalidchannel_if_unknown_id(self):
     assert_raises( Connection.InvalidChannel, self.connection.channel, 42 )
+
+  def test_close(self):
+    self.connection._channels[0] = mock()
+    expect( self.connection._channels[0].close ).times(2)
+    
+    self.connection.close()
+    assert_equals( {'reply_code':0, 'reply_text':'', 'class_id':0, 'method_id':0}, 
+      self.connection._close_info )
+    
+    self.connection.close(1, 'foo', 2, 3)
+    assert_equals( {'reply_code':1, 'reply_text':'foo', 'class_id':2, 'method_id':3}, 
+      self.connection._close_info )
+
+  def test_callback_close_when_no_cb(self):
+    self.connection._close_cb = None
+    self.connection._callback_close()
+
+  def test_callback_close_when_user_cb(self):
+    self.connection._close_cb = mock()
+    expect( self.connection._close_cb )
+    self.connection._callback_close()
+
+  def test_callback_close_raises_sysexit_when_user_cb_does(self):
+    self.connection._close_cb = mock()
+    expect( self.connection._close_cb ).raises( SystemExit() )
+    assert_raises( SystemExit, self.connection._callback_close )
+
+  def test_callback_close_logs_when_user_cb_fails(self):
+    self.connection._close_cb = mock()
+    expect( self.connection._close_cb ).raises( 'fail!' )
+    expect( self.connection.logger.error ).args( str )
+    self.connection._callback_close()
