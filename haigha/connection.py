@@ -103,7 +103,6 @@ class Connection(object):
     self._strategy.connect()
 
     self._output_frame_buffer = []
-    self._output_buffer = None
     
   @property
   def logger(self):
@@ -378,13 +377,8 @@ class Connection(object):
     Walk through a set of channels and process their frame buffer. Will
     collect all socket output and flush in one write.
     '''
-    self._output_buffer = bytearray()
     for channel in channels:
       channel.process_frames()
-    
-    if len(self._output_buffer):
-      self._sock.write( self._output_buffer )
-    self._output_buffer = None
 
   def _flush_buffered_frames(self):
     # In the rare case (a bug) where this is called but send_frame thinks
@@ -412,12 +406,9 @@ class Connection(object):
     if self._debug > 1:
       self.logger.debug( "WRITE: %s", frame )
 
-    if self._output_buffer is None:
-      buf = bytearray()
-      frame.write_frame(buf)
-      self._sock.write( buf )
-    else:
-      frame.write_frame( self._output_buffer )
+    buf = bytearray()
+    frame.write_frame(buf)
+    self._sock.write( buf )
     
     self._frames_written += 1
     

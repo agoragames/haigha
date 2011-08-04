@@ -53,7 +53,6 @@ class ConnectionTest(Chai):
     self.connection._frames_read = 0
     self.connection._frames_written = 0
     self.connection._strategy = self.mock()
-    self.connection._output_buffer = None
     self.connection._output_frame_buffer = []
 
   def test_init_without_keyword_args(self):
@@ -101,7 +100,6 @@ class ConnectionTest(Chai):
     self.assertEqual( 65535, conn._channel_max )
     self.assertEqual( 65535, conn._frame_max )
     self.assertEqual( strategy, conn._strategy )
-    self.assertEqual( None, conn._output_buffer )
     self.assertEqual( [], conn._output_frame_buffer )
 
   def test_properties(self):

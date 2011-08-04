@@ -1,3 +1,13 @@
+master
+======
+
+Fixed calling into user-provided close callback, changed interface of close_cb
+to accept no arguments
+
+Use buffer-per-frame in Connection.send_frame() to work around a memory freeing
+problem in EventSocket
+
+
 0.3.1
 =====
 
