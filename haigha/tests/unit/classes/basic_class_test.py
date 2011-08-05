@@ -140,7 +140,7 @@ class BasicClassTest(Chai):
   def test_recv_consume_ok(self):
     frame = mock()
     expect( frame.args.read_shortstr ).returns( 'ctag' )
-    self.klass._pending_consumers = deque(['blargh','consumer'])
+    self.klass._pending_consumers = deque(['consumer', 'blargh'])
     
     assert_equals( {}, self.klass._consumer_cb )
     self.klass._recv_consume_ok( frame )
@@ -231,7 +231,7 @@ class BasicClassTest(Chai):
     cancel_cb = mock()
     expect( frame.args.read_shortstr ).returns( 'ctag' )
     self.klass._consumer_cb['ctag'] = 'foo'
-    self.klass._cancel_cb = deque([ mock(), cancel_cb ])
+    self.klass._cancel_cb = deque([ cancel_cb, mock() ])
     expect( cancel_cb )
 
     self.klass._recv_cancel_ok( frame )
@@ -243,7 +243,7 @@ class BasicClassTest(Chai):
     expect( frame.args.read_shortstr ).returns( 'ctag' )
     expect( self.klass.logger.warning ).args( 
       'no callback registered for consumer tag " %s "', 'ctag' )
-    self.klass._cancel_cb = deque( [ mock(), None ] )
+    self.klass._cancel_cb = deque( [ None, mock() ] )
 
     self.klass._recv_cancel_ok( frame )
     assert_equals( 1, len(self.klass._cancel_cb) )
@@ -361,8 +361,8 @@ class BasicClassTest(Chai):
 
   def test_recv_get_ok_with_cb(self):
     cb = mock()
-    self.klass._get_cb.append( mock() )
     self.klass._get_cb.append( cb )
+    self.klass._get_cb.append( mock() )
 
     expect( self.klass._read_msg ).args( 'frame' ).returns( 'msg' )
     expect( cb ).args( 'msg' )
@@ -372,8 +372,8 @@ class BasicClassTest(Chai):
     assert_false( cb in self.klass._get_cb )
 
   def test_recv_get_ok_without_cb(self):
-    self.klass._get_cb.append( mock() )
     self.klass._get_cb.append( None )
+    self.klass._get_cb.append( mock() )
 
     expect( self.klass._read_msg ).args( 'frame' ).returns( 'msg' )
 
@@ -383,8 +383,8 @@ class BasicClassTest(Chai):
 
   def test_recv_get_empty_with_cb(self):
     cb = mock()
-    self.klass._get_cb.append( mock() )
     self.klass._get_cb.append( cb )
+    self.klass._get_cb.append( mock() )
 
     expect( cb ).args( None )
 
@@ -393,8 +393,8 @@ class BasicClassTest(Chai):
     assert_false( cb in self.klass._get_cb )
 
   def test_recv_get_empty_without_cb(self):
-    self.klass._get_cb.append( mock() )
     self.klass._get_cb.append( None )
+    self.klass._get_cb.append( mock() )
 
     self.klass._recv_get_empty( 'frame' )
     assert_equals( 1, len(self.klass._get_cb) )
@@ -474,8 +474,8 @@ class BasicClassTest(Chai):
 
   def test_recv_recover_ok_with_cb(self):
     cb = mock()
-    self.klass._recover_cb.append( mock() )
     self.klass._recover_cb.append( cb )
+    self.klass._recover_cb.append( mock() )
 
     expect( cb )
 
@@ -484,8 +484,8 @@ class BasicClassTest(Chai):
     assert_false( cb in self.klass._recover_cb )
 
   def test_recv_recover_ok_without_cb(self):
-    self.klass._recover_cb.append( mock() )
     self.klass._recover_cb.append( None )
+    self.klass._recover_cb.append( mock() )
 
     self.klass._recv_recover_ok( 'frame' )
     assert_equals( 1, len(self.klass._recover_cb) )

@@ -86,7 +86,7 @@ class BasicClass(ProtocolClass):
 
   def _recv_consume_ok(self, method_frame):
     consumer_tag = method_frame.args.read_shortstr()
-    self._consumer_cb[ consumer_tag ] = self._pending_consumers.pop()
+    self._consumer_cb[ consumer_tag ] = self._pending_consumers.popleft()
 
   def cancel(self, consumer_tag='', nowait=True, consumer=None, cb=None):
     '''
@@ -123,7 +123,7 @@ class BasicClass(ProtocolClass):
     except KeyError:
       self.logger.warning( 'no callback registered for consumer tag " %s "', consumer_tag )
 
-    cb = self._cancel_cb.pop()
+    cb = self._cancel_cb.popleft()
     if cb: cb()
 
   def publish(self, msg, exchange, routing_key, mandatory=False, immediate=False, ticket=None):
@@ -195,13 +195,13 @@ class BasicClass(ProtocolClass):
 
   def _recv_get_ok(self, method_frame):
     msg = self._read_msg( method_frame )
-    cb = self._get_cb.pop()
+    cb = self._get_cb.popleft()
     if cb: cb( msg )
 
   def _recv_get_empty(self, _method_frame):
     # On empty, call back with None as the argument so that user code knows
     # it's empty and can take next action
-    cb = self._get_cb.pop()
+    cb = self._get_cb.popleft()
     if cb: cb( None )
 
   def ack(self, delivery_tag, multiple=False):
@@ -250,7 +250,7 @@ class BasicClass(ProtocolClass):
     self.channel.add_synchronous_cb( self._recv_recover_ok )
 
   def _recv_recover_ok(self, _method_frame):
-    cb = self._recover_cb.pop()
+    cb = self._recover_cb.popleft()
     if cb: cb()
 
   def _read_msg(self, method_frame):
