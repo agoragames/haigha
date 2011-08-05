@@ -21,6 +21,11 @@ The goals of haigha are performance, simplicity, and adherence to the form and f
 
 By default, Haigha operates in a completely asynchronous mode, relying on callbacks to notify application code of responses from the broker. Where applicable, ``nowait`` defaults to ``True``. The application code is welcome to call a series of methods, and Haigha will manage the stack and synchronous handshakes in the event loop.
 
+Documentation
+=============
+
+This file and the various files in the ``scripts`` directory serve as a simple introduction to haigha. For more complete documentation, see `DOCUMENTATION.rst <https://github.com/agoragames/haigha/blob/master/DOCUMENTATION.rst>`_.
+
 
 Example
 =======
