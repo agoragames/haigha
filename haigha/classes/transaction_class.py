@@ -26,6 +26,7 @@ class TransactionClass(ProtocolClass):
     }
 
     self._enabled = False
+    self._select_cb = deque()
     self._commit_cb = deque()
     self._rollback_cb = deque()
 
@@ -34,7 +35,7 @@ class TransactionClass(ProtocolClass):
     '''Get whether transactions have been enabled.'''
     return self._enabled
   
-  def select(self):
+  def select(self, cb=None):
     '''
     Set this channel to use transactions.
     '''
@@ -42,10 +43,11 @@ class TransactionClass(ProtocolClass):
       self._enabled = True
       self.send_frame( MethodFrame(self.channel_id, 90, 10) )
       self.channel.add_synchronous_cb( self._recv_select_ok )
+      self._select_cb.append(cb)
 
   def _recv_select_ok(self, _method_frame):
-    # nothing to do
-    pass
+    cb = self._select_cb.popleft()
+    if cb: cb()
     
   def commit(self, cb=None):
     '''
@@ -55,12 +57,12 @@ class TransactionClass(ProtocolClass):
     # Could call select() but spec 1.9.2.3 says to raise an exception
     if not self.enabled: raise self.TransactionsNotEnabled()
 
-    self._commit_cb.append( cb )
     self.send_frame( MethodFrame(self.channel_id, 90, 20) )
     self.channel.add_synchronous_cb( self._recv_commit_ok )
+    self._commit_cb.append( cb )
 
   def _recv_commit_ok(self, _method_frame):
-    cb = self._commit_cb.pop()
+    cb = self._commit_cb.popleft()
     if cb: cb()
 
   def rollback(self, cb=None):
@@ -72,10 +74,10 @@ class TransactionClass(ProtocolClass):
     # Could call select() but spec 1.9.2.5 says to raise an exception
     if not self.enabled: raise self.TransactionsNotEnabled()
 
-    self._rollback_cb.append( cb )
     self.send_frame( MethodFrame(self.channel_id, 90, 30) )
     self.channel.add_synchronous_cb( self._recv_rollback_ok )
+    self._rollback_cb.append( cb )
 
   def _recv_rollback_ok(self, _method_frame):
-    cb = self._rollback_cb.pop()
+    cb = self._rollback_cb.popleft()
     if cb: cb()

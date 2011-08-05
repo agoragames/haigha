@@ -94,8 +94,8 @@ class QueueClassTest(Chai):
   def test_recv_declare_ok_with_callback(self):
     rframe = mock()
     cb = mock()
-    self.klass._declare_cb.append( mock() ) # assert not called
     self.klass._declare_cb.append( cb )
+    self.klass._declare_cb.append( mock() ) # assert not called
 
     expect( rframe.args.read_shortstr ).returns( 'queue' )
     expect( rframe.args.read_long ).returns( 32 )
@@ -109,8 +109,8 @@ class QueueClassTest(Chai):
   def test_recv_declare_ok_without_callback(self):
     rframe = mock()
     cb = mock()
-    self.klass._declare_cb.append( cb )
     self.klass._declare_cb.append( None )
+    self.klass._declare_cb.append( cb )
 
     expect( rframe.args.read_shortstr ).returns( 'queue' )
     expect( rframe.args.read_long ).returns( 32 )
@@ -175,8 +175,8 @@ class QueueClassTest(Chai):
 
   def test_recv_bind_ok_with_cb(self):
     cb = mock()
-    self.klass._bind_cb.append( mock() ) # assert not called
     self.klass._bind_cb.append( cb )
+    self.klass._bind_cb.append( mock() ) # assert not called
 
     expect( cb )
 
@@ -185,8 +185,8 @@ class QueueClassTest(Chai):
     assert_false( cb in self.klass._bind_cb )
 
   def test_recv_bind_ok_without_cb(self):
-    self.klass._bind_cb.append( mock() ) # assert not called
     self.klass._bind_cb.append( None )
+    self.klass._bind_cb.append( mock() ) # assert not called
 
     self.klass._recv_bind_ok( 'frame' )
     assert_equals( 1, len(self.klass._bind_cb) )
@@ -227,8 +227,8 @@ class QueueClassTest(Chai):
 
   def test_recv_unbind_ok_with_cb(self):
     cb = mock()
-    self.klass._unbind_cb.append( mock() ) # assert not called
     self.klass._unbind_cb.append( cb )
+    self.klass._unbind_cb.append( mock() ) # assert not called
 
     expect( cb )
 
@@ -237,8 +237,8 @@ class QueueClassTest(Chai):
     assert_false( cb in self.klass._unbind_cb )
 
   def test_recv_unbind_ok_without_cb(self):
-    self.klass._unbind_cb.append( mock() ) # assert not called
     self.klass._unbind_cb.append( None )
+    self.klass._unbind_cb.append( mock() ) # assert not called
 
     self.klass._recv_unbind_ok( 'frame' )
     assert_equals( 1, len(self.klass._unbind_cb) )
@@ -289,8 +289,8 @@ class QueueClassTest(Chai):
   def test_recv_purge_ok_with_cb(self):
     rframe = mock()
     cb = mock()
-    self.klass._purge_cb.append( mock() ) # assert not called
     self.klass._purge_cb.append( cb )
+    self.klass._purge_cb.append( mock() ) # assert not called
 
     expect( rframe.args.read_long ).returns( 42 )
     expect( cb ).args( 42 )
@@ -301,8 +301,8 @@ class QueueClassTest(Chai):
 
   def test_recv_purge_ok_without_cb(self):
     rframe = mock()
-    self.klass._purge_cb.append( mock() ) # assert not called
     self.klass._purge_cb.append( None )
+    self.klass._purge_cb.append( mock() ) # assert not called
 
     expect( rframe.args.read_long ).returns( 42 )
 
@@ -357,8 +357,8 @@ class QueueClassTest(Chai):
   def test_recv_delete_ok_with_cb(self):
     rframe = mock()
     cb = mock()
-    self.klass._delete_cb.append( mock() ) # assert not called
     self.klass._delete_cb.append( cb )
+    self.klass._delete_cb.append( mock() ) # assert not called
 
     expect( rframe.args.read_long ).returns( 42 )
     expect( cb ).args( 42 )
@@ -369,8 +369,8 @@ class QueueClassTest(Chai):
 
   def test_recv_delete_ok_without_cb(self):
     rframe = mock()
-    self.klass._delete_cb.append( mock() ) # assert not called
     self.klass._delete_cb.append( None )
+    self.klass._delete_cb.append( mock() ) # assert not called
 
     expect( rframe.args.read_long ).returns( 42 )
 

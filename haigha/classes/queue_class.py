@@ -61,7 +61,7 @@ class QueueClass(ProtocolClass):
     message_count = method_frame.args.read_long()
     consumer_count = method_frame.args.read_long()
 
-    cb = self._declare_cb.pop()
+    cb = self._declare_cb.popleft()
     if cb:
       cb( queue, message_count, consumer_count )
     
@@ -87,7 +87,7 @@ class QueueClass(ProtocolClass):
 
   def _recv_bind_ok(self, _method_frame):
     # No arguments defined.
-    cb = self._bind_cb.pop()
+    cb = self._bind_cb.popleft()
     if cb: cb()
 
   def unbind(self, queue, exchange, routing_key='', arguments={}, ticket=None, cb=None):
@@ -107,7 +107,7 @@ class QueueClass(ProtocolClass):
 
   def _recv_unbind_ok(self, _method_frame):
     # No arguments defined
-    cb = self._unbind_cb.pop()
+    cb = self._unbind_cb.popleft()
     if cb: cb()
     
   def purge(self, queue, nowait=True, ticket=None, cb=None):
@@ -129,7 +129,7 @@ class QueueClass(ProtocolClass):
 
   def _recv_purge_ok(self, method_frame):
     message_count = method_frame.args.read_long()
-    cb = self._purge_cb.pop()
+    cb = self._purge_cb.popleft()
     if cb: cb( message_count )
 
   def delete(self, queue, if_unused=False, if_empty=False, nowait=True, ticket=None, cb=None):
@@ -151,5 +151,5 @@ class QueueClass(ProtocolClass):
 
   def _recv_delete_ok(self, method_frame):
     message_count = method_frame.args.read_long()
-    cb = self._delete_cb.pop()
+    cb = self._delete_cb.popleft()
     if cb: cb( message_count )

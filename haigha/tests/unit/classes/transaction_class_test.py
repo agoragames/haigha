@@ -34,6 +34,7 @@ class TransactionClassTest(Chai):
         31 : klass._recv_rollback_ok,
       }, klass.dispatch_map )
     assert_false( klass._enabled )
+    assert_equals( deque(), klass._select_cb )
     assert_equals( deque(), klass._commit_cb )
     assert_equals( deque(), klass._rollback_cb )
 
@@ -41,7 +42,7 @@ class TransactionClassTest(Chai):
     self.klass._enabled = 'maybe'
     assert_equals( 'maybe', self.klass.enabled )
 
-  def test_select_when_not_enabled(self):
+  def test_select_when_not_enabled_and_no_cb(self):
     self.klass._enabled = False
     expect( mock(transaction_class, 'MethodFrame') ).args(42, 90, 10).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
@@ -49,15 +50,42 @@ class TransactionClassTest(Chai):
 
     self.klass.select()
     assert_true( self.klass.enabled )
+    assert_equals( deque([None]), self.klass._select_cb )
+
+  def test_select_when_not_enabled_with_cb(self):
+    self.klass._enabled = False
+    expect( mock(transaction_class, 'MethodFrame') ).args(42, 90, 10).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_select_ok )
+
+    self.klass.select(cb='foo')
+    assert_true( self.klass.enabled )
+    assert_equals( deque(['foo']), self.klass._select_cb )
 
   def test_select_when_already_enabled(self):
     self.klass._enabled = True
     stub( self.klass.send_frame )
 
+    assert_equals( deque(), self.klass._select_cb )
     self.klass.select()
+    assert_equals( deque(), self.klass._select_cb )
 
-  def test_recv_select_ok(self):
+  def test_recv_select_ok_with_cb(self):
+    cb = mock()
+    self.klass._select_cb.append( cb )
+    self.klass._select_cb.append( mock() )
+    expect(cb)
     self.klass._recv_select_ok( 'frame' )
+    assert_equals( 1, len(self.klass._select_cb) )
+    assert_false( cb in self.klass._select_cb )
+
+  def test_recv_select_ok_without_cb(self):
+    self.klass._select_cb.append( None )
+    self.klass._select_cb.append( mock() )
+    
+    self.klass._recv_select_ok( 'frame' )
+    assert_equals( 1, len(self.klass._select_cb) )
+    assert_false( None in self.klass._select_cb )
 
   def test_commit_when_enabled_no_cb(self):
     self.klass._enabled = True
@@ -87,8 +115,8 @@ class TransactionClassTest(Chai):
 
   def test_recv_commit_ok_with_cb(self):
     cb = mock()
-    self.klass._commit_cb.append( mock() )
     self.klass._commit_cb.append( cb )
+    self.klass._commit_cb.append( mock() )
     expect(cb)
     
     self.klass._recv_commit_ok('frame')
@@ -96,8 +124,8 @@ class TransactionClassTest(Chai):
     assert_false( cb in self.klass._commit_cb )
 
   def test_recv_commit_ok_without_cb(self):
-    self.klass._commit_cb.append( mock() )
     self.klass._commit_cb.append( None )
+    self.klass._commit_cb.append( mock() )
     
     self.klass._recv_commit_ok('frame')
     assert_equals( 1, len(self.klass._commit_cb) )
@@ -131,8 +159,8 @@ class TransactionClassTest(Chai):
 
   def test_recv_rollback_ok_with_cb(self):
     cb = mock()
-    self.klass._rollback_cb.append( mock() )
     self.klass._rollback_cb.append( cb )
+    self.klass._rollback_cb.append( mock() )
     expect(cb)
     
     self.klass._recv_rollback_ok('frame')
@@ -140,8 +168,8 @@ class TransactionClassTest(Chai):
     assert_false( cb in self.klass._rollback_cb )
 
   def test_recv_rollback_ok_without_cb(self):
-    self.klass._rollback_cb.append( mock() )
     self.klass._rollback_cb.append( None )
+    self.klass._rollback_cb.append( mock() )
     
     self.klass._recv_rollback_ok('frame')
     assert_equals( 1, len(self.klass._rollback_cb) )
