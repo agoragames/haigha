@@ -294,6 +294,24 @@ Functional Specifications
 Client Functional Specification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+**TODO** Document other features that the client implements.
+
+Messages and Content
+--------------------
+
+Messages are created with the `Message`_ class and sent via one of several publishing methods.
+
+* ``channel.basic.publish`` The "standard" publish which is the publish command exposed by the `BasicClass`_.
+* ``channel.publish`` A convenience method that aliases ``basic.publish``.
+* ``channel.publish_synchronous`` A wrapper around ``transaction.select``, ``basic.publish``, ``transaction.commit``. A callback argument will be called when the server acknowledges ``commit``.
+* ``channelpool.publish`` Publish using a pool of transaction-isolated channels. Will create a new channel if none are free. A callback argument will be called when the server acknowledges transaction commit.
+
+Consumers
+---------
+
+The preferred mechanism for reading messages from an AMQP queue is to register a consumer via ``basic.consume`` call. This will register a Python function to be called each time the client receives a message from a queue.
+
+
 Command Specification
 ^^^^^^^^^^^^^^^^^^^^^
 
