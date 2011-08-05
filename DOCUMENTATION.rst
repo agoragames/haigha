@@ -182,6 +182,8 @@ The AMQP protocol isolates all synchronous and asynchronous transactions per cha
 
 When a command is received from the broker, the dispatch will find the appropriate haigha method and if that method is at the front of the buffer, will pop it off. All remaining frames are then flushed until the buffer is empty, or the first item is another pending synchronous callback. This solution implements a very lightweight system for reliably managing multiple outstanding synchronous calls in an asynchronous dispatch loop. The user is free to interact with AMQP without worrying about whether a method is synchronous or not [#]_.
 
+When receiving frames, the `Connection`_ first queues frames to each channel via ``channel.buffer_frame()``. It then iterates over all channels for which a frame was queued and calls ``channel.process_frames()``. In most cases, an AMQP command is isolated to one frame, but in the case of messages, the content may be split across multiple frames. In the situation where not all content frames have been received yet, the `BasicClass`_ will raise a ``ProtocolClass.FrameUnderflow`` exception and re-buffer any message frames on the channel. When the next frame arrives for the channel, the process will repeat, until all frames have arrived and the message is complete.
+
 Exchange
 --------
 
@@ -224,9 +226,65 @@ Transport Architecture
 
 This section describes how haigha implements the wire-level protocol.
 
+General
+-------
+
+AMQP is a frame-oriented protocol and haigha is designed around this in every respect. 
+
+The `Connection`_ class implements an `EventSocket`_ callback which will call ``connection._read_frames()``. It will take the current buffer on the socket, place it in a `Reader`_ object, and pass that to the ``read_frames()`` method of the `Frame`_ class. The reader acts as both a stream object, with methods such as ``seek()`` and ``tell()``, as well as an implementation of the basic data types in AMQP. 
+
+For each frame read, the connection will queue the frame on to the channel specified in the frame, for later processing. If the input buffer contains a partial frame, a ``Reader.BufferUnderflow`` exception will be raised and ``Frame.read_frames()`` will exit, leaving the reader positioned at the end of the last full frame (or beginning of the buffer). The connection will re-buffer any pending data on the socket and wait for the next callback to attempt to read frames from the byte stream.
+
+To send frames, each command implemented by a `ProtocolClass`_ will construct a `Writer`_ object which is used to format the arguments for that command. It then constructs a subclass of `Frame`_, usually a `MethodFrame`_, and writes that to the channel to which the protocol class is bound.
+
+Data Types
+----------
+
+AMQP defines several data types which form the basis of all frames. One of these data types, tables (i.e. dicts), supports the basic types in addition to a few others.  There is disagreement on official versus supported types in tables, as well as subtle differences in the encoding of some types. Haigha is written to conform to the `errata <http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3>`_ implemented in RabbitMQ.
+
+The implementation of the data types is in both the `Reader`_ and `Writer_` classes. When converting from Python to AMQP data types when serializing tables, the `Writer`_ assumes that all floats are double-precision, converts unicode to utf8 strings, and intelligently packs integers according to their required byte-width.
+
+Error Handling
+--------------
+
+AMQP defines two classes of exceptions for error handling. Operational errors, such as invalid queue names, will close a channel. Structural errors, such as invalid or out-of-order frames, will result in a connection closure.
+
+Because haigha is asynchronous, handlers must be defined to receive notification when a connection or channel are closed [#]_. The closed state will be saved on the respective connection or channel, and accessible via the ``close_info`` property. This will always return a dictionary with the following fields defined:
+
+* **reply_code** The 3 digit error code
+* **reply_text** The text of the error message
+* **class_id** The class id of the offending command
+* **method_id** The method id of the offending command
+
+When closing due to an error on the client side, these same parameters can be supplied to ``connection.close()`` and ``channel.close()``.
 
 Client Architecture
 ^^^^^^^^^^^^^^^^^^^
+
+Haigha's client architecture closely matches AMQP's recommended abstraction layers.
+
+Framing
+-------
+
+The framing layer is shared across a number of different classes.
+
+* **Connection** Manages input byte buffer, calls into frame reader, and writes frames to the socket
+* **Frame** Implements frame reading, calls into frame implementations for further decoding, subclasses implement ``write_frame()`` method
+* **Channel** Implements input frame buffer, dispatch to protocol classes, and interfaces for sending frames
+
+Connection Manager
+------------------
+
+The connection management is handled primarily by the `Connection`_ class. The AMQP specification suggests that this layer may also be responsible for sending content, but that is handled in the frame buffering implementation of `Channel`_ and the specific implementation of `BasicClass`_.
+
+API Layer
+---------
+
+The primary API of haigha are the methods exposed through the subclasses of `ProtocolClass`_ and which are made available in the afore-mentioned per-channel properties that map to the classes of AMQP protocol messages, ``[basic, channel, exchange, queue, transaction]``. Additional APIs of which the user should be aware:
+
+* `Connection`_ Exposes ``channel()`` and ``close()``
+* `Channel`_ Exposes ``close()``, ``publish()`` and ``publish_synchronous()``
+* `ChannelPool`_ Transaction-based publishing for guaranteed delivery and high-throughput
 
 .. _haigha-functional-specifications:
 
@@ -268,6 +326,7 @@ Limitations
 
 .. _AMQP: http://www.amqp.org/
 .. _AMQPSpec: http://www.amqp.org/confluence/download/attachments/720900/amqp0-9-1.pdf
+.. _EventSocket: https://github.com/agoragames/py-eventsocket
 .. _Connection: https://github.com/agoragames/haigha/blob/master/haigha/connection.py
 .. _ConnectionChannel: https://github.com/agoragames/haigha/blob/master/haigha/connection.py
 .. _Channel: https://github.com/agoragames/haigha/blob/master/haigha/channel.py
@@ -295,3 +354,4 @@ Limitations
 .. [#] Your broker may support other types of exchanges, such as a deliver-once exchange.
 .. [#] All synchronous methods will support callbacks by 0.4.0.
 .. [#] Synchronous methods have more overhead, so some awareness and caution is recommended.
+.. [#] Channel close callbacks will be supported by 0.4.0.
