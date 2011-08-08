@@ -4,8 +4,16 @@ master
 Fixed calling into user-provided close callback, changed interface of close_cb
 to accept no arguments
 
-Use buffer-per-frame in Connection.send_frame() to work around a memory freeing
-problem in EventSocket
+Use buffer-per-frame in Connection.send_frame() to work around a memory 
+freeing problem in EventSocket
+
+First round of in-depth documentation in DOCUMENTATION.rst
+
+Added callbacks to Exchange.declare(), Exchange.delete() and 
+Transaction.select().
+
+Fixed FIFO ordering problems for all methods that support callbacks to user 
+after a synchronous operation.
 
 
 0.3.1
