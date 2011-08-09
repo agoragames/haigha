@@ -1,5 +1,5 @@
-master
-======
+0.3.2
+=====
 
 Fixed calling into user-provided close callback, changed interface of close_cb
 to accept no arguments
