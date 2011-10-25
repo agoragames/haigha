@@ -153,7 +153,8 @@ class Connection(object):
     # still occur.  this allows the reconnect to occur silently without
     # completely breaking any pending data on, say, a channel that was just
     # opened.
-    self._sock = EventSocket( read_cb=self._sock_read_cb,
+    self._transport.connect( (host,port) )
+    '''self._sock = EventSocket( read_cb=self._sock_read_cb,
       close_cb=self._sock_close_cb, error_cb=self._sock_error_cb,
       debug=self._debug, logger=self._logger )
     self._sock.settimeout( self._connect_timeout )
@@ -162,7 +163,7 @@ class Connection(object):
         family,type = k
         self._sock.setsockopt(family, type, v)
     self._sock.connect( (host,port) )
-    self._sock.setblocking( False )
+    self._sock.setblocking( False )'''
 
     # Only after the socket has connected do we clear this state; closed must
     # be False so that writes can be buffered in writePacket().  The closed
@@ -176,7 +177,7 @@ class Connection(object):
       'method_id'     : 0
     }
 
-    self._sock.write( PROTOCOL_HEADER )
+    self._transport.write( PROTOCOL_HEADER )
   
   def disconnect(self):
     '''
@@ -184,13 +185,12 @@ class Connection(object):
     so that it can be reconnected.
     '''
     self._connected = False
-    if self._sock!=None:
-      self._sock.close_cb = None
+    if self._transport!=None:
       try:
-        self._sock.close()
+        self._transport.close()
       except: 
         self.logger.error("Failed to disconnect socket to %s", self._host, exc_info=True)
-      self._sock = None
+      self._transport = None
   
   def add_reconnect_callback(self, callback):
     '''Adds a reconnect callback to the strategy.  This can be used to
@@ -210,54 +210,37 @@ class Connection(object):
       self.logger.error("Failed to read frames from %s", self._host, exc_info=True)
       self.close( reply_code=501, reply_text='Error parsing frames' )
 
-  def _sock_close_cb(self, sock):
+  # WAS def _sock_close_cb(self, sock):
+  def transport_closed_unexpected(self, **kwargs):
     """
-    Callback when socket closed.  This is intended to be the callback when the
+    Callback when transport closed.  This is intended to be the callback when the
     closure is unexpected.
     """
-    self.logger.warning( 'socket to %s closed unexpectedly', self._host )
+    msg = 'socket to %s closed unexpectedly : %s'%\
+      (self._host, kwargs.get('cause','unknown'))
+    self.logger.warning( msg )
     self._close_info = {
-      'reply_code'    : 0,
-      'reply_text'    : 'socket closed unexpectedly to %s'%(self._host),
-      'class_id'      : 0,
-      'method_id'     : 0
+      'reply_code'    : kwargs.get('reply_code',0),
+      'reply_text'    : kwargs.get('reply_text', msg)
+      'class_id'      : kwargs.get('class_id',0),
+      'method_id'     : kwargs.get('method_id',0)
     }
 
     # We're not connected any more (we're not closed but we're definitely not
     # connected)
     self._connected = False
-    self._sock = None
+    self._transport = None
 
     # Call back to a user-provided close function
     self._callback_close()
 
-    # Fail and do nothing. If you haven't configured permissions and that's 
-    # why the socket is closing, this keeps us from looping.
+    # Tell the current strategy to fail.
+    # NOTE: as of 24 Oct, this will stop all additional attempts. The connection
+    # strategy concept will be reworked after the transport layer is replaced.
     self._strategy.fail()
-  
-  def _sock_error_cb(self, sock, msg, exception=None):
-    """
-    Callback when there's an error on the socket.
-    """
-    self.logger.error( 'error on connection to %s: %s', self._host, msg)
-    self._close_info = {
-      'reply_code'    : 0,
-      'reply_text'    : 'socket error on host %s: %s'%(self._host, msg),
-      'class_id'      : 0,
-      'method_id'     : 0
-    }
-    
-    # we're not connected any more (we're not closed but we're definitely not
-    # connected)
-    self._connected = False
-    self._sock = None
 
-    # Call back to a user-provided close function
-    self._callback_close()
-
-    # Fail and try to reconnect, because this is expected to be a transient error.
-    self._strategy.fail()
-    self._strategy.next_host()
+    # This is what we used to do on an error close
+    ## self._strategy.next_host()
 
   ###
   ### Connection methods
@@ -309,13 +292,17 @@ class Connection(object):
     self._channels[0].close()
 
   def _close_socket(self):
-    '''Close the socket.'''
+    '''
+    Close the socket.
+    '''
     # The assumption here is that we don't want auto-reconnect to kick in if
     # the socket is purposefully closed.
     self._closed = True
 
     # By the time we hear about the protocol-level closure, the socket may
     # have already gone away.
+    # TODO: call self._transport close and then set to None, let transport 
+    # implement call to the underlying socket.
     if self._sock != None:
       self._sock.close_cb = None
       try:
