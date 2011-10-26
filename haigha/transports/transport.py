@@ -15,6 +15,10 @@ class Transport(object):
     '''
     self._connection = connection
 
+  @property
+  def connection(self):
+    return self._connection
+
   def process_channels(self, channels):
     '''
     Process a set of channels by calling Channel.process_frames() on each. 
@@ -29,7 +33,9 @@ class Transport(object):
 
   def read(self):
     '''
-    Read from the transport. If no data is available, should return None.
+    Read from the transport. If no data is available, should return None. The
+    return value can be any data type that is supported by the haigha.Reader
+    class.
     '''
     return None
 

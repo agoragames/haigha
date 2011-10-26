@@ -5,15 +5,12 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 from haigha.channel import Channel
-from haigha.connection_strategy import ConnectionStrategy
-#from eventsocket import EventSocket
 from haigha.frames import *
 from haigha.writer import Writer
 from haigha.reader import Reader
 from haigha.transports import *
 from exceptions import *
 
-#import event                        # http://code.google.com/p/pyevent/
 import socket
 import struct
 import haigha
@@ -99,14 +96,7 @@ class Connection(object):
     self._frames_read = 0
     self._frames_written = 0
 
-    # TODO: perhaps it's time to ditch connection strategies ...
-    '''
-    self._strategy = kwargs.get('connection_strategy')
-    if not self._strategy:
-      self._strategy = ConnectionStrategy( self, self._host, reconnect_cb = self._reconnect_cb )
-    self._strategy.connect()
-    '''
-    # For now, always pick the libevent strategy
+    # TODO: For now, always pick the libevent strategy
     self._transport = EventTransport( self )
 
     self._output_frame_buffer = []
@@ -196,11 +186,11 @@ class Connection(object):
 
     TODO: document args
     """
-    msg = 'transport to %s closed unexpectedly : %s'%(self._host)
+    msg = 'transport to %s closed : unknown cause'%(self._host)
     self.logger.warning( kwargs.get('msg', msg) )
     self._close_info = {
       'reply_code'    : kwargs.get('reply_code',0),
-      'reply_text'    : kwargs.get('msg', msg)
+      'reply_text'    : kwargs.get('msg', msg),
       'class_id'      : kwargs.get('class_id',0),
       'method_id'     : kwargs.get('method_id',0)
     }
@@ -213,17 +203,6 @@ class Connection(object):
 
     # Call back to a user-provided close function
     self._callback_close()
-
-    # Tell the current strategy to fail.
-    # NOTE: as of 24 Oct, any socket error will stop all additional attempts,
-    # even though the strategy reconnect idea has been aborted. The connection
-    # strategy concept will be reworked after the transport layer is replaced.
-    # Still TODO to determine if the user callback should be responsible for
-    # calling out to the strategy, or if strategies will continue to be supported.
-    self._strategy.fail()
-
-    # This is what we used to do on an error close
-    ## self._strategy.next_host()
 
   ###
   ### Connection methods
@@ -291,10 +270,15 @@ class Connection(object):
     '''
     # It's possible in a concurrent environment that our transport handle has
     # gone away, so handle that cleanly.
+    # TODO: Consider moving this block into Translator base class. In many
+    # ways it belongs there. 
     if self._transport is None:
       return
     
     data = self._transport.read()
+    if data is None:
+      return
+
     reader = Reader( data )
     p_channels = set()
     
@@ -311,19 +295,16 @@ class Connection(object):
     # HACK: read the buffer contents and re-buffer.  Would prefer to pass
     # buffer back, but there's no good way of asking the total size of the
     # buffer, comparing to tell(), and then re-buffering.  There's also no
-    # ability to clear the buffer up to the current position.
+    # ability to clear the buffer up to the current position. It would be
+    # awesome if we could free that memory without a new allocation.
     if reader.tell() < len(data):
       self._transport.buffer( data[reader.tell():] )
 
-  def _process_channels(self, channels):
-    '''
-    Walk through a set of channels and process their frame buffer. Will
-    collect all socket output and flush in one write.
-    '''
-    for channel in channels:
-      channel.process_frames()
-
   def _flush_buffered_frames(self):
+    '''
+    Callback when protocol has been initialized on channel 0 and we're ready
+    to send out frames to set up any channels that have been created.
+    '''
     # In the rare case (a bug) where this is called but send_frame thinks
     # they should be buffered, don't clobber.
     frames = self._output_frame_buffer

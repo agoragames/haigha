@@ -9,17 +9,14 @@ from haigha.transports import Transport
 from eventsocket import EventSocket
 import event
 
-class EventTransport(object):
+class EventTransport(Transport):
   '''
   Base class and API for Transports
   '''
 
-  #def __init__(self, connection):
-  #  '''
-  #  Initialize a transport on a haigha.Connection instance.
-  #  '''
-  #  self._connection = connection
-
+  ###
+  ### EventSocket callbacks
+  ###
   def _sock_close_cb(self, sock):
     self._connection.transport_closed(
       msg='socket to %s closed unexpectedly'%(self._host),
@@ -29,7 +26,13 @@ class EventTransport(object):
     self._connection.transport_closed(
       msg='error on connection to %s: %s'%(self._host, msg)
     )
+
+  def _sock_read_cb(self, sock):
+    self.connection.read_frames()
   
+  ###
+  ### EventTransport API
+  ###
   def connect(self, (host,port)):
     '''
     Connect assuming a host and port tuple.
@@ -39,16 +42,15 @@ class EventTransport(object):
       read_cb=self._sock_read_cb,
       close_cb=self._sock_close_cb, 
       error_cb=self._sock_error_cb,
-      debug=self._debug, 
-      logger=self._connection.logger )
-    self._sock.settimeout( self._connection._connect_timeout )
-    if self._connection._sock_opts:
-      for k,v in self._connection._sock_opts.iteritems():
+      debug=self.connection.debug, 
+      logger=self.connection.logger )
+    self._sock.settimeout( self.connection._connect_timeout )
+    if self.connection._sock_opts:
+      for k,v in self.connection._sock_opts.iteritems():
         family,type = k
         self._sock.setsockopt(family, type, v)
     self._sock.connect( (host,port) )
     self._sock.setblocking( False )
-
 
   def read(self):
     '''
@@ -64,13 +66,15 @@ class EventTransport(object):
     # so that we can rely on the next read event to read the subsequent message.
     if self._sock is None:
       return None
-
-    return None
+    return self._sock.read()
 
   def buffer(self, data):
     '''
     Buffer unused bytes from the input stream.
     '''
+    if self._sock is None:
+      return None
+    self._sock.buffer( data )
 
   def write(self, data):
     '''
