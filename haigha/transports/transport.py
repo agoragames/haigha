@@ -47,6 +47,7 @@ class Transport(object):
     '''
     Disconnect from the transport. Typically socket.close(). This call is 
     welcome to raise exceptions, which the Connection will catch.
-    '''
 
-  
+    The transport is encouraged to allow for any pending writes to complete
+    before closing the socket.
+    '''
