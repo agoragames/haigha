@@ -97,7 +97,8 @@ class Connection(object):
     self._frames_written = 0
 
     # TODO: For now, always pick the libevent strategy
-    self._transport = EventTransport( self )
+    #self._transport = EventTransport( self )
+    self._transport = GeventTransport( self )
 
     self._output_frame_buffer = []
     self.connect( self._host, self._port )

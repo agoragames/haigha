@@ -148,6 +148,7 @@ exchanges = ['publish-%d'%(x) for x in xrange(0,10)]
 for x in xrange(0,options.channels):
   open_channel()
 
+'''
 if options.time:
   event.timeout( options.time, sigint_cb )
 
@@ -159,3 +160,12 @@ if options.profile:
   cProfile.run( 'event.dispatch()', 'profile.pstats' )
 else:
   event.dispatch()
+'''
+
+def frame_loop():
+  while True:
+    connection.read_frames()
+
+import gevent
+greenlet = gevent.spawn( frame_loop )
+greenlet.join( 5 )

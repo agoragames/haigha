@@ -6,30 +6,25 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from haigha.transports import Transport
 
-from eventsocket import EventSocket
-import event
+import gevent
+from gevent import monkey
 
-class EventTransport(Transport):
+import socket
+
+class GeventTransport(Transport):
   '''
-  Transport using libevent-based EventSocket.
+  Transport using gevent backend
   '''
 
-  ###
-  ### EventSocket callbacks
-  ###
-  def _sock_close_cb(self, sock):
-    self._connection.transport_closed(
-      msg='socket to %s closed unexpectedly'%(self._host),
-    )
+  def __init__(self, *args):
+    # TODO: init this elsewhere
+    super(GeventTransport,self).__init__(*args)
+    monkey.patch_all()
 
-  def _sock_error_cb(self, sock, msg, exception=None):
-    self._connection.transport_closed(
-      msg='error on connection to %s: %s'%(self._host, msg)
-    )
+    self._buffer = bytearray()
+    self._read_lock = gevent.coros.Semaphore()
+    self._write_lock = gevent.coros.Semaphore()
 
-  def _sock_read_cb(self, sock):
-    self.connection.read_frames()
-  
   ###
   ### Transport API
   ###
@@ -38,19 +33,14 @@ class EventTransport(Transport):
     Connect assuming a host and port tuple.
     '''
     self._host = "%s:%s"%(host,port)
-    self._sock = EventSocket(
-      read_cb=self._sock_read_cb,
-      close_cb=self._sock_close_cb, 
-      error_cb=self._sock_error_cb,
-      debug=self.connection.debug, 
-      logger=self.connection.logger )
+    self._sock = socket.socket()
     self._sock.settimeout( self.connection._connect_timeout )
     if self.connection._sock_opts:
       for k,v in self.connection._sock_opts.iteritems():
         family,type = k
         self._sock.setsockopt(family, type, v)
     self._sock.connect( (host,port) )
-    self._sock.setblocking( False )
+    #self._sock.setblocking( False )
 
   def read(self):
     '''
@@ -66,7 +56,22 @@ class EventTransport(Transport):
     # so that we can rely on the next read event to read the subsequent message.
     if self._sock is None:
       return None
-    return self._sock.read()
+    #return self._sock.read()
+
+    self._read_lock.acquire()
+    try:
+      data = self._sock.recv( self._sock.getsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF) )
+
+      if len(data):
+        if len(self._buffer):
+          self._buffer.extend( data )
+          data = self._buffer
+          self._buffer = bytearray()
+        return data
+    finally:
+      self._read_lock.release()
+
+    self.connection.transport_closed( msg='error reading from socket' )
 
   def buffer(self, data):
     '''
@@ -74,13 +79,22 @@ class EventTransport(Transport):
     '''
     if self._sock is None:
       return None
-    self._sock.buffer( data )
+
+    # data will always be a byte array
+    if len(self._buffer):
+      self._buffer.extend( data )
+    else:
+      self._buffer = data
 
   def write(self, data):
     '''
     Write some bytes to the transport.
     '''
-    self._sock.write( data )
+    self._write_lock.acquire()
+    try:
+      sent = self._sock.sendall( data )
+    finally:
+      self._write_lock.release()
     
   def disconnect(self):
     '''
@@ -90,6 +104,4 @@ class EventTransport(Transport):
     The transport is encouraged to allow for any pending writes to complete
     before closing the socket.
     '''
-    # TODO: If there are bytes left on the output, queue the close for later.
-    self._sock.close_cb = None
     self._sock.close()
