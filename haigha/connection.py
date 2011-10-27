@@ -96,9 +96,15 @@ class Connection(object):
     self._frames_read = 0
     self._frames_written = 0
 
-    # TODO: For now, always pick the libevent strategy
-    #self._transport = EventTransport( self )
-    self._transport = GeventTransport( self )
+    # TODO: For now, default to the libevent strategy
+    transport = kwargs.get('transport', 'event')
+    if not isinstance(transport, Transport):
+      if transport=='event':
+        self._transport = EventTransport( self )
+      elif transport=='gevent':
+        self._transport = GeventTransport( self )
+    else:
+      self._transport = transport
 
     self._output_frame_buffer = []
     self.connect( self._host, self._port )
@@ -272,7 +278,10 @@ class Connection(object):
     # It's possible in a concurrent environment that our transport handle has
     # gone away, so handle that cleanly.
     # TODO: Consider moving this block into Translator base class. In many
-    # ways it belongs there. 
+    # ways it belongs there. One of the problems though is that this is 
+    # essentially the read loop. Each Transport has different rules for how to
+    # kick this off, and in the case of gevent, this is how a blocking call to
+    # read from the socket is kicked off.
     if self._transport is None:
       return
     
