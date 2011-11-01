@@ -35,7 +35,8 @@ class EventTransport(Transport):
   ###
   def connect(self, (host,port)):
     '''
-    Connect assuming a host and port tuple.
+    Connect assuming a host and port tuple. Implemented as non-blocking, and
+    will close the transport if there's an error
     '''
     self._host = "%s:%s"%(host,port)
     self._sock = EventSocket(
@@ -49,8 +50,8 @@ class EventTransport(Transport):
       for k,v in self.connection._sock_opts.iteritems():
         family,type = k
         self._sock.setsockopt(family, type, v)
-    self._sock.connect( (host,port) )
     self._sock.setblocking( False )
+    self._sock.connect( (host,port) )
 
   def read(self):
     '''

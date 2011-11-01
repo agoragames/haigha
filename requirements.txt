@@ -1,2 +1,4 @@
-py-eventsocket==0.1.4
 event-agora==0.4.1
+
+# Use pending branch for non-blocking connect
+-e git://github.com/agoragames/py-eventsocket.git@nonblocking-connect#egg=py-eventsocket
