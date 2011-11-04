@@ -8,6 +8,7 @@ from chai import Chai
 import gevent
 from gevent.coros import Semaphore
 from gevent import socket
+from gevent.pool import Pool
 
 from haigha.transports import *
 
@@ -18,7 +19,7 @@ class GeventTransportTest(Chai):
 
     self.connection = mock()
     self.transport = GeventTransport(self.connection)
-    self.transport._host = 'server'
+    self.transport._host = 'server:1234'
 
   def test_init(self):
     assert_equals( bytearray(), self.transport._buffer )
@@ -73,7 +74,6 @@ class GeventTransportTest(Chai):
     self.transport._sock = mock()
     self.transport._read_lock = mock()
     self.transport.connection.debug = 2
-    self.transport._host = 'server:1234'
 
     expect( self.transport._read_lock.acquire )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
@@ -88,7 +88,6 @@ class GeventTransportTest(Chai):
     self.transport._sock = mock()
     self.transport._read_lock = mock()
     self.transport.connection.debug = 2
-    self.transport._host = 'server:1234'
     
     expect( self.transport._read_lock.acquire )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
@@ -136,7 +135,6 @@ class GeventTransportTest(Chai):
   def test_write_when_debugging(self):
     self.transport._sock = mock()
     self.transport.connection.debug = 2
-    self.transport._host = 'server:1234'
 
     expect( self.transport._sock.sendall ).args( 'somedata' )
     expect( self.transport.connection.logger.debug ).args(
@@ -155,3 +153,29 @@ class GeventTransportTest(Chai):
   
   def test_disconnect_when_no_sock(self):
     self.transport.disconnect()
+
+class GeventPoolTransportTest(Chai):
+
+  def setUp(self):
+    super(GeventPoolTransportTest,self).setUp()
+
+    self.connection = mock()
+    self.transport = GeventPoolTransport(self.connection)
+    self.transport._host = 'server:1234'
+
+  def test_init(self):
+    assert_equals( bytearray(), self.transport._buffer )
+    assert_true( isinstance(self.transport._read_lock,Semaphore) )
+    assert_true( isinstance(self.transport.pool, Pool) )
+
+    trans = GeventPoolTransport(self.connection, pool='inground')
+    assert_equals( 'inground', trans.pool )
+
+  def test_process_channels(self):
+    chs = [ mock(), mock() ]
+    self.transport._pool = mock()
+
+    expect( self.transport._pool.spawn ).args( chs[0].process_frames )
+    expect( self.transport._pool.spawn ).args( chs[1].process_frames )
+
+    self.transport.process_channels( chs )

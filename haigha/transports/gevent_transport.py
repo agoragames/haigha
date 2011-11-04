@@ -72,50 +72,54 @@ class GeventTransport(Transport):
     # That bug could be fixed by improving the message reading so that we consume
     # all possible messages and ensure that only a partial message was rebuffered,
     # so that we can rely on the next read event to read the subsequent message.
-    if self._sock is None:
+    if not hasattr(self,'_sock'):
       return None
 
     self._read_lock.acquire()
     try:
       data = self._sock.recv( self._sock.getsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF) )
 
-      if self.connection.debug > 1:
-        self.connection.logger.debug( 'read %d bytes from %s'%(len(data), self._host) )
       if len(data):
+        if self.connection.debug > 1:
+          self.connection.logger.debug( 'read %d bytes from %s'%(len(data), self._host) )
         if len(self._buffer):
           self._buffer.extend( data )
           data = self._buffer
           self._buffer = bytearray()
         return data
-      else:
-        self.connection.transport_closed()
         
     finally:
       self._read_lock.release()
 
-    self.connection.transport_closed( msg='error reading from socket' )
+    self.connection.transport_closed( msg='error reading from %s'%(self._host) )
 
   def buffer(self, data):
     '''
     Buffer unused bytes from the input stream.
     '''
-    if self._sock is None:
+    if not hasattr(self,'_sock'):
       return None
 
     self._read_lock.acquire()
-    # data will always be a byte array
-    if len(self._buffer):
-      self._buffer.extend( data )
-    else:
-      self._buffer = data
-    self._read_lock.release()
+    try:
+      # data will always be a byte array
+      if len(self._buffer):
+        self._buffer.extend( data )
+      else:
+        self._buffer = data
+    finally:
+      self._read_lock.release()
 
   def write(self, data):
     '''
     Write some bytes to the transport.
     '''
-    sent = self._sock.sendall( data )
-    if self.connection.debug: # this is a lot of lookup, and slow
+    if not hasattr(self,'_sock'):
+      return None
+
+    self._sock.sendall( data )
+
+    if self.connection.debug > 1:
       self.connection.logger.debug( 'sent %d bytes to %s'%(len(data), self._host) )
     
   def disconnect(self):
@@ -126,6 +130,9 @@ class GeventTransport(Transport):
     The transport is encouraged to allow for any pending writes to complete
     before closing the socket.
     '''
+    if not hasattr(self,'_sock'):
+      return None
+
     try:
       self._sock.close()
     finally:
