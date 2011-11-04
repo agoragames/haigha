@@ -80,13 +80,11 @@ class Connection(object):
     self._channels = {
       0 : ConnectionChannel(self, 0)
     } 
-    
+
+    # Login response seems a total hack of protocol 
+    # Skip the length at the beginning   
     login_response = Writer()
     login_response.write_table({'LOGIN': self._user, 'PASSWORD': self._password})
-    #stream = BytesIO()
-    #login_response.flush(stream)
-    #self._login_response = stream.getvalue()[4:]  #Skip the length
-                                                      #at the beginning
     self._login_response = login_response.buffer()[4:]
     
     self._channel_counter = 0
@@ -96,13 +94,15 @@ class Connection(object):
     self._frames_read = 0
     self._frames_written = 0
 
-    # TODO: For now, default to the libevent strategy
+    # For now, default to the libevent strategy
     transport = kwargs.get('transport', 'event')
     if not isinstance(transport, Transport):
       if transport=='event':
         self._transport = EventTransport( self )
       elif transport=='gevent':
         self._transport = GeventTransport( self )
+      elif transport=='gevent_pool':
+        self._transport = GeventPoolTransport( self )
     else:
       self._transport = transport
 
@@ -140,6 +140,11 @@ class Connection(object):
     '''Return dict with information on why this connection is closed.  Will
     return None if the connections is open.'''
     return self._close_info if self._closed else None
+
+  @property
+  def transport(self):
+    '''Get the value of the current transport.'''
+    return self._transport
   
   def connect(self, host, port):
     '''

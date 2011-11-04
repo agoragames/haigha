@@ -7,9 +7,11 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 from haigha.transports import Transport
 
 import gevent
-from gevent import monkey
+from gevent.coros import Semaphore
+from gevent import socket
+from gevent import pool
 
-import socket
+#import socket
 
 class GeventTransport(Transport):
   '''
@@ -36,12 +38,10 @@ class GeventTransport(Transport):
   '''
 
   def __init__(self, *args):
-    # TODO: init this elsewhere
     super(GeventTransport,self).__init__(*args)
-    monkey.patch_all()
 
     self._buffer = bytearray()
-    self._read_lock = gevent.coros.Semaphore()
+    self._read_lock = Semaphore()
 
   ###
   ### Transport API
@@ -51,14 +51,14 @@ class GeventTransport(Transport):
     Connect assuming a host and port tuple.
     '''
     self._host = "%s:%s"%(host,port)
-    self._sock = gevent.socket.socket()
+    self._sock = socket.socket()
+    self._sock.setblocking( True )
     self._sock.settimeout( self.connection._connect_timeout )
     if self.connection._sock_opts:
       for k,v in self.connection._sock_opts.iteritems():
         family,type = k
         self._sock.setsockopt(family, type, v)
     self._sock.connect( (host,port) )
-    self._sock.setblocking( True )
 
   def read(self):
     '''
@@ -79,7 +79,7 @@ class GeventTransport(Transport):
     try:
       data = self._sock.recv( self._sock.getsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF) )
 
-      if self.connection.debug: # this is a lot of lookup, and slow
+      if self.connection.debug > 1:
         self.connection.logger.debug( 'read %d bytes from %s'%(len(data), self._host) )
       if len(data):
         if len(self._buffer):
@@ -87,6 +87,9 @@ class GeventTransport(Transport):
           data = self._buffer
           self._buffer = bytearray()
         return data
+      else:
+        self.connection.transport_closed()
+        
     finally:
       self._read_lock.release()
 
@@ -127,3 +130,29 @@ class GeventTransport(Transport):
       self._sock.close()
     finally:
       self._sock = None
+
+class GeventPoolTransport(GeventTransport):
+
+  def __init__(self, *args, **kwargs):
+    super(GeventPoolTransport,self).__init__(*args)
+
+    self._pool = kwargs.get('pool',None)
+    if not self._pool:
+      self._pool = gevent.pool.Pool()
+
+  @property
+  def pool(self):
+    '''Get a handle to the gevent pool.'''
+    return self._pool
+
+  def process_channels(self, channels):
+    '''
+    Process a set of channels by calling Channel.process_frames() on each. 
+    Some transports may choose to do this in unique ways, such as through 
+    a pool of threads.
+
+    The default implementation will simply iterate over them and call 
+    process_frames() on each.
+    '''
+    for channel in channels:
+      self._pool.spawn( channel.process_frames )

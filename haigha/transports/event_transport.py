@@ -45,13 +45,12 @@ class EventTransport(Transport):
       error_cb=self._sock_error_cb,
       debug=self.connection.debug, 
       logger=self.connection.logger )
-    self._sock.settimeout( self.connection._connect_timeout )
     if self.connection._sock_opts:
       for k,v in self.connection._sock_opts.iteritems():
         family,type = k
         self._sock.setsockopt(family, type, v)
     self._sock.setblocking( False )
-    self._sock.connect( (host,port) )
+    self._sock.connect( (host,port), timeout=self.connection._connect_timeout )
 
   def read(self):
     '''
@@ -65,7 +64,7 @@ class EventTransport(Transport):
     # That bug could be fixed by improving the message reading so that we consume
     # all possible messages and ensure that only a partial message was rebuffered,
     # so that we can rely on the next read event to read the subsequent message.
-    if self._sock is None:
+    if not hasattr(self,'_sock'):
       return None
     return self._sock.read()
 
@@ -73,7 +72,7 @@ class EventTransport(Transport):
     '''
     Buffer unused bytes from the input stream.
     '''
-    if self._sock is None:
+    if not hasattr(self,'_sock'):
       return None
     self._sock.buffer( data )
 
@@ -81,6 +80,8 @@ class EventTransport(Transport):
     '''
     Write some bytes to the transport.
     '''
+    if not hasattr(self,'_sock'):
+      return
     self._sock.write( data )
     
   def disconnect(self):
@@ -91,6 +92,9 @@ class EventTransport(Transport):
     The transport is encouraged to allow for any pending writes to complete
     before closing the socket.
     '''
+    if not hasattr(self,'_sock'):
+      return
+
     # TODO: If there are bytes left on the output, queue the close for later.
     self._sock.close_cb = None
     self._sock.close()

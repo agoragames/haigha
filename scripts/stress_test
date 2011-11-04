@@ -128,7 +128,7 @@ parser.add_option('--profile', default=False, action='store_true' )
 parser.add_option('--channels', default=500, type='int')
 parser.add_option('--debug', default=0, action='count')
 parser.add_option('--time', default=0, type='int')
-parser.add_option('--transport', default='event', choices=['event', 'gevent'])
+parser.add_option('--transport', default='event', choices=['event', 'gevent', 'gevent_pool'])
 
 (options,args) = parser.parse_args()
 
@@ -144,7 +144,7 @@ channels = []
 logger.info( 'connecting with transport %s ...', options.transport )
 
 # Need to monkey patch before the connection is made
-if options.transport=='gevent':
+if options.transport in ('gevent', 'gevent_pool'):
   monkey.patch_all()
 
 sock_opts = {
@@ -184,5 +184,17 @@ elif options.transport=='gevent':
   t_start = time.time()
   greenlet = gevent.spawn( frame_loop )
   greenlet.join( options.time )
+
+  print_stats()
+
+elif options.transport=='gevent_pool':
+  def frame_loop():
+    while True:
+      connection.read_frames()
+      gevent.sleep(0)
+
+  t_start = time.time()
+  connection.transport.pool.spawn( frame_loop )
+  connection.transport.pool.join( options.time )
 
   print_stats()
