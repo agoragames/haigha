@@ -42,28 +42,106 @@ class GeventTransportTest(Chai):
 
     self.transport.connect( ('host',5309) )
 
-  '''
   def test_read(self):
     self.transport._sock = mock()
     self.transport._read_lock = mock()
+    self.transport.connection.debug = False
 
-    expect( self.transport._sock.read ).returns('buffereddata')
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.getsockopt ).args(
+      socket.SOL_SOCKET, socket.SO_RCVBUF ).returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).returns('buffereddata')
+    expect( self.transport._read_lock.release )
+
     assert_equals( 'buffereddata', self.transport.read() )
+
+  def test_read_when_data_buffered(self):
+    self.transport._sock = mock()
+    self.transport._read_lock = mock()
+    self.transport.connection.debug = False
+    self.transport._buffer = bytearray('buffered')
+
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).returns('data')
+    expect( self.transport._read_lock.release )
+
+    assert_equals( 'buffereddata', self.transport.read() )
+    assert_equals( bytearray(), self.transport._buffer )
+
+  def test_read_when_debugging(self):
+    self.transport._sock = mock()
+    self.transport._read_lock = mock()
+    self.transport.connection.debug = 2
+    self.transport._host = 'server:1234'
+
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).returns('buffereddata')
+    expect( self.transport.connection.logger.debug ).args(
+      'read 12 bytes from server:1234' )
+    expect( self.transport._read_lock.release )
+
+    assert_equals( 'buffereddata', self.transport.read() )
+
+  def test_read_when_socket_closes(self):
+    self.transport._sock = mock()
+    self.transport._read_lock = mock()
+    self.transport.connection.debug = 2
+    self.transport._host = 'server:1234'
+    
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).returns('')
+    expect( self.transport._read_lock.release )
+    expect( self.transport.connection.transport_closed ).args(
+      msg='error reading from server:1234' )
+    
+    self.transport.read()
 
   def test_read_when_no_sock(self):
     self.transport.read()
 
   def test_buffer(self):
     self.transport._sock = mock()
-    expect( self.transport._sock.buffer ).args( 'somedata' )
-    self.transport.buffer( 'somedata' )
+    self.transport._read_lock = mock()
+    
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._read_lock.release )
+
+    self.transport.buffer( bytearray('somedata') )
+    assert_equals( bytearray('somedata'), self.transport._buffer )
+
+  def test_buffer_when_already_buffered(self):
+    self.transport._sock = mock()
+    self.transport._read_lock = mock()
+    self.transport._buffer = bytearray('some')
+    
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._read_lock.release )
+
+    self.transport.buffer( bytearray('data') )
+    assert_equals( bytearray('somedata'), self.transport._buffer )
 
   def test_buffer_when_no_sock(self):
     self.transport.buffer('somedata')
 
   def test_write(self):
     self.transport._sock = mock()
-    expect( self.transport._sock.write ).args( 'somedata' )
+    self.transport.connection.debug = False
+
+    expect( self.transport._sock.sendall ).args( 'somedata' )
+    self.transport.write( 'somedata' )
+
+  def test_write_when_debugging(self):
+    self.transport._sock = mock()
+    self.transport.connection.debug = 2
+    self.transport._host = 'server:1234'
+
+    expect( self.transport._sock.sendall ).args( 'somedata' )
+    expect( self.transport.connection.logger.debug ).args(
+      'sent 8 bytes to server:1234' )
+
     self.transport.write( 'somedata' )
 
   def test_write_when_no_sock(self):
@@ -71,11 +149,9 @@ class GeventTransportTest(Chai):
 
   def test_disconnect(self):
     self.transport._sock = mock()
-    self.transport._sock.close_cb = 'cb'
     expect( self.transport._sock.close )
     self.transport.disconnect()
-    assert_equals( None, self.transport._sock.close_cb )
+    assert_equals( None, self.transport._sock )
   
   def test_disconnect_when_no_sock(self):
     self.transport.disconnect()
-  '''
