@@ -4,4 +4,4 @@ Copyright (c) 2011, Agora Games, LLC All rights reserved.
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
-VERSION = "0.3.3"
+VERSION = "0.3.4"
