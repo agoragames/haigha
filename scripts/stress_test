@@ -15,19 +15,26 @@ from haigha.message import Message
 import event
 import signal
 import time
+import gevent
+from gevent import monkey
 
 def sigint_cb(*args):
-  t_end = time.time()
-  total = 0
   logger.info("stopping test")
+  print_stats()
+
   # Have to iterate on a copy because list will be modified on close()
   for channel in channels[:]:
-    total += channel._count
     channel.close()
   event.timeout(10, force_quit)
   event.timeout(0, check_close_channels)
 
+def print_stats():
+  t_end = time.time()
+  total = 0
   duration = t_end - t_start
+  
+  for channel in channels:
+    total += channel._count
 
   logger.info("completed %d in %.06f", total, duration)
   logger.info("%0.6f msg/s", float(total) / duration )
@@ -121,6 +128,7 @@ parser.add_option('--profile', default=False, action='store_true' )
 parser.add_option('--channels', default=500, type='int')
 parser.add_option('--debug', default=0, action='count')
 parser.add_option('--time', default=0, type='int')
+parser.add_option('--transport', default='event', choices=['event', 'gevent', 'gevent_pool'])
 
 (options,args) = parser.parse_args()
 
@@ -133,7 +141,12 @@ logger = logging.getLogger('haigha')
 
 channels = []
 
-logger.info( 'connecting ...' )
+logger.info( 'connecting with transport %s ...', options.transport )
+
+# Need to monkey patch before the connection is made
+if options.transport in ('gevent', 'gevent_pool'):
+  monkey.patch_all()
+
 sock_opts = {
   (socket.IPPROTO_TCP, socket.TCP_NODELAY) : 1,
 }
@@ -141,21 +154,47 @@ connection = Connection(logger=logger, debug=debug,
   user=options.user, password=options.password, 
   vhost=options.vhost, host=options.host, 
   heartbeat=None, close_cb=connection_close_cb,
-  sock_opts=sock_opts)
+  sock_opts=sock_opts,
+  transport=options.transport)
 
 exchanges = ['publish-%d'%(x) for x in xrange(0,10)]
 
 for x in xrange(0,options.channels):
   open_channel()
 
-if options.time:
-  event.timeout( options.time, sigint_cb )
+if options.transport=='event':
+  if options.time:
+    event.timeout( options.time, sigint_cb )
 
-t_start = time.time()
-event.signal( signal.SIGINT, sigint_cb )
+  t_start = time.time()
+  event.signal( signal.SIGINT, sigint_cb )
 
-if options.profile:
-  import cProfile
-  cProfile.run( 'event.dispatch()', 'profile.pstats' )
-else:
-  event.dispatch()
+  if options.profile:
+    import cProfile
+    cProfile.run( 'event.dispatch()', 'profile.pstats' )
+  else:
+    event.dispatch()
+
+elif options.transport=='gevent':
+  def frame_loop():
+    while True:
+      connection.read_frames()
+      gevent.sleep(0)
+
+  t_start = time.time()
+  greenlet = gevent.spawn( frame_loop )
+  greenlet.join( options.time )
+
+  print_stats()
+
+elif options.transport=='gevent_pool':
+  def frame_loop():
+    while True:
+      connection.read_frames()
+      gevent.sleep(0)
+
+  t_start = time.time()
+  connection.transport.pool.spawn( frame_loop )
+  connection.transport.pool.join( options.time )
+
+  print_stats()

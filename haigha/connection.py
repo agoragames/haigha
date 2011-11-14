@@ -5,14 +5,12 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 from haigha.channel import Channel
-from haigha.connection_strategy import ConnectionStrategy
-from eventsocket import EventSocket
 from haigha.frames import *
 from haigha.writer import Writer
 from haigha.reader import Reader
+from haigha.transports import *
 from exceptions import *
 
-import event                        # http://code.google.com/p/pyevent/
 import socket
 import struct
 import haigha
@@ -52,6 +50,7 @@ class Connection(object):
     self._user = kwargs.get('user', 'guest')
     self._password = kwargs.get('password', 'guest')
     self._host = kwargs.get('host', 'localhost')
+    self._port = kwargs.get('port', 5672)
     self._vhost = kwargs.get('vhost', '/')
 
     self._connect_timeout = kwargs.get('connect_timeout', 5)
@@ -81,13 +80,11 @@ class Connection(object):
     self._channels = {
       0 : ConnectionChannel(self, 0)
     } 
-    
+
+    # Login response seems a total hack of protocol 
+    # Skip the length at the beginning   
     login_response = Writer()
     login_response.write_table({'LOGIN': self._user, 'PASSWORD': self._password})
-    #stream = BytesIO()
-    #login_response.flush(stream)
-    #self._login_response = stream.getvalue()[4:]  #Skip the length
-                                                      #at the beginning
     self._login_response = login_response.buffer()[4:]
     
     self._channel_counter = 0
@@ -97,12 +94,20 @@ class Connection(object):
     self._frames_read = 0
     self._frames_written = 0
 
-    self._strategy = kwargs.get('connection_strategy')
-    if not self._strategy:
-      self._strategy = ConnectionStrategy( self, self._host, reconnect_cb = self._reconnect_cb )
-    self._strategy.connect()
+    # For now, default to the libevent strategy
+    transport = kwargs.get('transport', 'event')
+    if not isinstance(transport, Transport):
+      if transport=='event':
+        self._transport = EventTransport( self )
+      elif transport=='gevent':
+        self._transport = GeventTransport( self )
+      elif transport=='gevent_pool':
+        self._transport = GeventPoolTransport( self )
+    else:
+      self._transport = transport
 
     self._output_frame_buffer = []
+    self.connect( self._host, self._port )
     
   @property
   def logger(self):
@@ -135,10 +140,11 @@ class Connection(object):
     '''Return dict with information on why this connection is closed.  Will
     return None if the connections is open.'''
     return self._close_info if self._closed else None
-  
-  def reconnect(self):
-    '''Reconnect to the configured host and port.'''
-    self._strategy.connect()
+
+  @property
+  def transport(self):
+    '''Get the value of the current transport.'''
+    return self._transport
   
   def connect(self, host, port):
     '''
@@ -149,21 +155,6 @@ class Connection(object):
     # at this point.
     self._connected = False
     
-    # NOTE: purposefully leave output_frame_buffer alone so that pending writes can
-    # still occur.  this allows the reconnect to occur silently without
-    # completely breaking any pending data on, say, a channel that was just
-    # opened.
-    self._sock = EventSocket( read_cb=self._sock_read_cb,
-      close_cb=self._sock_close_cb, error_cb=self._sock_error_cb,
-      debug=self._debug, logger=self._logger )
-    self._sock.settimeout( self._connect_timeout )
-    if self._sock_opts:
-      for k,v in self._sock_opts.iteritems():
-        family,type = k
-        self._sock.setsockopt(family, type, v)
-    self._sock.connect( (host,port) )
-    self._sock.setblocking( False )
-
     # Only after the socket has connected do we clear this state; closed must
     # be False so that writes can be buffered in writePacket().  The closed
     # state might have been set to True due to a socket error or a redirect.
@@ -176,88 +167,54 @@ class Connection(object):
       'method_id'     : 0
     }
 
-    self._sock.write( PROTOCOL_HEADER )
+    self._transport.connect( (host,port) )
+    self._transport.write( PROTOCOL_HEADER )
   
   def disconnect(self):
     '''
-    Disconnect from the current host, but otherwise leave this object "open"
-    so that it can be reconnected.
-    '''
-    self._connected = False
-    if self._sock!=None:
-      self._sock.close_cb = None
-      try:
-        self._sock.close()
-      except: 
-        self.logger.error("Failed to disconnect socket to %s", self._host, exc_info=True)
-      self._sock = None
-  
-  def add_reconnect_callback(self, callback):
-    '''Adds a reconnect callback to the strategy.  This can be used to
-    resubscribe to exchanges, etc.'''
-    self._strategy.reconnect_callbacks.append(callback)
+    Disconnect from the current host, but do not update the closed state. After
+    the transport is disconnected, the closed state will be True if this is 
+    called after a protocol shutdown, or False if the disconnect was in error.
 
-  ###
-  ### EventSocket callbacks
-  ###
-  def _sock_read_cb(self, sock):
-    '''
-    Callback when there's data to read on the socket.
-    '''
-    try:
-      self._read_frames()
-    except:
-      self.logger.error("Failed to read frames from %s", self._host, exc_info=True)
-      self.close( reply_code=501, reply_text='Error parsing frames' )
-
-  def _sock_close_cb(self, sock):
-    """
-    Callback when socket closed.  This is intended to be the callback when the
-    closure is unexpected.
-    """
-    self.logger.warning( 'socket to %s closed unexpectedly', self._host )
-    self._close_info = {
-      'reply_code'    : 0,
-      'reply_text'    : 'socket closed unexpectedly to %s'%(self._host),
-      'class_id'      : 0,
-      'method_id'     : 0
-    }
-
-    # We're not connected any more (we're not closed but we're definitely not
-    # connected)
-    self._connected = False
-    self._sock = None
-
-    # Call back to a user-provided close function
-    self._callback_close()
-
-    # Fail and do nothing. If you haven't configured permissions and that's 
-    # why the socket is closing, this keeps us from looping.
-    self._strategy.fail()
-  
-  def _sock_error_cb(self, sock, msg, exception=None):
-    """
-    Callback when there's an error on the socket.
-    """
-    self.logger.error( 'error on connection to %s: %s', self._host, msg)
-    self._close_info = {
-      'reply_code'    : 0,
-      'reply_text'    : 'socket error on host %s: %s'%(self._host, msg),
-      'class_id'      : 0,
-      'method_id'     : 0
-    }
+    TODO: do we really need closed vs. connected states? this only adds 
+    complication and the whole reconnect process has been scrapped anyway.
     
-    # we're not connected any more (we're not closed but we're definitely not
-    # connected)
+    '''
     self._connected = False
-    self._sock = None
+    if self._transport!=None:
+      try:
+        self._transport.disconnect()
+      except: 
+        self.logger.error("Failed to disconnect from %s", self._host, exc_info=True)
+      self._transport = None
+  
+  ###
+  ### Transport methods
+  ###
+  def transport_closed(self, **kwargs):
+    """
+    Called by Transports when they close unexpectedly, not as a result of
+    Connection.disconnect().
+
+    TODO: document args
+    """
+    msg = 'transport to %s closed : unknown cause'%(self._host)
+    self.logger.warning( kwargs.get('msg', msg) )
+    self._close_info = {
+      'reply_code'    : kwargs.get('reply_code',0),
+      'reply_text'    : kwargs.get('msg', msg),
+      'class_id'      : kwargs.get('class_id',0),
+      'method_id'     : kwargs.get('method_id',0)
+    }
+
+    # We're not connected any more, but we're not closed without an explicit
+    # close call. This allows the strategy to distinguish the state.
+    # TODO: is this all BS?
+    self._connected = False
+    self._transport = None
 
     # Call back to a user-provided close function
     self._callback_close()
-
-    # Fail and try to reconnect, because this is expected to be a transient error.
-    self._strategy.fail()
-    self._strategy.next_host()
 
   ###
   ### Connection methods
@@ -308,44 +265,35 @@ class Connection(object):
     }
     self._channels[0].close()
 
-  def _close_socket(self):
-    '''Close the socket.'''
-    # The assumption here is that we don't want auto-reconnect to kick in if
-    # the socket is purposefully closed.
-    self._closed = True
-
-    # By the time we hear about the protocol-level closure, the socket may
-    # have already gone away.
-    if self._sock != None:
-      self._sock.close_cb = None
-      try:
-        self._sock.close()
-      except:
-        self.logger.error( 'error closing socket' )
-      self._sock = None
-
   def _callback_close(self):
-    '''Callback to any close handler.'''
+    '''
+    Callback to any close handler that was provided in the ctor. Will log all
+    exceptions but reraise SystemExit.
+    '''
     if self._close_cb:
       try: self._close_cb()
       except SystemExit: raise
       except: self.logger.error( 'error calling close callback' )
 
-
-  def _read_frames(self):
+  def read_frames(self):
     '''
-    Read frames from the socket.
+    Read frames from the transport and process them. Some transports may choose
+    to do this in the background, in several threads, and so on.
     '''
-    # Because of the timer callback to dataRead when we re-buffered, there's a
-    # chance that in between we've lost the socket.  If that's the case, just
-    # silently return as some code elsewhere would have already notified us.
-    # That bug could be fixed by improving the message reading so that we consume
-    # all possible messages and ensure that only a partial message was rebuffered,
-    # so that we can rely on the next read event to read the subsequent message.
-    if self._sock is None:
+    # It's possible in a concurrent environment that our transport handle has
+    # gone away, so handle that cleanly.
+    # TODO: Consider moving this block into Translator base class. In many
+    # ways it belongs there. One of the problems though is that this is 
+    # essentially the read loop. Each Transport has different rules for how to
+    # kick this off, and in the case of gevent, this is how a blocking call to
+    # read from the socket is kicked off.
+    if self._transport is None:
       return
     
-    data = self._sock.read()
+    data = self._transport.read()
+    if data is None:
+      return
+
     reader = Reader( data )
     p_channels = set()
     
@@ -357,30 +305,21 @@ class Connection(object):
       ch.buffer_frame( frame )
       p_channels.add( ch )
 
-    # Still not clear on what's the best approach here. It seems there's a
-    # slight speedup by calling this directly rather than delaying, but the
-    # delay allows for pending IO with higher priority to execute.
-    self._process_channels( p_channels )
-    #event.timeout(0, self._process_channels, p_channels)
+    self._transport.process_channels( p_channels )
 
     # HACK: read the buffer contents and re-buffer.  Would prefer to pass
     # buffer back, but there's no good way of asking the total size of the
     # buffer, comparing to tell(), and then re-buffering.  There's also no
-    # ability to clear the buffer up to the current position.
-    # NOTE: This will be cleared up once eventsocket supports the 
-    # uber-awesome buffering scheme that will utilize mmap.
+    # ability to clear the buffer up to the current position. It would be
+    # awesome if we could free that memory without a new allocation.
     if reader.tell() < len(data):
-      self._sock.buffer( data[reader.tell():] )
-
-  def _process_channels(self, channels):
-    '''
-    Walk through a set of channels and process their frame buffer. Will
-    collect all socket output and flush in one write.
-    '''
-    for channel in channels:
-      channel.process_frames()
+      self._transport.buffer( data[reader.tell():] )
 
   def _flush_buffered_frames(self):
+    '''
+    Callback when protocol has been initialized on channel 0 and we're ready
+    to send out frames to set up any channels that have been created.
+    '''
     # In the rare case (a bug) where this is called but send_frame thinks
     # they should be buffered, don't clobber.
     frames = self._output_frame_buffer
@@ -390,8 +329,9 @@ class Connection(object):
   
   def send_frame(self, frame):
     '''
-    Send a single frame. If there is an output buffer, write to that, else send
-    immediately to the socket.
+    Send a single frame. If there is no transport or we're not connected yet, 
+    append to the output buffer, else send immediately to the socket. This is
+    called from within the MethodFrames.
     '''
     if self._closed:
       if self._close_info and len(self._close_info['reply_text'])>0:
@@ -399,7 +339,7 @@ class Connection(object):
           (self._close_info['reply_code'],self._close_info['reply_text']) )
       raise ConnectionClosed("connection is closed")
 
-    if self._sock==None or (not self._connected and frame.channel_id!=0):
+    if self._transport==None or (not self._connected and frame.channel_id!=0):
       self._output_frame_buffer.append( frame )
       return
     
@@ -408,7 +348,7 @@ class Connection(object):
 
     buf = bytearray()
     frame.write_frame(buf)
-    self._sock.write( buf )
+    self._transport.write( buf )
     
     self._frames_written += 1
     
@@ -536,23 +476,12 @@ class ConnectionChannel(Channel):
 
     self._send_close_ok()
 
-    # Clear the socket close callback because we should be expecting it.  The fact
-    # that it is called in practice means that we flush the data, rabbit processes
-    # and then closes the socket before the timer below fires.  I don't know what
-    # this means, but it is surprising. - AW
-    if self.connection._sock != None:
-      self.connection._sock.close_cb = None
-
-    # Schedule the actual close for later so that handshake IO can take place.
-    # Even though it's scheduled at 0, it's queued after the frame IO
-    event.timeout(0, self.connection._close_socket)
-
-    # Likewise, call any potential close callback on a delay
-    event.timeout(0, self.connection._callback_close)
+    self.connection.disconnect()
+    self.connection._callback_close()
 
   def _send_close_ok(self):
     self.send_frame( MethodFrame(self.channel_id, 10, 51) )
 
   def _recv_close_ok(self, method_frame):
-    self.connection._close_socket()
+    self.connection.disconnect()
     self.connection._callback_close()
