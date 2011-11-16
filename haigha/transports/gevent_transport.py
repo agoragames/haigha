@@ -60,6 +60,9 @@ class GeventTransport(Transport):
         self._sock.setsockopt(family, type, v)
     self._sock.connect( (host,port) )
 
+    # After connecting, switch to full-blocking mode.
+    self._sock.settimeout( None )
+
   def read(self):
     '''
     Read from the transport. If no data is available, should return None.
