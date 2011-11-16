@@ -109,7 +109,7 @@ class GeventTransport(Transport):
       if len(self._buffer):
         self._buffer.extend( data )
       else:
-        self._buffer = data
+        self._buffer = bytearray(data)
     finally:
       self._read_lock.release()
 
