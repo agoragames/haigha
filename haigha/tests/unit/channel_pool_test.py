@@ -16,6 +16,7 @@ class ChannelPoolTest(Chai):
     c = ChannelPool('connection')
     self.assertEquals('connection', c._connection)
     self.assertEquals(set(), c._free_channels)
+    self.assertEquals(set(), c._used_channels)
     assert_equals( None, c._size )
     assert_equals( 0, c._channels )
     assert_equals( deque(), c._queue )
@@ -31,39 +32,34 @@ class ChannelPoolTest(Chai):
     ch = mock()
     cp = ChannelPool(None)
 
-    def test_committed_cb(cb):
-      # Because using this for side effects is kinda fugly, protect it
-      if not getattr(cb,'_called_yet',False):
-        cb()
-        setattr(cb, '_called_yet', True)
-      return True
-
     expect(cp._get_channel).returns( ch )
-    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=func(test_committed_cb), doit='harder' )
+    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=var('cb'), doit='harder' )
 
-    self.assertEquals( set(), cp._free_channels )
     cp.publish( 'arg1', 'arg2', doit='harder' )
-    self.assertEquals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._free_channels )
+    assert_equals( set([ch]), cp._used_channels )
+    
+    # run committed callback
+    var('cb').value()
+    assert_equals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._used_channels )
 
   def test_publish_with_user_cb(self):
     ch = mock()
     cp = ChannelPool(None)
     user_cb = mock()
 
-    def test_committed_cb(cb):
-      # Because using this for side effects is kinda fugly, protect it
-      if not getattr(cb,'_called_yet',False):
-        expect(user_cb)
-        cb()
-        setattr(cb, '_called_yet', True)
-      return True
-
     expect(cp._get_channel).returns( ch )
-    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=func(test_committed_cb), doit='harder' )
+    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=var('cb'), doit='harder' )
 
-    self.assertEquals( set(), cp._free_channels )
     cp.publish( 'arg1', 'arg2', cb=user_cb, doit='harder' )
-    self.assertEquals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._free_channels )
+    assert_equals( set([ch]), cp._used_channels )
+
+    expect(user_cb)
+    var('cb').value()
+    assert_equals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._used_channels )
 
   def test_publish_resends_queued_messages_if_channel_is_active(self):
     ch = mock()
@@ -72,22 +68,22 @@ class ChannelPoolTest(Chai):
     ch.active = True
     cp._queue.append( (('a1', 'a2'), {'cb':'foo', 'yo':'dawg'}) )
 
-    def test_committed_cb(cb):
-      # Because using this for side effects is kinda fugly, protect it
-      if not getattr(cb,'_called_yet',False):
-        expect( cp.publish ).args( 'a1', 'a2', cb='foo', yo='dawg' )
-        expect(user_cb)
-        cb()
-        setattr(cb, '_called_yet', True)
-      
-      return True
-
     expect(cp._get_channel).returns( ch )
-    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=func(test_committed_cb), doit='harder' )
+    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=var('cb'), doit='harder' )
 
-    self.assertEquals( set(), cp._free_channels )
     cp.publish( 'arg1', 'arg2', cb=user_cb, doit='harder' )
-    self.assertEquals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._free_channels )
+    assert_equals( set([ch]), cp._used_channels )
+    assert_equals( 1, len(cp._queue) )
+
+    # Run the committed callback and assert that it will call back to publish,
+    # but that without actually executing that, the data structures are left in
+    # a state as if it didn't re-send the message.
+    expect( cp.publish ).args( 'a1', 'a2', cb='foo', yo='dawg' )
+    expect(user_cb)
+    var('cb').value()
+    assert_equals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._used_channels )
     assert_equals( deque(), cp._queue )
 
   def test_publish_does_not_resend_queued_messages_if_channel_is_inactive(self):
@@ -97,22 +93,19 @@ class ChannelPoolTest(Chai):
     ch.active = True
     cp._queue.append( (('a1', 'a2'), {'cb':'foo', 'yo':'dawg'}) )
 
-    def test_committed_cb(cb):
-      # Because using this for side effects is kinda fugly, protect it
-      if not getattr(cb,'_called_yet',False):
-        ch.active = False
-        expect(user_cb)
-        cb()
-        setattr(cb, '_called_yet', True)
-      
-      return True
-
     expect(cp._get_channel).returns( ch )
-    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=func(test_committed_cb), doit='harder' )
+    expect(ch.publish_synchronous).args( 'arg1', 'arg2', cb=var('cb'), doit='harder' )
 
-    self.assertEquals( set(), cp._free_channels )
     cp.publish( 'arg1', 'arg2', cb=user_cb, doit='harder' )
-    self.assertEquals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._free_channels )
+    assert_equals( set([ch]), cp._used_channels )
+    assert_equals( 1, len(cp._queue) )
+
+    ch.active = False
+    expect(user_cb)
+    var('cb').value()
+    assert_equals( set([ch]), cp._free_channels )
+    assert_equals( set(), cp._used_channels )
     assert_equals( 1, len(cp._queue) )
 
   def test_publish_searches_for_active_channel(self):
@@ -222,3 +215,21 @@ class ChannelPoolTest(Chai):
     self.assertEquals( 'channel', cp._get_channel() )
     self.assertEquals( set(), cp._free_channels )
     assert_equals( 1, cp._channels )
+
+  def test_get_channel_cleans_up_closed_used_channels(self):
+    ch1, ch2, ch3 = mock(), mock(), mock()
+    conn = mock()
+    cp = ChannelPool(conn)
+
+    ch1.closed = True
+    ch2.closed = False
+    ch3.closed = True
+    cp._used_channels = set([ch1,ch2,ch3])
+    cp._channels = 4
+
+    expect(conn.channel).returns('channel')
+
+    # 4 -2 +1 == 3
+    assert_equals( 'channel', cp._get_channel() )
+    assert_equals( set([ch2]), cp._used_channels )
+    assert_equals( 3, cp._channels )
