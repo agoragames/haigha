@@ -40,7 +40,6 @@ class GeventTransportTest(Chai):
     expect( sock.setsockopt ).any_order().args( 'family', 'tcp', 34 ).any_order()
     expect( sock.setsockopt ).any_order().args( 'range', 'ipv6', 'hex' ).any_order()
     expect( sock.connect ).args( ('host',5309) )
-    expect( sock.settimeout ).args( None )
 
     self.transport.connect( ('host',5309) )
 

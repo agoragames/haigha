@@ -165,6 +165,7 @@ class ChannelClass(ProtocolClass):
     # Must set this *after* send_frame so that it doesn't throw an exception
     self._closed = True
 
+
   def _recv_close_ok(self, method_frame):
     '''
     Receive a close ack from the broker.

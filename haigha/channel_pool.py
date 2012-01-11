@@ -25,7 +25,6 @@ class ChannelPool(object):
     '''Initialize the channel on a connection.'''
     self._connection = connection
     self._free_channels = set()
-    self._used_channels = set()
     self._size = size
     self._queue = deque()
     self._channels = 0
@@ -57,7 +56,6 @@ class ChannelPool(object):
     # though, because otherwise the message will end up at the back of the
     # queue, breaking the original order.
     def committed():
-      self._used_channels.discard( channel )
       self._free_channels.add( channel )
       if len(self._queue) and channel.active:
         args, kwargs = self._queue.popleft()
@@ -65,7 +63,6 @@ class ChannelPool(object):
       if user_cb is not None: user_cb()
 
     if channel:
-      self._used_channels.add( channel )
       channel.publish_synchronous( *args, cb=committed, **kwargs )
     else:
       kwargs['cb'] = user_cb
@@ -75,26 +72,14 @@ class ChannelPool(object):
     '''
     Fetch a channel from the pool. Will return a new one if necessary. If
     a channel in the free pool is closed, will remove it. Will return None
-    if we hit the cap. Will clean up any channels that were published to but
-    closed due to error.
+    if we hit the cap.
     '''
-    # I am not a fan of this but there are only so many race conditions that
-    # can be handled in constant memory and time. Even if we add listeners
-    # to channel closed state changes, it'll have to be a list per channel.
-    # If we go that route, then delete all this _used_channel crap and set
-    # up a callback instead.
-    bad_channels = set()
-    for channel in self._used_channels:
-      if channel.closed: bad_channels.add( channel )
-
-    self._used_channels.difference_update( bad_channels )
-    self._channels -= len( bad_channels )
-
     while len(self._free_channels):
       rval = self._free_channels.pop()
       if not rval.closed: 
         return rval
       else:
+        # closed channels reduce the total allocated count
         self._channels -= 1
 
     if not self._size or self._channels < self._size:
