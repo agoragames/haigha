@@ -48,6 +48,16 @@ class BasicClassTest(Chai):
     assert_equals( deque(), klass._recover_cb )
     assert_equals( deque(), klass._cancel_cb )
 
+  def test_cleanup(self):
+    self.klass._cleanup()
+    assert_equals( None, self.klass._pending_consumers )
+    assert_equals( None, self.klass._consumer_cb )
+    assert_equals( None, self.klass._get_cb )
+    assert_equals( None, self.klass._recover_cb )
+    assert_equals( None, self.klass._cancel_cb )
+    assert_equals( None, self.klass._channel )
+    assert_equals( None, self.klass.dispatch_map )
+
   def test_generate_consumer_tag(self):
     assert_equals( 0, self.klass._consumer_tag_id )
     assert_equals( 'channel-42-1', self.klass._generate_consumer_tag() )

@@ -30,6 +30,17 @@ class QueueClass(ProtocolClass):
     self._unbind_cb = deque()
     self._delete_cb = deque()
     self._purge_cb = deque()
+  
+  def _cleanup(self):
+    '''
+    Cleanup all the local data.
+    '''
+    self._declare_cb = None
+    self._bind_cb = None
+    self._unbind_cb = None
+    self._delete_cb = None
+    self._purge_cb = None
+    super(QueueClass,self)._cleanup()
 
   def declare(self, queue='', passive=False, durable=False,
       exclusive=False, auto_delete=True, nowait=True,

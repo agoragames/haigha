@@ -38,9 +38,14 @@ class Channel(object):
       90 : self.tx,
     }
 
-    self._pending_events = []
+    # Out-bound mix of pending frames and synchronous callbacks
+    self._pending_events = deque()
 
+    # Incoming frame buffer
     self._frame_buffer = deque()
+
+    # Listeners for when channel closes
+    self._close_listeners = set()
 
   @property
   def connection(self):
@@ -65,6 +70,21 @@ class Channel(object):
   @property
   def active(self):
     return self.channel.active
+
+  def add_close_listener(self, listener):
+    '''
+    Add a listener for close events on this channel. The listener should be
+    a callable that can take one argument, the channel that is closed. 
+    Listeners will not be called in any particular order.
+    '''
+    self._close_listeners.add( listener )
+
+  def remove_close_listener(self, listener):
+    '''
+    Remove a close event listener. Will do nothing if the listener is not
+    registered.
+    '''
+    self._close_listeners.discard( listener )
 
   def open(self):
     '''
@@ -196,7 +216,7 @@ class Channel(object):
       # received stuff out of order.  Else just pass it through.
       # Note that this situation could happen on any broker-initiated message.
       if ev==cb:
-        self._pending_events.pop(0)
+        self._pending_events.popleft()
         self._flush_pending_events()
       elif cb in self._pending_events:
         raise ChannelError("Expected synchronous callback %s, got %s", ev, cb)
@@ -206,4 +226,34 @@ class Channel(object):
     Send pending frames that are in the event queue.
     '''
     while len(self._pending_events) and isinstance(self._pending_events[0],Frame):
-      self._connection.send_frame( self._pending_events.pop(0) )
+      self._connection.send_frame( self._pending_events.popleft() )
+
+  def _closed_cb(self, final_frame=None):
+    '''
+    "Private" callback from the ChannelClass when a channel is closed. Only
+    called after broker initiated close, or we receive a close_ok. Caller has
+    the option to send a final frame, to be used to bypass any synchronous or
+    otherwise-pending frames so that the channel can be cleanly closed.
+    '''
+    # delete all pending data and send final frame if thre is one. note that
+    # it bypasses send_frame so that even if the closed state is set, the frame
+    # is published.
+    if final_frame:
+      self._connection.send_frame( final_frame )
+    self._pending_events = deque()
+    self._frame_buffer = deque()
+
+    # clear out other references for faster cleanup
+    for protocol_class in self._class_map.values():
+      protocol_class._cleanup()
+    self._connection = None
+    self.channel = None
+    self.exchange = None
+    self.queue = None
+    self.basic = None
+    self.tx = None
+    self._class_map = None
+
+    for listener in self._close_listeners:
+      listener( self )
+    self._close_listeners = set()

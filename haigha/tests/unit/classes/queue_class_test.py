@@ -42,6 +42,16 @@ class QueueClassTest(Chai):
     assert_equals( deque(), self.klass._delete_cb )
     assert_equals( deque(), self.klass._purge_cb )
 
+  def test_cleanup(self):
+    self.klass._cleanup()
+    assert_equals( None, self.klass._declare_cb )
+    assert_equals( None, self.klass._bind_cb )
+    assert_equals( None, self.klass._unbind_cb )
+    assert_equals( None, self.klass._delete_cb )
+    assert_equals( None, self.klass._purge_cb )
+    assert_equals( None, self.klass._channel )
+    assert_equals( None, self.klass.dispatch_map )
+
   def test_declare_default_args(self):
     w = mock()
     expect( mock(queue_class, 'Writer') ).returns( w )

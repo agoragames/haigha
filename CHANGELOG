@@ -1,3 +1,19 @@
+transports
+==========
+
+Fixed handling of channel closures due to error. This cleaned up several DoS
+vulnerabilities, including a lockup in the ChannelPool, unbounded memory 
+consumption, and failure to re-use channel ids after max id enumerator
+rolled over. Channel cleanup relies on reference counting to ensure a client
+can respond to rapid opening and closing of channels.
+
+Fixed failure to always cast GeventTransport.read() return to a bytearray,
+which caused problems when reading partial frames.
+
+Fixed failure in GeventTransport to switch to non-blocking socket after
+connecting.
+
+
 0.3.4
 =====
 

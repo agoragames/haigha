@@ -44,6 +44,11 @@ class ChannelClassTest(Chai):
     assert_true( klass._active )
     assert_equals( None, klass._flow_control_cb )
 
+  def test_cleanup(self):
+    self.klass._cleanup()
+    assert_equals( None, self.klass._channel )
+    assert_equals( None, self.klass.dispatch_map )
+
   def test_properties(self):
     self.klass._closed = 'yes'
     self.klass._close_info = 'ithappened'
@@ -205,7 +210,7 @@ class ChannelClassTest(Chai):
     expect( rframe.args.read_short ).returns( 'mid' )
 
     expect( mock(channel_class, 'MethodFrame') ).args(42, 20, 41).returns( 'frame' )
-    expect( self.klass.send_frame ).args( 'frame' )
+    expect( self.klass.channel._closed_cb ).args( final_frame='frame' )
 
     assert_false( self.klass._closed )
     self.klass._recv_close( rframe )
@@ -218,6 +223,8 @@ class ChannelClassTest(Chai):
       }, self.klass._close_info )
 
   def test_recv_close_ok(self):
+    expect( self.klass.channel._closed_cb )
+
     self.klass._closed = False
     self.klass._recv_close_ok('frame')
     assert_true( self.klass._closed )

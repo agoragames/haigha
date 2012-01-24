@@ -25,6 +25,14 @@ class ExchangeClass(ProtocolClass):
     self._declare_cb = deque()
     self._delete_cb = deque()
 
+  def _cleanup(self):
+    '''
+    Cleanup local data.
+    '''
+    self._declare_cb = None
+    self._delete_cb = None
+    super(ExchangeClass,self)._cleanup()
+
   def declare(self, exchange, type, passive=False, durable=False,\
       auto_delete=True, internal=False, nowait=True, arguments=None, \
       ticket=None, cb=None):

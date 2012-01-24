@@ -38,6 +38,14 @@ class TransactionClassTest(Chai):
     assert_equals( deque(), klass._commit_cb )
     assert_equals( deque(), klass._rollback_cb )
 
+  def test_cleanup(self):
+    self.klass._cleanup()
+    assert_equals( None, self.klass._select_cb )
+    assert_equals( None, self.klass._commit_cb )
+    assert_equals( None, self.klass._rollback_cb )
+    assert_equals( None, self.klass._channel )
+    assert_equals( None, self.klass.dispatch_map )
+
   def test_properties(self):
     self.klass._enabled = 'maybe'
     assert_equals( 'maybe', self.klass.enabled )

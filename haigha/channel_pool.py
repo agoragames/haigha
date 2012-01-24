@@ -25,7 +25,6 @@ class ChannelPool(object):
     '''Initialize the channel on a connection.'''
     self._connection = connection
     self._free_channels = set()
-    self._used_channels = set()
     self._size = size
     self._queue = deque()
     self._channels = 0
@@ -57,19 +56,24 @@ class ChannelPool(object):
     # though, because otherwise the message will end up at the back of the
     # queue, breaking the original order.
     def committed():
-      self._used_channels.discard( channel )
       self._free_channels.add( channel )
-      if len(self._queue) and channel.active:
-        args, kwargs = self._queue.popleft()
-        self.publish( *args, **kwargs )
+      if channel.active and not channel.closed:
+        self._process_queue()
       if user_cb is not None: user_cb()
 
     if channel:
-      self._used_channels.add( channel )
       channel.publish_synchronous( *args, cb=committed, **kwargs )
     else:
       kwargs['cb'] = user_cb
       self._queue.append( (args,kwargs) )
+    
+  def _process_queue(self):
+    '''
+    If there are any message in the queue, process one of them.
+    '''
+    if len(self._queue):
+      args, kwargs = self._queue.popleft()
+      self.publish( *args, **kwargs )
 
   def _get_channel(self):
     '''
@@ -78,25 +82,22 @@ class ChannelPool(object):
     if we hit the cap. Will clean up any channels that were published to but
     closed due to error.
     '''
-    # I am not a fan of this but there are only so many race conditions that
-    # can be handled in constant memory and time. Even if we add listeners
-    # to channel closed state changes, it'll have to be a list per channel.
-    # If we go that route, then delete all this _used_channel crap and set
-    # up a callback instead.
-    bad_channels = set()
-    for channel in self._used_channels:
-      if channel.closed: bad_channels.add( channel )
-
-    self._used_channels.difference_update( bad_channels )
-    self._channels -= len( bad_channels )
-
     while len(self._free_channels):
       rval = self._free_channels.pop()
       if not rval.closed: 
         return rval
-      else:
-        self._channels -= 1
+      # don't adjust _channels value because the callback will do that and
+      # we don't want to double count it.
 
     if not self._size or self._channels < self._size:
+      rval = self._connection.channel()
       self._channels += 1
-      return self._connection.channel()
+      rval.add_close_listener( self._channel_closed_cb )
+      return rval
+
+  def _channel_closed_cb(self, channel):
+    '''
+    Callback when channel closes.
+    '''
+    self._channels -= 1
+    self._process_queue()

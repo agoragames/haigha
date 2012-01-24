@@ -250,8 +250,18 @@ class Connection(object):
     # also solve this other ways, but it's a HACK regardless.
     rval = Channel(self, channel_id)
     self._channels[ channel_id ] = rval
+    rval.add_close_listener( self._channel_closed )
     rval.open()
     return rval
+
+  def _channel_closed(self, channel):
+    '''
+    Close listener on a channel.
+    '''
+    try:
+      del self._channels[ channel.channel_id ]
+    except KeyError:
+      pass
 
   def close(self, reply_code=0, reply_text='', class_id=0, method_id=0):
     '''
@@ -440,7 +450,6 @@ class ConnectionChannel(Channel):
     else:
       args.write_short( 0 )
 
-    #self.logger.debug( 'channel max %d, frame max %d, heartbeat %s', self.connection._channel_max, self.connection._frame_max, self.connection._heartbeat )
     self.send_frame( MethodFrame(self.channel_id, 10, 31, args) )
 
   def _recv_secure(self, method_frame):

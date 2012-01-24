@@ -160,13 +160,12 @@ class ChannelClass(ProtocolClass):
       'method_id'     : method_frame.args.read_short()
     }
 
-    self.send_frame( MethodFrame(self.channel_id, 20, 41) )
-
-    # Must set this *after* send_frame so that it doesn't throw an exception
     self._closed = True
+    self.channel._closed_cb( final_frame=MethodFrame(self.channel_id, 20, 41) )
 
   def _recv_close_ok(self, method_frame):
     '''
     Receive a close ack from the broker.
     '''
     self._closed = True
+    self.channel._closed_cb()
