@@ -13,6 +13,8 @@ which caused problems when reading partial frames.
 Fixed failure in GeventTransport to switch to non-blocking socket after
 connecting.
 
+Fixed fetching of close_info when connection close callback executes.
+
 
 0.3.4
 =====
