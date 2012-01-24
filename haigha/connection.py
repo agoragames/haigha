@@ -483,8 +483,11 @@ class ConnectionChannel(Channel):
       'method_id'     : method_frame.args.read_short()
     }
 
+    # TODO: wait to disconnect until the close_ok has been flushed, but that's
+    # a pain
     self._send_close_ok()
 
+    self.connection._closed = True
     self.connection.disconnect()
     self.connection._callback_close()
 
@@ -492,5 +495,6 @@ class ConnectionChannel(Channel):
     self.send_frame( MethodFrame(self.channel_id, 10, 51) )
 
   def _recv_close_ok(self, method_frame):
+    self.connection._closed = True
     self.connection.disconnect()
     self.connection._callback_close()
