@@ -36,6 +36,17 @@ class BasicClass(ProtocolClass):
     self._recover_cb = deque()
     self._cancel_cb = deque()
 
+  def _cleanup(self):
+    '''
+    Cleanup all the local data.
+    '''
+    self._pending_consumers = None
+    self._consumer_cb = None
+    self._get_cb = None
+    self._recover_cb = None
+    self._cancel_cb = None
+    super(BasicClass,self)._cleanup()
+
   def _generate_consumer_tag(self):
     '''
     Generate the next consumer tag.

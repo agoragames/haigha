@@ -250,8 +250,18 @@ class Connection(object):
     # also solve this other ways, but it's a HACK regardless.
     rval = Channel(self, channel_id)
     self._channels[ channel_id ] = rval
+    rval.add_close_listener( self._channel_closed )
     rval.open()
     return rval
+
+  def _channel_closed(self, channel):
+    '''
+    Close listener on a channel.
+    '''
+    try:
+      del self._channels[ channel.channel_id ]
+    except KeyError:
+      pass
 
   def close(self, reply_code=0, reply_text='', class_id=0, method_id=0):
     '''
@@ -440,7 +450,6 @@ class ConnectionChannel(Channel):
     else:
       args.write_short( 0 )
 
-    #self.logger.debug( 'channel max %d, frame max %d, heartbeat %s', self.connection._channel_max, self.connection._frame_max, self.connection._heartbeat )
     self.send_frame( MethodFrame(self.channel_id, 10, 31, args) )
 
   def _recv_secure(self, method_frame):
@@ -474,8 +483,11 @@ class ConnectionChannel(Channel):
       'method_id'     : method_frame.args.read_short()
     }
 
+    # TODO: wait to disconnect until the close_ok has been flushed, but that's
+    # a pain
     self._send_close_ok()
 
+    self.connection._closed = True
     self.connection.disconnect()
     self.connection._callback_close()
 
@@ -483,5 +495,6 @@ class ConnectionChannel(Channel):
     self.send_frame( MethodFrame(self.channel_id, 10, 51) )
 
   def _recv_close_ok(self, method_frame):
+    self.connection._closed = True
     self.connection.disconnect()
     self.connection._callback_close()

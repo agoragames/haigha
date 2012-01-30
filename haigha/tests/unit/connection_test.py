@@ -184,6 +184,7 @@ class ConnectionTest(Chai):
     expect( self.connection._next_channel_id ).returns( 1 )
     mock( connection, 'Channel' )
     expect( connection.Channel ).args( self.connection, 1).returns( ch )
+    expect( ch.add_close_listener ).args( self.connection._channel_closed )
     expect( ch.open )
 
     self.assert_equals( ch, self.connection.channel() )
@@ -199,6 +200,7 @@ class ConnectionTest(Chai):
     expect( self.connection._next_channel_id ).returns( 3 )
     mock( connection, 'Channel' )
     expect( connection.Channel ).args( self.connection, 3 ).returns( ch )
+    expect( ch.add_close_listener ).args( self.connection._channel_closed )
     expect( ch.open )
 
     self.assert_equals( ch, self.connection.channel() )
@@ -217,6 +219,17 @@ class ConnectionTest(Chai):
 
   def test_channel_raises_invalidchannel_if_unknown_id(self):
     assert_raises( Connection.InvalidChannel, self.connection.channel, 42 )
+
+  def test_channel_closed(self):
+    ch = mock()
+    ch.channel_id = 42
+    self.connection._channels[42] = ch
+
+    self.connection._channel_closed(ch)
+    assert_false( 42 in self.connection._channels )
+
+    ch.channel_id = 500424834
+    self.connection._channel_closed(ch)
 
   def test_close(self):
     self.connection._channels[0] = mock()

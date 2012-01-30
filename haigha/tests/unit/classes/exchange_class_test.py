@@ -34,6 +34,13 @@ class ExchangeClassTest(Chai):
     assert_equals( deque(), klass._declare_cb )
     assert_equals( deque(), klass._delete_cb )
 
+  def test_cleanup(self):
+    self.klass._cleanup()
+    assert_equals( None, self.klass._declare_cb )
+    assert_equals( None, self.klass._delete_cb )
+    assert_equals( None, self.klass._channel )
+    assert_equals( None, self.klass.dispatch_map )
+
   def test_declare_default_args(self):
     w = mock()
     expect( mock(exchange_class, 'Writer') ).returns( w )

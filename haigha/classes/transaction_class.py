@@ -35,6 +35,15 @@ class TransactionClass(ProtocolClass):
     '''Get whether transactions have been enabled.'''
     return self._enabled
   
+  def _cleanup(self):
+    '''
+    Cleanup all the local data.
+    '''
+    self._select_cb = None
+    self._commit_cb = None
+    self._rollback_cb = None
+    super(TransactionClass,self)._cleanup()
+  
   def select(self, cb=None):
     '''
     Set this channel to use transactions.
