@@ -24,6 +24,7 @@ class GeventTransportTest(Chai):
   def test_init(self):
     assert_equals( bytearray(), self.transport._buffer )
     assert_true( isinstance(self.transport._read_lock,Semaphore) )
+    assert_true( isinstance(self.transport._write_lock,Semaphore) )
 
   def test_connect(self):
     sock = mock()
@@ -128,10 +129,23 @@ class GeventTransportTest(Chai):
 
   def test_write(self):
     self.transport._sock = mock()
+    self.transport._write_lock = mock()
     self.transport.connection.debug = False
 
+    expect( self.transport._write_lock.acquire )
     expect( self.transport._sock.sendall ).args( 'somedata' )
+    expect( self.transport._write_lock.release )
     self.transport.write( 'somedata' )
+
+  def test_write_when_sendall_fails(self):
+    self.transport._sock = mock()
+    self.transport._write_lock = mock()
+    self.transport.connection.debug = False
+
+    expect( self.transport._write_lock.acquire )
+    expect( self.transport._sock.sendall ).args( 'somedata' ).raises(Exception('fail'))
+    expect( self.transport._write_lock.release )
+    assert_raises(Exception, self.transport.write, 'somedata' )
 
   def test_write_when_debugging(self):
     self.transport._sock = mock()

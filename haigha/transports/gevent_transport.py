@@ -42,6 +42,7 @@ class GeventTransport(Transport):
 
     self._buffer = bytearray()
     self._read_lock = Semaphore()
+    self._write_lock = Semaphore()
 
   ###
   ### Transport API
@@ -120,7 +121,14 @@ class GeventTransport(Transport):
     if not hasattr(self,'_sock'):
       return None
 
-    self._sock.sendall( data )
+    # MUST use a lock here else gevent could raise an exception if 2 greenlets
+    # try to write at the same time. I was hoping that sendall() would do that
+    # blocking for me, but I guess not.
+    self._write_lock.acquire()
+    try:
+      self._sock.sendall( data )
+    finally:
+      self._write_lock.release()
 
     if self.connection.debug > 1:
       self.connection.logger.debug( 'sent %d bytes to %s'%(len(data), self._host) )
