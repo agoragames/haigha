@@ -1,5 +1,11 @@
-transports
-==========
+0.4.1
+=====
+
+Added a write lock around GeventTransport.write() call to socket.sendall()
+
+
+0.4.0
+=====
 
 Fixed handling of channel closures due to error. This cleaned up several DoS
 vulnerabilities, including a lockup in the ChannelPool, unbounded memory 
