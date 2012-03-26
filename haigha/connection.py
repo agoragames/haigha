@@ -8,7 +8,7 @@ from haigha.channel import Channel
 from haigha.frames import *
 from haigha.writer import Writer
 from haigha.reader import Reader
-from haigha.transports import *
+from haigha.transports import Transport
 from exceptions import *
 
 import socket
@@ -94,14 +94,17 @@ class Connection(object):
     self._frames_read = 0
     self._frames_written = 0
 
-    # For now, default to the libevent strategy
-    transport = kwargs.get('transport', 'event')
+    # Default to the gevent strategy
+    transport = kwargs.get('transport', 'gevent')
     if not isinstance(transport, Transport):
       if transport=='event':
+        from haigha.transports.event_transport import EventTransport
         self._transport = EventTransport( self )
       elif transport=='gevent':
+        from haigha.transports.gevent_transport import GeventTransport
         self._transport = GeventTransport( self )
       elif transport=='gevent_pool':
+        from haigha.transports.gevent_transport import GeventPoolTransport
         self._transport = GeventPoolTransport( self )
     else:
       self._transport = transport

@@ -1,3 +1,15 @@
+0.4.2
+=====
+
+Channel close listeners are now notified before channel local data is cleaned
+up
+
+Default to the gevent transport
+
+Removed fixed requirements for libevent or gevent. It is now up to the user to
+install the packages corresponding to their preferred transport.
+
+
 0.4.1
 =====
 

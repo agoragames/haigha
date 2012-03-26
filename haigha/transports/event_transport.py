@@ -6,8 +6,13 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from haigha.transports import Transport
 
-from eventsocket import EventSocket
-import event
+try:
+  from eventsocket import EventSocket
+  import event
+except ImportError:
+  print 'Failed to load EventSocket and event modules'
+  EventSocket = None
+  event = None
 
 class EventTransport(Transport):
   '''

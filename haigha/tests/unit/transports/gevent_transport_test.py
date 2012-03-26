@@ -10,7 +10,8 @@ from gevent.coros import Semaphore
 from gevent import socket
 from gevent.pool import Pool
 
-from haigha.transports import *
+from haigha.transports import gevent_transport
+from haigha.transports.gevent_transport import *
 
 class GeventTransportTest(Chai):
 

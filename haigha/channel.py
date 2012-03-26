@@ -240,20 +240,22 @@ class Channel(object):
     # is published.
     if final_frame:
       self._connection.send_frame( final_frame )
-    self._pending_events = deque()
-    self._frame_buffer = deque()
 
-    # clear out other references for faster cleanup
-    for protocol_class in self._class_map.values():
-      protocol_class._cleanup()
-    self._connection = None
-    self.channel = None
-    self.exchange = None
-    self.queue = None
-    self.basic = None
-    self.tx = None
-    self._class_map = None
+    try:
+      for listener in self._close_listeners:
+        listener( self )
+    finally:
+      self._pending_events = deque()
+      self._frame_buffer = deque()
 
-    for listener in self._close_listeners:
-      listener( self )
-    self._close_listeners = set()
+      # clear out other references for faster cleanup
+      for protocol_class in self._class_map.values():
+        protocol_class._cleanup()
+      self._connection = None
+      self.channel = None
+      self.exchange = None
+      self.queue = None
+      self.basic = None
+      self.tx = None
+      self._class_map = None
+      self._close_listeners = set()

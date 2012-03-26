@@ -5,10 +5,6 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 from chai import Chai
-import gevent
-from gevent.coros import Semaphore
-from gevent import socket
-from gevent.pool import Pool
 
 from haigha.transports import Transport
 

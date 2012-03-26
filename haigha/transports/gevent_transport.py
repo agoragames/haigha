@@ -6,12 +6,17 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from haigha.transports import Transport
 
-import gevent
-from gevent.coros import Semaphore
-from gevent import socket
-from gevent import pool
-
-#import socket
+try:
+  import gevent
+  from gevent.coros import Semaphore
+  from gevent import socket
+  from gevent import pool
+except ImportError:
+  print 'Failed to load gevent modules'
+  gevent = None
+  Semaphore = None
+  socket = None
+  pool = None
 
 class GeventTransport(Transport):
   '''

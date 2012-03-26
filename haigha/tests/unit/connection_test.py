@@ -10,6 +10,9 @@ from chai import Chai
 from haigha import connection, VERSION
 from haigha.connection import Connection
 
+from haigha.transports import event_transport
+from haigha.transports import gevent_transport
+
 class ConnectionTest(Chai):
   
   def setUp(self):
@@ -62,6 +65,7 @@ class ConnectionTest(Chai):
     mock( connection, 'ConnectionChannel' )
 
     expect(connection.ConnectionChannel).args( conn, 0 ).returns( 'connection_channel' )
+    expect(gevent_transport.GeventTransport).args( conn ).returns( 'GeventTransport' )
     expect(conn.connect).args( 'localhost', 5672 )
 
     conn.__init__()
@@ -100,7 +104,18 @@ class ConnectionTest(Chai):
     self.assertEqual( 65535, conn._channel_max )
     self.assertEqual( 65535, conn._frame_max )
     self.assertEqual( [], conn._output_frame_buffer )
-    self.assertTrue( isinstance(conn._transport, connection.EventTransport) )
+    self.assertEqual( 'GeventTransport', conn._transport )
+
+  def test_init_with_event_transport(self):
+    conn = Connection.__new__( Connection )
+    strategy = mock()
+    mock( connection, 'ConnectionChannel' )
+
+    expect(connection.ConnectionChannel).args( conn, 0 ).returns( 'connection_channel' )
+    expect(event_transport.EventTransport).args( conn ).returns( 'EventTransport' )
+    expect(conn.connect).args( 'localhost', 5672 )
+
+    conn.__init__(transport='event')
 
   def test_properties(self):
     self.assertEqual( self.connection._logger, self.connection.logger )
