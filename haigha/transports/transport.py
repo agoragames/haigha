@@ -31,11 +31,14 @@ class Transport(object):
     for channel in channels:
       channel.process_frames()
 
-  def read(self):
+  def read(self, timeout=None):
     '''
     Read from the transport. If no data is available, should return None. The
     return value can be any data type that is supported by the haigha.Reader
     class.
+
+    Caller passes in an optional timeout. Each transport determines how to
+    implement this.
     '''
     return None
 

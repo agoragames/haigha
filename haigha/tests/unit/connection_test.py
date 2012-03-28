@@ -8,7 +8,9 @@ import logging
 from chai import Chai
 
 from haigha import connection, VERSION
-from haigha.connection import Connection
+from haigha.connection import Connection, ConnectionChannel
+from haigha.channel import Channel
+from haigha.frames import *
 
 from haigha.transports import event_transport
 from haigha.transports import gevent_transport
@@ -284,7 +286,9 @@ class ConnectionTest(Chai):
     assert_equals( 0, self.connection._frames_read )
 
   def test_read_frames_when_transport_returns_no_data(self):
-    expect( self.connection._transport.read ).returns( None )
+    self.connection._heartbeat = None
+    expect( self.connection._channels[0].send_heartbeat )
+    expect( self.connection._transport.read ).args(None).returns( None )
     self.connection.read_frames()
     assert_equals( 0, self.connection._frames_read )
 
@@ -294,8 +298,10 @@ class ConnectionTest(Chai):
     frame.channel_id = 42
     channel = mock()
     mock( connection, 'Reader' )
+    self.connection._heartbeat = 3
     
-    expect( self.connection._transport.read ).returns( 'data' )
+    expect( self.connection._channels[0].send_heartbeat )
+    expect( self.connection._transport.read ).args(3).returns( 'data' )
     expect( connection.Reader ).args( 'data' ).returns( reader )
     expect( connection.Frame.read_frames ).args( reader ).returns( [frame] )
     expect( self.connection.channel ).args( 42 ).returns( channel )
@@ -314,7 +320,8 @@ class ConnectionTest(Chai):
     mock( connection, 'Reader' )
     self.connection._debug = 2
     
-    expect( self.connection._transport.read ).returns( 'data' )
+    expect( self.connection._channels[0].send_heartbeat )
+    expect( self.connection._transport.read ).args(None).returns( 'data' )
     expect( connection.Reader ).args( 'data' ).returns( reader )
     expect( connection.Frame.read_frames ).args( reader ).returns( [frame] )
     expect( self.connection.logger.debug ).args( 'READ: %s', frame )
@@ -391,3 +398,119 @@ class ConnectionTest(Chai):
     self.connection._close_info = None
     assert_raises( connection.ConnectionClosed,
       self.connection.send_frame, 'frame' )
+
+
+class ConnectionChannelTest(Chai):
+  
+  def setUp(self):
+    super(ConnectionChannelTest,self).setUp()
+    self.connection = mock()
+    self.ch = ConnectionChannel(self.connection, 0)
+
+  def test_init(self):
+    mock( connection, 'super' )
+    with expect( connection, 'super' ).args( is_arg(ConnectionChannel), ConnectionChannel ).returns(mock()) as s:
+      expect( s.__init__ ).args( 'a', 'b' )
+
+    c = ConnectionChannel('a','b')
+    assert_equals( c._method_map ,
+      {
+        10 : c._recv_start,
+        20 : c._recv_secure,
+        30 : c._recv_tune,
+        41 : c._recv_open_ok,
+        50 : c._recv_close,
+        51 : c._recv_close_ok,
+      }
+    )
+    assert_equal( 0, c._last_heartbeat_send )
+
+  def test_dispatch_on_heartbeat_frame(self):
+    frame = mock()
+
+    expect( frame.type ).at_least(1).returns( HeartbeatFrame.type() )
+    expect( self.ch.send_heartbeat )
+
+    self.ch.dispatch( frame )
+
+  def test_dispatch_method_frame_class_10(self):
+    frame = mock()
+    frame.class_id = 10
+    frame.method_id = 10
+    self.ch._method_map[10] = mock()
+
+    expect( frame.type ).at_least(1).returns( MethodFrame.type() )
+    expect( self.ch._method_map[10] ).args( frame )
+
+    self.ch.dispatch( frame )
+
+  def test_dispatch_method_frame_raises_invalidmethod(self):
+    frame = mock()
+    frame.class_id = 10
+    frame.method_id = 500
+
+    expect( frame.type ).at_least(1).returns( MethodFrame.type() )
+
+    with assert_raises( Channel.InvalidMethod ):
+      self.ch.dispatch( frame )
+
+  def test_dispatch_method_frame_raises_invalidclass(self):
+    frame = mock()
+    frame.class_id = 11
+    frame.method_id = 10
+
+    expect( frame.type ).at_least(1).returns( MethodFrame.type() )
+
+    with assert_raises( Channel.InvalidClass ):
+      self.ch.dispatch( frame )
+
+  def test_dispatch_method_frame_raises_invalidframetype(self):
+    frame = mock()
+
+    expect( frame.type ).at_least(1).returns( HeaderFrame.type() )
+
+    with assert_raises( Frame.InvalidFrameType ):
+      self.ch.dispatch( frame )
+
+  def test_close(self):
+    expect( self.ch._send_close )
+    self.ch.close()
+
+  def test_send_heartbeat_when_no_heartbeat(self):
+    stub( self.ch.send_frame )
+    self.ch.connection._heartbeat = None
+
+    self.ch.send_heartbeat()
+
+  def test_send_heartbeat_when_not_sent_yet(self):
+    mock( connection, 'time' )
+    self.ch.connection._heartbeat = 3
+    self.ch._last_heartbeat_send = 0
+
+    expect( connection.time.time ).returns( 4200.3 ).times(2)
+    expect( self.ch.send_frame ).args( HeartbeatFrame )
+
+    self.ch.send_heartbeat()
+    assert_equals( 4200.3, self.ch._last_heartbeat_send )
+
+  def test_send_heartbeat_when_sent_long_ago(self):
+    mock( connection, 'time' )
+    self.ch.connection._heartbeat = 3
+    self.ch._last_heartbeat_send = 4196
+
+    expect( connection.time.time ).returns( 4200.3 ).times(2)
+    expect( self.ch.send_frame ).args( HeartbeatFrame )
+
+    self.ch.send_heartbeat()
+    assert_equals( 4200.3, self.ch._last_heartbeat_send )
+
+  def test_send_heart_when_sent_recently(self):
+    mock( connection, 'time' )
+    self.ch.connection._heartbeat = 3
+    self.ch._last_heartbeat_send = 4199
+
+    expect( connection.time.time ).returns( 4200.3 )
+    stub( self.ch.send_frame )
+
+    self.ch.send_heartbeat()
+    assert_equals( 4199, self.ch._last_heartbeat_send )

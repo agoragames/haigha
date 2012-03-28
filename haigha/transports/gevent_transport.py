@@ -6,6 +6,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from haigha.transports import Transport
 
+import errno
 try:
   import gevent
   from gevent.coros import Semaphore
@@ -69,9 +70,10 @@ class GeventTransport(Transport):
     # After connecting, switch to full-blocking mode.
     self._sock.settimeout( None )
 
-  def read(self):
+  def read(self, timeout=None):
     '''
-    Read from the transport. If no data is available, should return None.
+    Read from the transport. If no data is available, should return None. If
+    timeout>0, will only block for `timeout` seconds.
     '''
     # NOTE: copying over this comment from Connection, because there is
     # knowledge captured here, even if the details are stale
@@ -86,6 +88,12 @@ class GeventTransport(Transport):
 
     self._read_lock.acquire()
     try:
+      # Note that we ignore both None and 0, i.e. we either block with a
+      # timeout or block completely and let gevent sort it out.
+      if timeout:
+        self._sock.settimeout( timeout )
+      else:
+        self._sock.settimeout( None )
       data = self._sock.recv( self._sock.getsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF) )
 
       if len(data):
@@ -96,6 +104,11 @@ class GeventTransport(Transport):
           data = self._buffer
           self._buffer = bytearray()
         return data
+
+    except EnvironmentError as e:
+      if e.errno in (errno.EAGAIN,errno.EWOULDBLOCK):
+        return None
+      raise
         
     finally:
       self._read_lock.release()

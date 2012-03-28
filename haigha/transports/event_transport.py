@@ -57,9 +57,11 @@ class EventTransport(Transport):
     self._sock.setblocking( False )
     self._sock.connect( (host,port), timeout=self.connection._connect_timeout )
 
-  def read(self):
+  def read(self, timeout=None):
     '''
-    Read from the transport. If no data is available, should return None.
+    Read from the transport. If no data is available, should return None. The
+    timeout is ignored as this returns only data that has already been buffered
+    locally.
     '''
     # NOTE: copying over this comment from Connection, because there is
     # knowledge captured here, even if the details are stale

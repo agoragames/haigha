@@ -5,6 +5,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 from chai import Chai
+import errno
 import gevent
 from gevent.coros import Semaphore
 from gevent import socket
@@ -52,6 +53,7 @@ class GeventTransportTest(Chai):
     self.transport.connection.debug = False
 
     expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.settimeout ).args( None )
     expect( self.transport._sock.getsockopt ).args(
       socket.SOL_SOCKET, socket.SO_RCVBUF ).returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).returns('buffereddata')
@@ -66,11 +68,12 @@ class GeventTransportTest(Chai):
     self.transport._buffer = bytearray('buffered')
 
     expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.settimeout ).args( 3 )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).returns('data')
     expect( self.transport._read_lock.release )
 
-    assert_equals( 'buffereddata', self.transport.read() )
+    assert_equals( 'buffereddata', self.transport.read(3) )
     assert_equals( bytearray(), self.transport._buffer )
 
   def test_read_when_debugging(self):
@@ -79,13 +82,14 @@ class GeventTransportTest(Chai):
     self.transport.connection.debug = 2
 
     expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.settimeout ).args( None )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).returns('buffereddata')
     expect( self.transport.connection.logger.debug ).args(
       'read 12 bytes from server:1234' )
     expect( self.transport._read_lock.release )
 
-    assert_equals( 'buffereddata', self.transport.read() )
+    assert_equals( 'buffereddata', self.transport.read(0) )
 
   def test_read_when_socket_closes(self):
     self.transport._sock = mock()
@@ -93,6 +97,7 @@ class GeventTransportTest(Chai):
     self.transport.connection.debug = 2
     
     expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.settimeout ).args( None )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).returns('')
     expect( self.transport._read_lock.release )
@@ -100,6 +105,35 @@ class GeventTransportTest(Chai):
       msg='error reading from server:1234' )
     
     self.transport.read()
+
+  def test_read_when_raises_eagain(self):
+    self.transport._sock = mock()
+    self.transport._read_lock = mock()
+    self.transport.connection.debug = 2
+    
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.settimeout ).args( 42 )
+    expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).raises(
+      EnvironmentError(errno.EAGAIN,'tryagainlater') )
+    expect( self.transport._read_lock.release )
+    
+    assert_equals( None, self.transport.read(42) )
+
+  def test_read_when_raises_other_errno(self):
+    self.transport._sock = mock()
+    self.transport._read_lock = mock()
+    self.transport.connection.debug = 2
+    
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.settimeout ).args( 42 )
+    expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).raises(
+      EnvironmentError(errno.EBADF,'baddog') )
+    expect( self.transport._read_lock.release )
+    
+    with assert_raises(EnvironmentError):
+      self.transport.read(42)
 
   def test_read_when_no_sock(self):
     self.transport.read()

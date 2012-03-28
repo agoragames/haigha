@@ -14,6 +14,7 @@ from exceptions import *
 import socket
 import struct
 import haigha
+import time
 
 from io import BytesIO
 from logging import DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -302,8 +303,11 @@ class Connection(object):
     # read from the socket is kicked off.
     if self._transport is None:
       return
+
+    # Send a heartbeat (if needed)
+    self._channels[0].send_heartbeat()
     
-    data = self._transport.read()
+    data = self._transport.read( self._heartbeat )
     if data is None:
       return
 
@@ -386,13 +390,14 @@ class ConnectionChannel(Channel):
       50 : self._recv_close,
       51 : self._recv_close_ok,
     }
+    self._last_heartbeat_send = 0
 
   def dispatch(self, frame):
     '''
     Override the default dispatch since we don't need the rest of the stack.
     '''
     if frame.type()==HeartbeatFrame.type():
-      self._send_heartbeat()
+      self.send_heartbeat()
 
     elif frame.type()==MethodFrame.type():
       if frame.class_id==10:
@@ -416,8 +421,21 @@ class ConnectionChannel(Channel):
     '''
     self._send_close()
 
-  def _send_heartbeat(self):
-    self.send_frame( HeartbeatFrame(self.channel_id) )
+  def send_heartbeat(self):
+    '''
+    Send a heartbeat if needed. Tracks last heartbeat send time.
+    '''
+    # Note that this does not take into account the time that we last sent a
+    # frame. Hearbeats are so small the effect should be quite limited. Also
+    # note that we're looking for something near to our scheduled interval,
+    # because if this is exact, then we'll likely actually send a heartbeat
+    # at twice the period, which could cause a broker to kill the connection
+    # if the period is large enough. The 90% bound was chosen arbitrarily but
+    # seems a sensible enough default
+    if self.connection._heartbeat:
+      if time.time() >= (self._last_heartbeat_send + 0.9*self.connection._heartbeat):
+        self.send_frame( HeartbeatFrame(self.channel_id) )
+        self._last_heartbeat_send = time.time()
 
   def _recv_start(self, method_frame):
     self.connection._closed = False
@@ -438,10 +456,14 @@ class ConnectionChannel(Channel):
 
     # Note that 'is' test is required here, as 0 and None are distinct
     if self.connection._heartbeat is None:
-      self.connection.heartbeat = method_frame.args.read_short()
+      self.connection._heartbeat = method_frame.args.read_short()
 
     self._send_tune_ok()
     self._send_open()
+
+    # 4.2.7: The client should start sending heartbeats after receiving a 
+    # Connection.Tune method
+    self.send_heartbeat()
 
   def _send_tune_ok(self):
     args = Writer()
