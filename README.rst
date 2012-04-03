@@ -2,7 +2,7 @@
  Haigha - AMQP libevent Python client
 =====================================
 
-:Version: 0.4.2
+:Version: 0.4.4
 :Download: http://pypi.python.org/pypi/haigha
 :Source: https://github.com/agoragames/haigha
 :Keywords: python, amqp, rabbitmq, event, libevent
@@ -15,7 +15,7 @@
 Overview
 ========
 
-Haigha provides a simple to use client library for interacting with AMQP brokers. It currently supports the 0.9.1 protocol and is integration tested against the latest RabbitMQ 2.4.1 (see `errata <http://dev.rabbitmq.com/wiki/Amqp091Errata>`_). Haigha is a descendant of ``py-amqplib`` and owes much to its developers.
+Haigha provides a simple to use client library for interacting with AMQP brokers. It currently supports the 0.9.1 protocol and is integration tested against the latest RabbitMQ 2.8.1 (see `errata <http://dev.rabbitmq.com/wiki/Amqp091Errata>`_). Haigha is a descendant of ``py-amqplib`` and owes much to its developers.
 
 The goals of haigha are performance, simplicity, and adherence to the form and function of the AMQP protocol. It adds a few useful features, such as the ``ChannelPool`` class and ``Channel.publish_synchronous``, to ease use of powerful features in real-world applications.
 
