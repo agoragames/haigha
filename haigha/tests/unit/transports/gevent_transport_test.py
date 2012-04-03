@@ -106,6 +106,20 @@ class GeventTransportTest(Chai):
     
     self.transport.read()
 
+  def test_read_when_socket_timeout(self):
+    self.transport._sock = mock()
+    self.transport._read_lock = mock()
+    self.transport.connection.debug = 2
+    
+    expect( self.transport._read_lock.acquire )
+    expect( self.transport._sock.settimeout ).args( 42 )
+    expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).raises(
+      socket.timeout('not now') )
+    expect( self.transport._read_lock.release )
+    
+    assert_equals( None, self.transport.read(42) )
+
   def test_read_when_raises_eagain(self):
     self.transport._sock = mock()
     self.transport._read_lock = mock()

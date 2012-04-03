@@ -105,6 +105,12 @@ class GeventTransport(Transport):
           self._buffer = bytearray()
         return data
 
+    except socket.timeout as e:
+      # Note that this is implemented differently and though it would be
+      # caught as an EnvironmentError, it has no errno. Not sure whose
+      # fault that is.
+      return None
+
     except EnvironmentError as e:
       if e.errno in (errno.EAGAIN,errno.EWOULDBLOCK):
         return None
