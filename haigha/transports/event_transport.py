@@ -56,6 +56,7 @@ class EventTransport(Transport):
         self._sock.setsockopt(family, type, v)
     self._sock.setblocking( False )
     self._sock.connect( (host,port), timeout=self.connection._connect_timeout )
+    self._heartbeat_timeout = None
 
   def read(self, timeout=None):
     '''
@@ -73,6 +74,18 @@ class EventTransport(Transport):
     # so that we can rely on the next read event to read the subsequent message.
     if not hasattr(self,'_sock'):
       return None
+
+    # This is sort of a hack because we're faking that data is ready, but it
+    # works for purposes of supporting timeouts
+    if timeout:
+      if self._heartbeat_timeout:
+        self._heartbeat_timeout.delete()
+      self._heartbeat_timeout = \
+        event.timeout( timeout, self._sock_read_cb, self._sock )
+    elif self._heartbeat_timeout:
+      self._heartbeat_timeout.delete()
+      self._heartbeat_timeout = None
+      
     return self._sock.read()
 
   def buffer(self, data):

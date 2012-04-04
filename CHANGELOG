@@ -1,3 +1,9 @@
+0.4.5
+=====
+
+Fix heartbeat support in event transport
+
+
 0.4.4
 =====
 

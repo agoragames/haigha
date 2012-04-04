@@ -56,9 +56,45 @@ class EventTransportTest(Chai):
     self.transport.connect( ('host',5309) )
 
   def test_read(self):
+    self.transport._heartbeat_timeout = None
     self.transport._sock = mock()
     expect( self.transport._sock.read ).returns('buffereddata')
     assert_equals( 'buffereddata', self.transport.read() )
+
+  def test_read_with_timeout_and_no_current_one(self):
+    self.transport._heartbeat_timeout = None
+    self.transport._sock = mock()
+    mock( event_transport, 'event' )
+    expect( event_transport.event.timeout ).args( 
+      'timeout', self.transport._sock_read_cb, self.transport._sock ).returns(
+      'timer' )
+    
+    expect( self.transport._sock.read ).returns('buffereddata')
+    assert_equals( 'buffereddata', self.transport.read('timeout') )
+    assert_equals( 'timer', self.transport._heartbeat_timeout )
+
+  def test_read_with_timeout_and_current_one(self):
+    self.transport._heartbeat_timeout = mock()
+    self.transport._sock = mock()
+    mock( event_transport, 'event' )
+    expect( self.transport._heartbeat_timeout.delete )
+    expect( event_transport.event.timeout ).args( 
+      'timeout', self.transport._sock_read_cb, self.transport._sock ).returns(
+      'timer' )
+    
+    expect( self.transport._sock.read ).returns('buffereddata')
+    assert_equals( 'buffereddata', self.transport.read('timeout') )
+    assert_equals( 'timer', self.transport._heartbeat_timeout )
+
+  def test_read_without_timeout_but_current_one(self):
+    self.transport._heartbeat_timeout = mock()
+    self.transport._sock = mock()
+    mock( event_transport, 'event' )
+    expect( self.transport._heartbeat_timeout.delete )
+    
+    expect( self.transport._sock.read ).returns('buffereddata')
+    assert_equals( 'buffereddata', self.transport.read() )
+    assert_equals( None, self.transport._heartbeat_timeout )
 
   def test_read_when_no_sock(self):
     self.transport.read()
