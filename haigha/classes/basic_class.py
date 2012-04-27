@@ -173,7 +173,8 @@ class BasicClass(ProtocolClass):
     pass
 
   def _recv_deliver(self, method_frame):
-    msg = self._read_msg( method_frame )
+    msg = self._read_msg( method_frame, 
+      with_consumer_tag=True, with_message_count=False )
 
     func = self._consumer_cb.get(msg.delivery_info['consumer_tag'], None)
     if func: func(msg)
@@ -205,7 +206,8 @@ class BasicClass(ProtocolClass):
       self._recv_get_empty( method_frame )
 
   def _recv_get_ok(self, method_frame):
-    msg = self._read_msg( method_frame )
+    msg = self._read_msg( method_frame, 
+      with_consumer_tag=False, with_message_count=True )
     cb = self._get_cb.popleft()
     if cb: cb( msg )
 
@@ -264,10 +266,12 @@ class BasicClass(ProtocolClass):
     cb = self._recover_cb.popleft()
     if cb: cb()
 
-  def _read_msg(self, method_frame):
+  def _read_msg(self, method_frame, with_consumer_tag=False, with_message_count=False):
     '''
     Support method to read a Message from the current frame buffer. Will return
-    a Message, or re-queue current frames and raise a FrameUnderflow
+    a Message, or re-queue current frames and raise a FrameUnderflow. Takes an
+    optional argument on whether to read the consumer tag so it can be used
+    for both deliver and get-ok.
     '''
     # No need to assert that is instance of Header or Content frames because
     # failure to access as such will result in exception that channel will
@@ -290,18 +294,25 @@ class BasicClass(ProtocolClass):
       self.channel.requeue_frames( [method_frame] )
       raise self.FrameUnderflow()
 
-    consumer_tag = method_frame.args.read_shortstr()
+    if with_consumer_tag:
+      consumer_tag = method_frame.args.read_shortstr()
     delivery_tag = method_frame.args.read_longlong()
     redelivered = method_frame.args.read_bit()
     exchange = method_frame.args.read_shortstr()
     routing_key = method_frame.args.read_shortstr()
+    if with_message_count:
+      message_count = method_frame.args.read_long()
 
     delivery_info = {
       'channel': self.channel,
-      'consumer_tag': consumer_tag,
       'delivery_tag': delivery_tag,
       'redelivered': redelivered,
       'exchange': exchange,
       'routing_key': routing_key,
     }
+    if with_consumer_tag:
+      delivery_info['consumer_tag'] = consumer_tag
+    if with_message_count:
+      delivery_info['message_count'] = message_count
+
     return Message( body=body, delivery_info=delivery_info, **header_frame.properties )

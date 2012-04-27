@@ -318,7 +318,8 @@ class BasicClassTest(Chai):
     cb = mock()
     self.klass._consumer_cb['ctag'] = cb
 
-    expect( self.klass._read_msg ).args( 'frame').returns( msg )
+    expect( self.klass._read_msg ).args( 
+      'frame', with_consumer_tag=True, with_message_count=False ).returns( msg )
     expect( cb ).args( msg )
 
     self.klass._recv_deliver('frame')
@@ -327,7 +328,8 @@ class BasicClassTest(Chai):
     msg = mock()
     msg.delivery_info = {'consumer_tag':'ctag'}
 
-    expect( self.klass._read_msg ).args( 'frame').returns( msg )
+    expect( self.klass._read_msg ).args(
+     'frame', with_consumer_tag=True, with_message_count=False  ).returns( msg )
 
     self.klass._recv_deliver('frame')
 
@@ -374,7 +376,8 @@ class BasicClassTest(Chai):
     self.klass._get_cb.append( cb )
     self.klass._get_cb.append( mock() )
 
-    expect( self.klass._read_msg ).args( 'frame' ).returns( 'msg' )
+    expect( self.klass._read_msg ).args( 
+      'frame', with_consumer_tag=False, with_message_count=True ).returns( 'msg' )
     expect( cb ).args( 'msg' )
 
     self.klass._recv_get_ok( 'frame' )
@@ -385,7 +388,8 @@ class BasicClassTest(Chai):
     self.klass._get_cb.append( None )
     self.klass._get_cb.append( mock() )
 
-    expect( self.klass._read_msg ).args( 'frame' ).returns( 'msg' )
+    expect( self.klass._read_msg ).args(
+      'frame', with_consumer_tag=False, with_message_count=True ).returns( 'msg' )
 
     self.klass._recv_get_ok( 'frame' )
     assert_equals( 1, len(self.klass._get_cb) )
@@ -532,10 +536,10 @@ class BasicClassTest(Chai):
     expect(method_frame.args.read_bit).returns(False)
     expect(method_frame.args.read_shortstr).returns('exchange')
     expect(method_frame.args.read_shortstr).returns('routing_key')
-    expect(mock(basic_class, 'Message')).args(
+    expect(Message).args(
       body=bytearray(), delivery_info=delivery_info, foo='bar').returns('message')
 
-    assert_equals( 'message', self.klass._read_msg(method_frame) )
+    assert_equals( 'message', self.klass._read_msg(method_frame, with_consumer_tag=True) )
 
   def test_read_msg_when_body_length_greater_than_0_with_cb(self):
     method_frame = mock()
@@ -545,24 +549,26 @@ class BasicClassTest(Chai):
     cframe1 = mock()
     cframe2 = mock()
     self.klass._consumer_cb['ctag'] = mock()
-    delivery_info = {'channel': self.klass.channel,
-                     'consumer_tag': 'ctag',
-                     'delivery_tag': 'dtag',
-                     'redelivered': 'no',
-                     'exchange': 'exchange',
-                     'routing_key': 'routing_key'}
+    delivery_info = {
+      'channel': self.klass.channel,
+      'delivery_tag': 'dtag',
+      'redelivered': 'no',
+      'exchange': 'exchange',
+      'routing_key': 'routing_key',
+      'message_count': 8675309,
+    }
 
     expect(self.klass.channel.next_frame).returns(header_frame)
     expect(self.klass.channel.next_frame).returns(cframe1)
     expect(cframe1.payload.buffer).returns('x'*50)
     expect(self.klass.channel.next_frame).returns(cframe2)
     expect(cframe2.payload.buffer).returns('x'*50)
-    expect(method_frame.args.read_shortstr).returns('ctag')
     expect(method_frame.args.read_longlong).returns('dtag')
     expect(method_frame.args.read_bit).returns('no')
     expect(method_frame.args.read_shortstr).returns('exchange')
     expect(method_frame.args.read_shortstr).returns('routing_key')
-    expect(mock(basic_class, 'Message')).args(
+    expect(method_frame.args.read_long).returns(8675309)
+    expect(Message).args(
       body=bytearray('x'*100), delivery_info=delivery_info).returns('message')
 
-    assert_equals( 'message', self.klass._read_msg(method_frame) )
+    assert_equals( 'message', self.klass._read_msg(method_frame, with_message_count=True) )
