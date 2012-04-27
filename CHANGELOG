@@ -13,6 +13,8 @@ after Channel has been cleaned up
 
 Added support for Channel open notification listeners
 
+All AMQP timestamps are in UTC
+
 
 
 0.4.5
