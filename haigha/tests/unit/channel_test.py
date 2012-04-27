@@ -31,21 +31,34 @@ class ChannelTest(Chai):
     self.assertEquals( deque([]), c._pending_events )
     self.assertEquals( deque([]), c._frame_buffer )
     assert_equals( set([]), c._close_listeners )
+    assert_false( c._closed )
+    assert_equals(
+      {
+        'reply_code'    : 0,
+        'reply_text'    : 'first connect',
+        'class_id'      : 0,
+        'method_id'     : 0
+      }, c._close_info )
+    assert_true( c._active )
 
   def test_properties(self):
     connection = mock()
     connection.logger = 'logger'
 
     c = Channel(connection, 'id')
-    c.channel = mock()
-    c.channel.closed = 'closed'
-    c.channel.close_info = 'uwerebad'
+    c._closed = 'yes'
+    c._close_info = 'ithappened'
+    c._active = 'record'
 
     assertEquals( connection, c.connection )
     assertEquals( 'id', c.channel_id )
     assertEquals( 'logger', c.logger )
-    assertEquals( 'closed', c.closed )
-    assertEquals( 'uwerebad', c.close_info )
+    assert_equals( 'yes', c.closed )
+    assert_equals( 'ithappened', c.close_info )
+    assert_equals( 'record', c.active )
+    
+    c._closed = False
+    assert_equals( None, c.close_info )
 
   def test_add_close_listener(self):
     c = Channel(None,None)
@@ -224,7 +237,7 @@ class ChannelTest(Chai):
   def test_send_frame_when_not_closed_and_flow_control(self):
     conn = mock()
     c = Channel(conn, 32)
-    c.channel._active = False
+    c._active = False
 
     method = MethodFrame(1,2,3)
     heartbeat = HeartbeatFrame()
@@ -242,16 +255,16 @@ class ChannelTest(Chai):
   def test_send_frame_when_closed_for_a_reason(self):
     conn = mock()
     c = Channel(conn, 32)
-    c.channel._closed = True
-    c.channel._close_info = {'reply_code':42, 'reply_text':'bad'}
+    c._closed = True
+    c._close_info = {'reply_code':42, 'reply_text':'bad'}
 
     assertRaises( ChannelClosed, c.send_frame, 'frame' )
   
   def test_send_frame_when_closed_for_no_reason(self):
     conn = mock()
     c = Channel(conn, 32)
-    c.channel._closed = True
-    c.channel._close_info = {'reply_code':42, 'reply_text':''}
+    c._closed = True
+    c._close_info = {'reply_code':42, 'reply_text':''}
 
     assertRaises( ChannelClosed, c.send_frame, 'frame' )
 

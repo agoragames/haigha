@@ -47,6 +47,19 @@ class Channel(object):
     # Listeners for when channel closes
     self._close_listeners = set()
 
+    # Moving state out of protocol class so that it's accessible even
+    # after we've closed and deleted references to the protocol classes.
+    # Note though that many of these fields are written to directly
+    # from within ChannelClass.
+    self._closed = False
+    self._close_info = {
+      'reply_code'    : 0,
+      'reply_text'    : 'first connect',
+      'class_id'      : 0,
+      'method_id'     : 0
+    }
+    self._active = True
+
   @property
   def connection(self):
     return self._connection
@@ -57,19 +70,26 @@ class Channel(object):
 
   @property
   def logger(self):
+    '''Return a shared logger handle for the channel.'''
     return self._connection.logger
 
   @property
   def closed(self):
-    return self.channel.closed
+    '''Return whether this channel has been closed.'''
+    return self._closed
 
   @property
   def close_info(self):
-    return self.channel.close_info
+    '''Return dict with information on why this channel is closed.  Will
+    return None if the channel is open.'''
+    return self._close_info if self._closed else None
 
   @property
   def active(self):
-    return self.channel.active
+    '''
+    Return True if flow control turned off, False if flow control is on.
+    '''
+    return self._active
 
   def add_close_listener(self, listener):
     '''
@@ -188,7 +208,7 @@ class Channel(object):
     # seems that it's safe to assume the len>0 means to buffer the frame. The
     # other advantage here is 
     if not len(self._pending_events):
-      if not self.channel.active and isinstance( frame, (ContentFrame,HeaderFrame) ):
+      if not self._active and isinstance( frame, (ContentFrame,HeaderFrame) ):
         raise Channel.Inactive( "Channel %d flow control activated", self.channel_id )
       self._connection.send_frame(frame)
     else:
