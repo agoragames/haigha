@@ -138,7 +138,7 @@ class WriterTest(Chai):
 
   def test_write_timestamp(self):
     w = Writer()
-    w.write_timestamp( datetime(2011, 1, 17, 17, 36, 33) )
+    w.write_timestamp( datetime(2011, 1, 17, 22, 36, 33) )
 
     assert_equals( '\x00\x00\x00\x00\x4d\x34\xc4\x71', w._output_buffer )
 
@@ -219,7 +219,7 @@ class WriterTest(Chai):
 
   def test_field_timestamp(self):
     w = Writer()
-    w._field_timestamp( datetime(2011, 1, 17, 17, 36, 33) )
+    w._field_timestamp( datetime(2011, 1, 17, 22, 36, 33) )
 
     assert_equals( 'T\x00\x00\x00\x00\x4d\x34\xc4\x71', w._output_buffer )
 

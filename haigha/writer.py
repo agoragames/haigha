@@ -5,7 +5,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 from struct import Struct, pack
-from time import mktime
+from calendar import timegm
 from datetime import datetime
 from decimal import Decimal
 from operator import xor
@@ -160,7 +160,7 @@ class Writer(object):
     representing seconds since the Unix epoch.
     """
     # Double check timestamp, can't imagine why it would be signed
-    self._output_buffer.extend( pack(long(mktime(t.timetuple())) ))
+    self._output_buffer.extend( pack(long(timegm(t.timetuple())) ))
     return self
 
   # NOTE: coding this to http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3 and
