@@ -57,6 +57,7 @@ class ChannelClassTest(Chai):
     self.klass.open()
 
   def test_recv_open_ok(self):
+    expect( self.klass.channel._notify_open_listeners )
     self.klass._recv_open_ok('methodframe')
 
   def test_activate_when_not_active(self):

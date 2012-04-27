@@ -30,6 +30,7 @@ class ChannelTest(Chai):
     self.assertEquals( c._class_map[90], c.tx )
     self.assertEquals( deque([]), c._pending_events )
     self.assertEquals( deque([]), c._frame_buffer )
+    assert_equals( set([]), c._open_listeners )
     assert_equals( set([]), c._close_listeners )
     assert_false( c._closed )
     assert_equals(
@@ -60,6 +61,27 @@ class ChannelTest(Chai):
     c._closed = False
     assert_equals( None, c.close_info )
 
+  def test_add_open_listener(self):
+    c = Channel(None,None)
+    c.add_open_listener('foo')
+    assert_equals( set(['foo']), c._open_listeners )
+
+  def test_remove_open_listener(self):
+    c = Channel(None,None)
+    c.add_open_listener('foo')
+    c.remove_open_listener('foo')
+    c.remove_open_listener('bar')
+    assert_equals( set([]), c._open_listeners )
+
+  def test_notify_open_listeners(self):
+    c = Channel(None,None)
+    cb1 = mock()
+    cb2 = mock()
+    c._open_listeners = set([cb1,cb2])
+    expect( cb1 ).args( c )
+    expect( cb2 ).args( c )
+    c._notify_open_listeners()
+
   def test_add_close_listener(self):
     c = Channel(None,None)
     c.add_close_listener('foo')
@@ -71,6 +93,15 @@ class ChannelTest(Chai):
     c.remove_close_listener('foo')
     c.remove_close_listener('bar')
     assert_equals( set([]), c._close_listeners )
+
+  def test_notify_close_listeners(self):
+    c = Channel(None,None)
+    cb1 = mock()
+    cb2 = mock()
+    c._close_listeners = set([cb1,cb2])
+    expect( cb1 ).args( c )
+    expect( cb2 ).args( c )
+    c._notify_close_listeners()
 
   def test_open(self):
     c = Channel(None,None)
@@ -326,12 +357,10 @@ class ChannelTest(Chai):
     c = Channel('connection',None)
     c._pending_events = 'foo'
     c._frame_buffer = 'foo'
-    listener = mock()
-    c._close_listeners = set([listener])
     
     for val in c._class_map.values():
       expect( val._cleanup )
-    expect( listener ).args( c )
+    expect( c._notify_close_listeners )
 
     c._closed_cb()
     assert_equals( deque([]), c._pending_events )

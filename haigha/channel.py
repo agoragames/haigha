@@ -44,6 +44,9 @@ class Channel(object):
     # Incoming frame buffer
     self._frame_buffer = deque()
 
+    # Listeners for when channel opens
+    self._open_listeners = set()
+
     # Listeners for when channel closes
     self._close_listeners = set()
 
@@ -91,6 +94,26 @@ class Channel(object):
     '''
     return self._active
 
+  def add_open_listener(self, listener):
+    '''
+    Add a listener for open events on this channel. The listener should be
+    a callable that can take one argument, the channel that is opened. 
+    Listeners will not be called in any particular order.
+    '''
+    self._open_listeners.add( listener )
+
+  def remove_open_listener(self, listener):
+    '''
+    Remove an open event listener. Will do nothing if the listener is not
+    registered.
+    '''
+    self._open_listeners.discard( listener )
+
+  def _notify_open_listeners(self):
+    '''Call all the open listeners.'''
+    for listener in self._open_listeners:
+      listener( self )
+
   def add_close_listener(self, listener):
     '''
     Add a listener for close events on this channel. The listener should be
@@ -105,6 +128,11 @@ class Channel(object):
     registered.
     '''
     self._close_listeners.discard( listener )
+
+  def _notify_close_listeners(self):
+    '''Call all the close listeners.'''
+    for listener in self._close_listeners:
+      listener( self )
 
   def open(self):
     '''
@@ -262,8 +290,7 @@ class Channel(object):
       self._connection.send_frame( final_frame )
 
     try:
-      for listener in self._close_listeners:
-        listener( self )
+      self._notify_close_listeners()
     finally:
       self._pending_events = deque()
       self._frame_buffer = deque()

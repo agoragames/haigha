@@ -42,7 +42,10 @@ class ChannelClass(ProtocolClass):
     self.channel.add_synchronous_cb( self._recv_open_ok )
 
   def _recv_open_ok(self, method_frame):
-    pass
+    '''
+    Channel is opened.
+    '''
+    self.channel._notify_open_listeners()
 
   def activate(self):
     '''
