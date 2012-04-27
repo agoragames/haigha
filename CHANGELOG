@@ -1,4 +1,4 @@
-master
+0.5.0
 =====
 
 Fix message reading in basic.get
@@ -18,7 +18,7 @@ All AMQP timestamps are in UTC
 Most exceptions will now propagate to user code, fixing problems with 
 gevent.GreenletExit and SystemExit
 
-Preliminary support for full synchronous clients
+Preliminary support for synchronous clients
 
 
 0.4.5
