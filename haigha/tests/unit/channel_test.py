@@ -158,31 +158,50 @@ class ChannelTest(Chai):
     c.buffer_frame( 'f1' )
     c.buffer_frame( 'f2' )
     assertEquals( deque(['f1', 'f2']), c._frame_buffer )
-
-  def test_process_frames_with_one_frame(self):
-    conn = mock()
-    conn.logger = mock()
-    c = Channel(conn, None)
-    ch_id, c_id, m_id = 0, 20, 2
-    f = MethodFrame(ch_id, c_id, m_id)
-    c._frame_buffer = deque([ f ])
-    expect(c.logger.error).args(ignore(), ignore(), exc_info=ignore())
-    expect(c.close).args(ignore(), ignore())
-
+  
+  def test_process_frames_when_no_frames(self):
+    # Not that this should ever happen, but to be sure
+    c = Channel(None,None)
+    stub( c.dispatch )
     c.process_frames()
 
-  def test_process_frames_with_two_frames(self):
-    conn = mock()
-    conn.logger = mock()
-    c = Channel(conn, None)
-    ch_id, c_id, m_id = 0, 1, 2
-    f0 = MethodFrame(ch_id, c_id, m_id)
-    f1 = MethodFrame(ch_id, c_id, m_id)
+  def test_process_frames_stops_when_buffer_is_empty(self):
+    c = Channel(None, None)
+    f0 = MethodFrame('ch_id', 'c_id', 'm_id')
+    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
     c._frame_buffer = deque([ f0, f1 ])
-    expect(c.logger.error).args(ignore(), ignore(), exc_info=ignore())
-    expect(c.close).args(ignore(), ignore())
+
+    expect( c.dispatch ).args( f0 )
+    expect( c.dispatch ).args( f1 )
 
     c.process_frames()
+    assert_equals( deque(), c._frame_buffer )
+
+  def test_process_frames_stops_when_frameunderflow_raised(self):
+    c = Channel(None, None)
+    f0 = MethodFrame('ch_id', 'c_id', 'm_id')
+    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
+    c._frame_buffer = deque([ f0, f1 ])
+
+    expect( c.dispatch ).args( f0 ).raises( ProtocolClass.FrameUnderflow )
+
+    c.process_frames()
+    assertEquals( f1, c._frame_buffer[0] )
+  
+  def test_process_frames_logs_and_closes_when_dispatch_error_raised(self):
+    c = Channel(None, None)
+    c._connection = mock()
+    c._connection.logger = mock()
+    
+    f0 = MethodFrame(20, 30, 40)
+    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
+    c._frame_buffer = deque([ f0, f1 ])
+
+    expect( c.dispatch ).args( f0 ).raises( RuntimeError("zomg it broked") )
+    expect( c.close ).args( 500, 'Failed to dispatch %s'%(str(f0)) )
+
+    assert_raises( RuntimeError, c.process_frames )
+    assertEquals( f1, c._frame_buffer[0] )
 
   def test_next_frame_with_a_frame(self):
     c = Channel(None, None)
@@ -205,49 +224,6 @@ class ChannelTest(Chai):
 
     c.requeue_frames(f[2:])
     assertEquals(c._frame_buffer, deque([f[i] for i in [3, 2, 0, 1]]))
-
-  def test_process_frames_when_no_frames(self):
-    # Not that this should ever happen, but to be sure
-    c = Channel(None,None)
-    stub( c.dispatch )
-    c.process_frames()
-
-  def test_process_frames_stops_when_buffer_is_empty(self):
-    c = Channel(None, None)
-    f0 = MethodFrame('ch_id', 'c_id', 'm_id')
-    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
-    c._frame_buffer = deque([ f0, f1 ])
-
-    expect( c.dispatch ).args( f0 )
-    expect( c.dispatch ).args( f1 )
-
-    c.process_frames()
-
-  def test_process_frames_stops_when_frameunderflow_raised(self):
-    c = Channel(None, None)
-    f0 = MethodFrame('ch_id', 'c_id', 'm_id')
-    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
-    c._frame_buffer = deque([ f0, f1 ])
-
-    expect( c.dispatch ).args( f0 ).raises( ProtocolClass.FrameUnderflow )
-
-    c.process_frames()
-    assertEquals( f1, c._frame_buffer[0] )
-  
-  def test_process_frames_logs_and_closes_when_dispatch_error_raised(self):
-    c = Channel(None, None)
-    c._connection = mock()
-    c._connection.logger = mock()
-    
-    f0 = MethodFrame(20, 30, 40)
-    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
-    c._frame_buffer = deque([ f0, f1 ])
-
-    expect( c.dispatch ).args( f0 ).raises( Exception("zomg it broked") )
-    expect( c._connection.logger.error ).args( "Failed to dispatch %s", f0, exc_info=True )
-    expect( c.close ).args( 500, str )
-
-    c.process_frames()
   
   def test_send_frame_when_not_closed_no_flow_control_no_pending_events(self):
     conn = mock()

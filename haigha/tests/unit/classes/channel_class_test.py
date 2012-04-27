@@ -170,11 +170,9 @@ class ChannelClassTest(Chai):
     expect( writer.write_short ).args( 0 )
     expect( writer.write_short ).args( 0 )
     expect( mock(channel_class, 'MethodFrame') ).args(42, 20, 40, writer).returns( 'frame' )
-    expect( self.klass.send_frame ).args( 'frame' ).raises( Exception('fail') )
-    expect( self.klass.logger.error ).args( 
-      'Failed to close channel %d', 42, exc_info=True )
+    expect( self.klass.send_frame ).args( 'frame' ).raises( RuntimeError('fail') )
 
-    self.klass.close()
+    assert_raises( RuntimeError, self.klass.close )
     assert_true( self.klass.channel._closed )
     assert_equals( {
         'reply_code'  : 0,

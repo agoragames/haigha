@@ -117,12 +117,9 @@ class ChannelClass(ProtocolClass):
       self.send_frame( MethodFrame(self.channel_id, 20, 40, args) )
       
       self.channel.add_synchronous_cb( self._recv_close_ok )
-    except:
-      self.logger.error("Failed to close channel %d", 
-        self.channel_id, exc_info=True)
-
-    # Immediately set the closed flag so that no more frames can be sent
-    self.channel._closed = True
+    finally:
+      # Immediately set the closed flag so that no more frames can be sent
+      self.channel._closed = True
 
   def _recv_close(self, method_frame):
     '''

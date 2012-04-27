@@ -147,7 +147,8 @@ class GeventTransport(Transport):
 
     # MUST use a lock here else gevent could raise an exception if 2 greenlets
     # try to write at the same time. I was hoping that sendall() would do that
-    # blocking for me, but I guess not.
+    # blocking for me, but I guess not. May require an eventsocket-like buffer
+    # to speed up under high load.
     self._write_lock.acquire()
     try:
       self._sock.sendall( data )

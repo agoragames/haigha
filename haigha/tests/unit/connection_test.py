@@ -165,9 +165,9 @@ class ConnectionTest(Chai):
     self.connection._connected = 'yup'
     self.connection._host = 'server'
 
-    expect( self.connection._transport.disconnect ).raises( Exception('fail') )
+    expect( self.connection._transport.disconnect ).raises( RuntimeError('fail') )
     expect( self.connection.logger.error ).args( "Failed to disconnect from %s", 'server', exc_info=True )
-    self.connection.disconnect()
+    assert_raises( RuntimeError, self.connection.disconnect )
 
     assert_false( self.connection._connected )
     assert_equals( None, self.connection._transport )

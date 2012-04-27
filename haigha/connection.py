@@ -190,7 +190,9 @@ class Connection(object):
         self._transport.disconnect()
       except: 
         self.logger.error("Failed to disconnect from %s", self._host, exc_info=True)
-      self._transport = None
+        raise
+      finally:
+        self._transport = None
   
   ###
   ### Transport methods

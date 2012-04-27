@@ -193,10 +193,11 @@ class Channel(object):
       except ProtocolClass.FrameUnderflow:
         return
       except:
-        self.logger.error( 
-          "Failed to dispatch %s", frame, exc_info=True )
+        # Spec says that channel should be closed if there's a framing error.
+        # Unsure if we can send close if the current exception is transport
+        # level (e.g. gevent.GreenletExit)
         self.close( 500, "Failed to dispatch %s"%(str(frame)) )
-        return
+        raise
 
   def next_frame(self):
     '''
