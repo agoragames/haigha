@@ -1,3 +1,20 @@
+master
+=====
+
+Fix message reading in basic.get
+
+Added optional open_cb kwarg to Connection constructor
+
+Added optional callback to basic.consume for notifications when broker has
+registered the consumer
+
+Moved channel state out of ChannelClass and into Channel to fix access problems
+after Channel has been cleaned up
+
+Added support for Channel open notification listeners
+
+
+
 0.4.5
 =====
 
