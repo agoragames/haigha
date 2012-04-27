@@ -74,9 +74,12 @@ class BasicClass(ProtocolClass):
     pass
 
   def consume(self, queue, consumer, consumer_tag='', no_local=False,
-        no_ack=True, exclusive=False, nowait=True, ticket=None):
+        no_ack=True, exclusive=False, nowait=True, ticket=None, cb=None):
     '''
-    start a queue consumer.
+    Start a queue consumer. If `cb` is supplied, will be called when
+    broker confirms that consumer is registered.
+    
+    Callbacks only apply if nowait=False
     '''
     if nowait and consumer_tag=='':
       consumer_tag = self._generate_consumer_tag()
@@ -91,13 +94,16 @@ class BasicClass(ProtocolClass):
 
     if not nowait:
       self.channel.add_synchronous_cb( self._recv_consume_ok )
-      self._pending_consumers.append( consumer )
+      self._pending_consumers.append( (consumer,cb) )
     else:
       self._consumer_cb[ consumer_tag ] = consumer
 
   def _recv_consume_ok(self, method_frame):
     consumer_tag = method_frame.args.read_shortstr()
-    self._consumer_cb[ consumer_tag ] = self._pending_consumers.popleft()
+    consumer, cb = self._pending_consumers.popleft()
+
+    self._consumer_cb[ consumer_tag ] = consumer
+    if cb: cb()
 
   def cancel(self, consumer_tag='', nowait=True, consumer=None, cb=None):
     '''

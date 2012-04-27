@@ -124,10 +124,10 @@ class BasicClassTest(Chai):
     assert_equals( {}, self.klass._consumer_cb )
     self.klass.consume( 'queue', 'consumer', consumer_tag='stag', no_local='nloc',
       no_ack='nack', exclusive='mine', nowait=False, ticket='train' )
-    assert_equals( deque(['consumer']), self.klass._pending_consumers )
+    assert_equals( deque([('consumer',None)]), self.klass._pending_consumers )
     assert_equals( {}, self.klass._consumer_cb )
 
-  def test_consume_with_args_including_nowait_no_ticket(self):
+  def test_consume_with_args_including_nowait_no_ticket_with_callback(self):
     w = mock()
     stub( self.klass._generate_consumer_tag )
     expect( mock(basic_class, 'Writer') ).returns( w )
@@ -140,22 +140,31 @@ class BasicClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_consume_ok )
 
-    self.klass._pending_consumers = deque(['blargh'])
+    self.klass._pending_consumers = deque([('blargh',None)])
     assert_equals( {}, self.klass._consumer_cb )
     self.klass.consume( 'queue', 'consumer', consumer_tag='stag', no_local='nloc',
-      no_ack='nack', exclusive='mine', nowait=False )
-    assert_equals( deque(['blargh','consumer']), self.klass._pending_consumers )
+      no_ack='nack', exclusive='mine', nowait=False, cb='callback' )
+    assert_equals( deque([('blargh',None),('consumer','callback')]), self.klass._pending_consumers )
     assert_equals( {}, self.klass._consumer_cb )
 
   def test_recv_consume_ok(self):
     frame = mock()
+    cb = mock()
     expect( frame.args.read_shortstr ).returns( 'ctag' )
-    self.klass._pending_consumers = deque(['consumer', 'blargh'])
+    self.klass._pending_consumers = deque([('consumer',None), ('blargh',cb)])
     
     assert_equals( {}, self.klass._consumer_cb )
     self.klass._recv_consume_ok( frame )
     assert_equals( {'ctag':'consumer'}, self.klass._consumer_cb )
-    assert_equals( deque(['blargh']), self.klass._pending_consumers )
+    assert_equals( deque([('blargh',cb)]), self.klass._pending_consumers )
+
+    # call again and assert that cb is called
+    frame2 = mock()
+    expect( frame2.args.read_shortstr ).returns( 'ctag2' )
+    expect( cb )
+    self.klass._recv_consume_ok( frame2 )
+    assert_equals( {'ctag':'consumer','ctag2':'blargh'}, self.klass._consumer_cb )
+    assert_equals( deque(), self.klass._pending_consumers )
 
   def test_cancel_default_args(self):
     w = mock()
