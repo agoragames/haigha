@@ -40,6 +40,11 @@ class ProtocolClass(object):
   def default_ticket(self):
     return 0
 
+  def allow_nowait(self):
+    '''Return True if the transport allows nowait, False otherwise.'''
+    # hack: this is a function to make testing easier
+    return not self._channel.connection.synchronous
+
   def _cleanup(self):
     '''
     "Private" call from Channel when it's shutting down so that local
@@ -57,8 +62,8 @@ class ProtocolClass(object):
     '''
     method = self.dispatch_map.get( method_frame.method_id )
     if method:
-      self.channel.clear_synchronous_cb( method )
-      method(method_frame)
+      callback = self.channel.clear_synchronous_cb( method )
+      callback(method_frame)
     else:
       raise self.InvalidMethod("no method is registered with id: %d" % method_frame.method_id)
 

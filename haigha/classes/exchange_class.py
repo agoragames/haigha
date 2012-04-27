@@ -42,6 +42,8 @@ class ExchangeClass(ProtocolClass):
     exchange - The name of the exchange to declare
     type - One of 
     """
+    nowait = nowait and self.allow_nowait()
+
     # If a callback is defined, then we have to use synchronous transactions.
     if cb: nowait = False
 
@@ -54,8 +56,8 @@ class ExchangeClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 40, 10, args) )
 
     if not nowait:
-      self.channel.add_synchronous_cb( self._recv_declare_ok )
       self._declare_cb.append( cb )
+      self.channel.add_synchronous_cb( self._recv_declare_ok )
 
   def _recv_declare_ok(self, _method_frame):
     '''
@@ -68,6 +70,8 @@ class ExchangeClass(ProtocolClass):
     '''
     Delete an exchange.
     '''
+    nowait = nowait and self.allow_nowait()
+
     # If a callback is defined, then we have to use synchronous transactions.
     if cb: nowait = False
 
@@ -78,8 +82,8 @@ class ExchangeClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 40, 20, args) )
     
     if not nowait:
-      self.channel.add_synchronous_cb( self._recv_delete_ok )
       self._delete_cb.append( cb )
+      self.channel.add_synchronous_cb( self._recv_delete_ok )
 
   def _recv_delete_ok(self, _method_frame):
     '''

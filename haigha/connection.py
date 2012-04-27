@@ -107,6 +107,9 @@ class Connection(object):
       elif transport=='gevent_pool':
         from haigha.transports.gevent_transport import GeventPoolTransport
         self._transport = GeventPoolTransport( self )
+      elif transport=='socket':
+        from haigha.transports.socket_transport import SocketTransport
+        self._transport = SocketTransport( self )
     else:
       self._transport = transport
 
@@ -149,6 +152,11 @@ class Connection(object):
   def transport(self):
     '''Get the value of the current transport.'''
     return self._transport
+
+  @property
+  def synchronous(self):
+    '''True if transport is synchronous, False otherwise.'''
+    return self.transport.synchronous
   
   def connect(self, host, port):
     '''
@@ -173,6 +181,9 @@ class Connection(object):
 
     self._transport.connect( (host,port) )
     self._transport.write( PROTOCOL_HEADER )
+
+    while self.synchronous and not self._connected:
+      self.read_frames()
   
   def disconnect(self):
     '''

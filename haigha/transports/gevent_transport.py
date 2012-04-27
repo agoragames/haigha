@@ -19,6 +19,7 @@ except ImportError:
   socket = None
   pool = None
 
+# TODO: there's a good chance that this should inherit from SocketTransport
 class GeventTransport(Transport):
   '''
   Transport using gevent backend. It relies on gevent's implementation of 
@@ -45,6 +46,9 @@ class GeventTransport(Transport):
 
   def __init__(self, *args):
     super(GeventTransport,self).__init__(*args)
+
+    # TODO: support both modes
+    self._synchronous = False
 
     self._buffer = bytearray()
     self._read_lock = Semaphore()

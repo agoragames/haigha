@@ -92,6 +92,7 @@ class BasicClassTest(Chai):
 
   def test_consume_default_args(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( self.klass._generate_consumer_tag ).returns( 'ctag' )
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( self.klass.default_ticket ).returns( w )
@@ -110,6 +111,7 @@ class BasicClassTest(Chai):
 
   def test_consume_with_args_including_nowait_and_ticket(self):
     w = mock()
+    stub( self.klass.allow_nowait )
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( 'train' ).returns( w )
     expect( w.write_shortstr ).args( 'queue' ).returns( w )
@@ -168,6 +170,7 @@ class BasicClassTest(Chai):
 
   def test_cancel_default_args(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( '' ).returns( w )
     expect( w.write_bit ).args( True )
@@ -183,6 +186,7 @@ class BasicClassTest(Chai):
 
   def test_cancel_nowait_and_consumer_tag_not_registered(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( 'ctag' ).returns( w )
     expect( w.write_bit ).args( True )
@@ -200,6 +204,7 @@ class BasicClassTest(Chai):
 
   def test_cancel_wait_without_cb(self):
     w = mock()
+    stub( self.klass.allow_nowait )
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( '' ).returns( w )
     expect( w.write_bit ).args( False )
@@ -216,6 +221,7 @@ class BasicClassTest(Chai):
 
   def test_cancel_wait_with_cb(self):
     w = mock()
+    stub( self.klass.allow_nowait )
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( '' ).returns( w )
     expect( w.write_bit ).args( False )
@@ -232,6 +238,7 @@ class BasicClassTest(Chai):
 
   def test_cancel_resolves_to_ctag_when_consumer_arg_supplied(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( 'ctag' ).returns( w )
     expect( w.write_bit ).args( True )
@@ -350,11 +357,12 @@ class BasicClassTest(Chai):
     expect( w.write_bit ).args( True )
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 70, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
-    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_get_response )
+    expect( self.klass.channel.add_synchronous_cb ).args( 
+      self.klass._recv_get_response ).returns('msg')
 
     assert_equals( deque(), self.klass._get_cb )
-    self.klass.get('queue', 'consumer')
-    assert_equals( deque(['consumer']), self.klass._get_cb )
+    assert_equals( 'msg', self.klass.get('queue') )
+    assert_equals( deque([None]), self.klass._get_cb )
 
   def test_get_with_args(self):
     w = mock()
@@ -364,21 +372,22 @@ class BasicClassTest(Chai):
     expect( w.write_bit ).args( 'ack' )
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 70, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
-    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_get_response )
+    expect( self.klass.channel.add_synchronous_cb ).args( 
+      self.klass._recv_get_response ).returns('msg')
 
     self.klass._get_cb = deque(['blargh'])
-    self.klass.get('queue', 'consumer', no_ack='ack', ticket='ticket')
+    assert_equals( 'msg', self.klass.get('queue', 'consumer', no_ack='ack', ticket='ticket') )
     assert_equals( deque(['blargh','consumer']), self.klass._get_cb )
 
   def test_recv_get_response(self):
     frame = mock()
     frame.method_id = 71
-    expect( self.klass._recv_get_ok ).args( frame )
-    self.klass._recv_get_response(frame)
+    expect( self.klass._recv_get_ok ).args( frame ).returns('msg' )
+    assert_equals( 'msg', self.klass._recv_get_response(frame) )
 
     frame.method_id = 72
-    expect( self.klass._recv_get_empty ).args( frame )
-    self.klass._recv_get_response(frame)
+    expect( self.klass._recv_get_empty ).args( frame ).returns('nada')
+    assert_equals( 'nada', self.klass._recv_get_response(frame) )
 
   def test_recv_get_ok_with_cb(self):
     cb = mock()
@@ -389,7 +398,7 @@ class BasicClassTest(Chai):
       'frame', with_consumer_tag=False, with_message_count=True ).returns( 'msg' )
     expect( cb ).args( 'msg' )
 
-    self.klass._recv_get_ok( 'frame' )
+    assert_equals( 'msg', self.klass._recv_get_ok('frame') )
     assert_equals( 1, len(self.klass._get_cb) )
     assert_false( cb in self.klass._get_cb )
 

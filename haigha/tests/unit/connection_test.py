@@ -127,7 +127,8 @@ class ConnectionTest(Chai):
     self.assertEqual( self.connection._frames_read, self.connection.frames_read )
     self.assertEqual( self.connection._frames_written, self.connection.frames_written )
 
-  def test_connect(self):
+  def test_connect_when_asynchronous_transport(self):
+    self.connection._transport.synchronous = False
     self.connection._connected = 'maybe'
     self.connection._closed = 'possibly'
     self.connection._debug = 'sure'
@@ -142,6 +143,36 @@ class ConnectionTest(Chai):
 
     self.connection.connect( 'host', 5672 )
     assert_false( self.connection._connected )
+    assert_false( self.connection._closed )
+    assert_equals( self.connection._close_info,
+      {
+      'reply_code'    : 0,
+      'reply_text'    : 'failed to connect to host:5672',
+      'class_id'      : 0,
+      'method_id'     : 0
+      } )
+    assert_equals( 'host:5672', self.connection._host )
+
+  def test_connect_when_synchronous_transport(self):
+    self.connection._transport.synchronous = True
+    self.connection._connected = 'maybe'
+    self.connection._closed = 'possibly'
+    self.connection._debug = 'sure'
+    self.connection._connect_timeout = 42
+    self.connection._sock_opts = {
+      ('f1','t1') : 5,
+      ('f2','t2') : 6
+    }
+
+    expect( self.connection._transport.connect ).args( ('host',5672) )
+    expect( self.connection._transport.write ).args( 'AMQP\x00\x00\x09\x01' )
+
+    expect( self.connection.read_frames )
+    expect( self.connection.read_frames ).side_effect(
+      lambda: setattr(self.connection,'_connected',True) )
+
+    self.connection.connect( 'host', 5672 )
+    assert_true( self.connection._connected )
     assert_false( self.connection._closed )
     assert_equals( self.connection._close_info,
       {

@@ -43,6 +43,7 @@ class ExchangeClassTest(Chai):
 
   def test_declare_default_args(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( mock(exchange_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( self.klass.default_ticket ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
@@ -58,6 +59,7 @@ class ExchangeClassTest(Chai):
 
   def test_declare_with_args(self):
     w = mock()
+    stub( self.klass.allow_nowait )
     expect( mock(exchange_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
@@ -74,6 +76,7 @@ class ExchangeClassTest(Chai):
 
   def test_declare_with_cb(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( mock(exchange_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
@@ -103,6 +106,7 @@ class ExchangeClassTest(Chai):
 
   def test_delete_default_args(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( mock(exchange_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( self.klass.default_ticket ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
@@ -116,6 +120,7 @@ class ExchangeClassTest(Chai):
 
   def test_delete_with_args(self):
     w = mock()
+    stub( self.klass.allow_nowait )
     expect( mock(exchange_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
@@ -129,6 +134,7 @@ class ExchangeClassTest(Chai):
 
   def test_delete_with_cb(self):
     w = mock()
+    expect( self.klass.allow_nowait ).returns( True )
     expect( mock(exchange_class, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )

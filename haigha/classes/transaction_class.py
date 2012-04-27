@@ -51,8 +51,8 @@ class TransactionClass(ProtocolClass):
     if not self._enabled:
       self._enabled = True
       self.send_frame( MethodFrame(self.channel_id, 90, 10) )
-      self.channel.add_synchronous_cb( self._recv_select_ok )
       self._select_cb.append(cb)
+      self.channel.add_synchronous_cb( self._recv_select_ok )
 
   def _recv_select_ok(self, _method_frame):
     cb = self._select_cb.popleft()
@@ -67,8 +67,8 @@ class TransactionClass(ProtocolClass):
     if not self.enabled: raise self.TransactionsNotEnabled()
 
     self.send_frame( MethodFrame(self.channel_id, 90, 20) )
-    self.channel.add_synchronous_cb( self._recv_commit_ok )
     self._commit_cb.append( cb )
+    self.channel.add_synchronous_cb( self._recv_commit_ok )
 
   def _recv_commit_ok(self, _method_frame):
     cb = self._commit_cb.popleft()
@@ -84,8 +84,8 @@ class TransactionClass(ProtocolClass):
     if not self.enabled: raise self.TransactionsNotEnabled()
 
     self.send_frame( MethodFrame(self.channel_id, 90, 30) )
-    self.channel.add_synchronous_cb( self._recv_rollback_ok )
     self._rollback_cb.append( cb )
+    self.channel.add_synchronous_cb( self._recv_rollback_ok )
 
   def _recv_rollback_ok(self, _method_frame):
     cb = self._rollback_cb.popleft()

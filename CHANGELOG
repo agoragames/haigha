@@ -18,6 +18,7 @@ All AMQP timestamps are in UTC
 Most exceptions will now propagate to user code, fixing problems with 
 gevent.GreenletExit and SystemExit
 
+Preliminary support for full synchronous clients
 
 
 0.4.5

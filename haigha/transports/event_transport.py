@@ -18,6 +18,10 @@ class EventTransport(Transport):
   '''
   Transport using libevent-based EventSocket.
   '''
+  
+  def __init__(self, *args):
+    super(EventTransport,self).__init__(*args)
+    self._synchronous = False
 
   ###
   ### EventSocket callbacks

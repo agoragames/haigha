@@ -10,6 +10,19 @@ from haigha.classes import *
 from haigha.frames import *
 from haigha.exceptions import *
 
+# Defined here so it's easier to test
+class SyncWrapper(object):
+  def __init__(self, cb):
+    self._cb = cb
+    self._read = True
+    self._result = None
+  def __eq__(self, other):
+    return other==self._cb or \
+      (isinstance(SyncWrapper,other) and other._cb==self._cb)
+  def __call__(self, *args, **kwargs):
+    self._read = False
+    self._result = self._cb(*args, **kwargs)
+
 class Channel(object):
   '''
   Define a channel
@@ -247,7 +260,14 @@ class Channel(object):
     '''
     Add an expectation of a callback to release a synchronous transaction.
     '''
-    self._pending_events.append( cb )
+    if self.connection.synchronous:
+      wrapper = SyncWrapper(cb)
+      self._pending_events.append( wrapper )
+      while wrapper._read:
+        self.connection.read_frames()
+      return wrapper._result
+    else:
+      self._pending_events.append( cb )
 
   def clear_synchronous_cb(self, cb):
     '''
@@ -267,6 +287,8 @@ class Channel(object):
       if ev==cb:
         self._pending_events.popleft()
         self._flush_pending_events()
+        return ev
+
       elif cb in self._pending_events:
         raise ChannelError("Expected synchronous callback %s, got %s", ev, cb)
 

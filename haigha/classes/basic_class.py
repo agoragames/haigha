@@ -81,6 +81,8 @@ class BasicClass(ProtocolClass):
     
     Callbacks only apply if nowait=False
     '''
+    nowait = nowait and self.allow_nowait()
+
     if nowait and consumer_tag=='':
       consumer_tag = self._generate_consumer_tag()
 
@@ -93,8 +95,8 @@ class BasicClass(ProtocolClass):
     self.send_frame( MethodFrame(self.channel_id, 60, 20, args) )
 
     if not nowait:
-      self.channel.add_synchronous_cb( self._recv_consume_ok )
       self._pending_consumers.append( (consumer,cb) )
+      self.channel.add_synchronous_cb( self._recv_consume_ok )
     else:
       self._consumer_cb[ consumer_tag ] = consumer
 
@@ -119,14 +121,16 @@ class BasicClass(ProtocolClass):
           consumer_tag = tag
           break
 
+    nowait = nowait and self.allow_nowait()
+
     args = Writer()
     args.write_shortstr(consumer_tag).\
       write_bit(nowait)
     self.send_frame( MethodFrame(self.channel_id, 60, 30, args) )
 
     if not nowait:
-      self.channel.add_synchronous_cb( self._recv_cancel_ok )
       self._cancel_cb.append( cb )
+      self.channel.add_synchronous_cb( self._recv_cancel_ok )
     else:
       try:
         del self._consumer_cb[consumer_tag]
@@ -185,10 +189,12 @@ class BasicClass(ProtocolClass):
     func = self._consumer_cb.get(msg.delivery_info['consumer_tag'], None)
     if func: func(msg)
 
-  def get(self, queue, consumer, no_ack=True, ticket=None):
+  def get(self, queue, consumer=None, no_ack=True, ticket=None):
     '''
-    Ask to fetch a single message from a queue.  The consumer will be called
-    with either a Message argument, or None if there is no message in queue.
+    Ask to fetch a single message from a queue.  If a consumer is supplied,
+    the consumer will be called with either a Message argument, or None if 
+    there is no message in queue. If a synchronous transport, Message or
+    None is returned.
     '''
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
@@ -197,7 +203,7 @@ class BasicClass(ProtocolClass):
 
     self._get_cb.append( consumer )
     self.send_frame( MethodFrame(self.channel_id, 60, 70, args) )
-    self.channel.add_synchronous_cb( self._recv_get_response )
+    return self.channel.add_synchronous_cb( self._recv_get_response )
 
   def _recv_get_response(self, method_frame):
     '''
@@ -207,15 +213,16 @@ class BasicClass(ProtocolClass):
     of get is not recommended anyway.
     '''
     if method_frame.method_id==71:
-      self._recv_get_ok( method_frame )
+      return self._recv_get_ok( method_frame )
     elif method_frame.method_id==72:
-      self._recv_get_empty( method_frame )
+      return self._recv_get_empty( method_frame )
 
   def _recv_get_ok(self, method_frame):
     msg = self._read_msg( method_frame, 
       with_consumer_tag=False, with_message_count=True )
     cb = self._get_cb.popleft()
     if cb: cb( msg )
+    return msg
 
   def _recv_get_empty(self, _method_frame):
     # On empty, call back with None as the argument so that user code knows

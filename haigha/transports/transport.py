@@ -16,6 +16,12 @@ class Transport(object):
     self._connection = connection
 
   @property
+  def synchronous(self):
+    '''Return True if this is a synchronous transport, False otherwise.'''
+    # Note that subclasses must define this.
+    return self._synchronous
+
+  @property
   def connection(self):
     return self._connection
 
