@@ -58,7 +58,7 @@ class Connection(object):
     self._sock_opts = kwargs.get('sock_opts')
     self._sock = None
     self._heartbeat = kwargs.get('heartbeat')
-    self._reconnect_cb = kwargs.get('reconnect_cb')
+    self._open_cb = kwargs.get('open_cb')
     self._close_cb = kwargs.get('close_cb')
 
     self._login_method = kwargs.get('login_method', 'AMQPLAIN')
@@ -279,15 +279,21 @@ class Connection(object):
     }
     self._channels[0].close()
 
+  def _callback_open(self):
+    '''
+    Callback to any open handler that was provided in the ctor. Handler is
+    responsible for exceptions.
+    '''
+    if self._open_cb:
+      self._open_cb()
+
   def _callback_close(self):
     '''
-    Callback to any close handler that was provided in the ctor. Will log all
-    exceptions but reraise SystemExit.
+    Callback to any close handler that was provided in the ctor. Handler is
+    responsible for exceptions.
     '''
     if self._close_cb:
-      try: self._close_cb()
-      except SystemExit: raise
-      except: self.logger.error( 'error calling close callback' )
+      self._close_cb()
 
   def read_frames(self):
     '''
@@ -491,6 +497,7 @@ class ConnectionChannel(Channel):
   def _recv_open_ok(self, method_frame):
     self.connection._connected = True
     self.connection._flush_buffered_frames()
+    self.connection._callback_open()
 
   def _send_close(self):
     args = Writer()

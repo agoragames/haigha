@@ -31,7 +31,7 @@ class ConnectionTest(Chai):
     self.connection._sock_opts = None
     self.connection._sock = None # mock anything?
     self.connection._heartbeat = None
-    self.connection._reconnect_cb = self.mock()
+    self.connection._open_cb = self.mock()
     self.connection._close_cb = self.mock()
     self.connection._login_method = 'AMQPLAIN'
     self.connection._locale = 'en_US'
@@ -83,7 +83,7 @@ class ConnectionTest(Chai):
     self.assertEqual( None, conn._sock_opts )
     self.assertEqual( None, conn._sock )
     self.assertEqual( None, conn._heartbeat )
-    self.assertEqual( None, conn._reconnect_cb )
+    self.assertEqual( None, conn._open_cb )
     self.assertEqual( None, conn._close_cb )
     self.assertEqual( 'AMQPLAIN', conn._login_method )
     self.assertEqual( 'en_US', conn._locale )
@@ -260,6 +260,20 @@ class ConnectionTest(Chai):
     assert_equals( {'reply_code':1, 'reply_text':'foo', 'class_id':2, 'method_id':3}, 
       self.connection._close_info )
 
+  def test_callback_open_when_no_cb(self):
+    self.connection._open_cb = None
+    self.connection._callback_open()
+
+  def test_callback_open_when_user_cb(self):
+    self.connection._open_cb = mock()
+    expect( self.connection._open_cb )
+    self.connection._callback_open()
+
+  def test_callback_open_raises_when_user_cb_does(self):
+    self.connection._open_cb = mock()
+    expect( self.connection._open_cb ).raises( SystemExit() )
+    assert_raises( SystemExit, self.connection._callback_open )
+
   def test_callback_close_when_no_cb(self):
     self.connection._close_cb = None
     self.connection._callback_close()
@@ -269,16 +283,10 @@ class ConnectionTest(Chai):
     expect( self.connection._close_cb )
     self.connection._callback_close()
 
-  def test_callback_close_raises_sysexit_when_user_cb_does(self):
+  def test_callback_close_raises_when_user_cb_does(self):
     self.connection._close_cb = mock()
     expect( self.connection._close_cb ).raises( SystemExit() )
     assert_raises( SystemExit, self.connection._callback_close )
-
-  def test_callback_close_logs_when_user_cb_fails(self):
-    self.connection._close_cb = mock()
-    expect( self.connection._close_cb ).raises( 'fail!' )
-    expect( self.connection.logger.error ).args( str )
-    self.connection._callback_close()
 
   def test_read_frames_when_no_transport(self):
     self.connection._transport = None
@@ -514,3 +522,173 @@ class ConnectionChannelTest(Chai):
 
     self.ch.send_heartbeat()
     assert_equals( 4199, self.ch._last_heartbeat_send )
+
+  def test_recv_start(self):
+    expect( self.ch._send_start_ok )
+    self.ch.connection._closed = 'maybe'
+
+    self.ch._recv_start('frame')
+    assert_false( self.ch.connection._closed )
+
+  def test_send_start_ok(self):
+    self.ch.connection._properties = 'props'
+    self.ch.connection._login_method = 'please'
+    self.ch.connection._login_response = 'thanks'
+    self.ch.connection._locale = 'home'
+    
+    with expect(mock(connection,'Writer')).returns(mock()) as writer:
+      expect( writer.write_table ).args( 'props' )
+      expect( writer.write_shortstr ).args( 'please' )
+      expect( writer.write_longstr ).args( 'thanks' )
+      expect( writer.write_shortstr ).args( 'home' )
+
+      expect(mock(connection,'MethodFrame')).args(0,10,11,writer).returns('frame')
+      expect( self.ch.send_frame ).args( 'frame' )
+
+    self.ch._send_start_ok()
+
+  def test_recv_tune_when_no_broker_max_and_defined_heartbeat(self):
+    self.ch.connection._channel_max = 42
+    self.ch.connection._frame_max = 43
+    self.ch.connection._heartbeat = 8
+
+    frame = mock()
+    expect( frame.args.read_short ).returns(0)
+    expect( frame.args.read_long ).returns(0)
+    
+    expect( self.ch._send_tune_ok )
+    expect( self.ch._send_open )
+    expect( self.ch.send_heartbeat )
+
+    self.ch._recv_tune(frame)
+    assert_equals( 42, self.ch.connection._channel_max )
+    assert_equals( 43, self.ch.connection._frame_max )
+    assert_equals( 8, self.ch.connection._heartbeat )
+
+  def test_recv_tune_when_broker_max_and_undefined_heartbeat(self):
+    self.ch.connection._channel_max = 42
+    self.ch.connection._frame_max = 43
+    self.ch.connection._heartbeat = None
+
+    frame = mock()
+    expect( frame.args.read_short ).returns(500)
+    expect( frame.args.read_long ).returns(501)
+    expect( frame.args.read_short ).returns(7)
+    
+    expect( self.ch._send_tune_ok )
+    expect( self.ch._send_open )
+    expect( self.ch.send_heartbeat )
+
+    self.ch._recv_tune(frame)
+    assert_equals( 500, self.ch.connection._channel_max )
+    assert_equals( 501, self.ch.connection._frame_max )
+    assert_equals( 7, self.ch.connection._heartbeat )
+
+  def test_send_tune_ok_when_heartbeat(self):
+    self.ch.connection._channel_max = 42
+    self.ch.connection._frame_max = 43
+    self.ch.connection._heartbeat = 8
+    
+    with expect(mock(connection,'Writer')).returns(mock()) as writer:
+      expect( writer.write_short ).args( 42 )
+      expect( writer.write_long ).args( 43 )
+      expect( writer.write_short ).args( 8 )
+
+      expect(mock(connection,'MethodFrame')).args(0,10,31,writer).returns('frame')
+      expect( self.ch.send_frame ).args( 'frame' )
+
+    self.ch._send_tune_ok()
+
+  def test_send_tune_ok_when_no_heartbeat(self):
+    self.ch.connection._channel_max = 42
+    self.ch.connection._frame_max = 43
+    self.ch.connection._heartbeat = None
+    
+    with expect(mock(connection,'Writer')).returns(mock()) as writer:
+      expect( writer.write_short ).args( 42 )
+      expect( writer.write_long ).args( 43 )
+      expect( writer.write_short ).args( 0 )
+
+      expect(mock(connection,'MethodFrame')).args(0,10,31,writer).returns('frame')
+      expect( self.ch.send_frame ).args( 'frame' )
+
+    self.ch._send_tune_ok()
+
+  def test_recv_secure(self):
+    expect( self.ch._send_open )
+    self.ch._recv_secure('frame')
+
+  def test_send_open(self):
+    self.connection._vhost = '/foo'
+    
+    with expect(mock(connection,'Writer')).returns(mock()) as writer:
+      expect( writer.write_shortstr ).args( '/foo' )
+      expect( writer.write_shortstr ).args( '' )
+      expect( writer.write_bit ).args( True )
+
+      expect(mock(connection,'MethodFrame')).args(0,10,40,writer).returns('frame')
+      expect( self.ch.send_frame ).args( 'frame' )
+
+    self.ch._send_open()
+
+  def test_recv_open_ok(self):
+    self.ch.connection._connected = False
+    expect( self.ch.connection._flush_buffered_frames )
+    expect( self.ch.connection._callback_open )
+
+    self.ch._recv_open_ok('frame')
+    assert_true( self.ch.connection._connected )
+
+  def test_send_close(self):
+    self.ch.connection._close_info = {
+      'reply_code':42,
+      'reply_text':'wrong answer',
+      'class_id':4,
+      'method_id':20,
+    }
+    
+    with expect(mock(connection,'Writer')).returns(mock()) as writer:
+      expect( writer.write_short ).args( 42 )
+      expect( writer.write_shortstr ).args( 'wrong answer' )
+      expect( writer.write_short ).args( 4 )
+      expect( writer.write_short ).args( 20 )
+
+      expect(mock(connection,'MethodFrame')).args(0,10,50,writer).returns('frame')
+      expect( self.ch.send_frame ).args( 'frame' )
+
+    self.ch._send_close()
+
+  def test_recv_close(self):
+    self.ch.connection._closed = False
+
+    frame = mock()
+    expect( frame.args.read_short ).returns( 42 )
+    expect( frame.args.read_shortstr ).returns( 'wrong answer' )
+    expect( frame.args.read_short ).returns( 4 )
+    expect( frame.args.read_short ).returns( 20 )
+
+    expect( self.ch._send_close_ok )
+    expect( self.ch.connection.disconnect )
+    expect( self.ch.connection._callback_close )
+
+    self.ch._recv_close( frame )
+    assert_equals( self.ch.connection._close_info, {
+      'reply_code':42,
+      'reply_text':'wrong answer',
+      'class_id':4,
+      'method_id':20,
+    })
+    assert_true( self.ch.connection._closed )
+
+  def test_send_close_ok(self):
+    expect(mock(connection,'MethodFrame')).args(0,10,51).returns('frame')
+    expect( self.ch.send_frame ).args( 'frame' )
+    self.ch._send_close_ok()
+
+  def test_recv_close_ok(self):
+    self.ch.connection._closed = False
+    expect( self.ch.connection.disconnect )
+    expect( self.ch.connection._callback_close )
+
+    self.ch._recv_close_ok('frame')
+    assert_true( self.ch.connection._closed )
