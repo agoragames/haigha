@@ -3,6 +3,9 @@ master
 
 GeventTransport subclasses SocketTransport
 
+In all cases, if a method has 'nowait' argument and an optional callback is
+supplied, the method will execute as 'nowait=False', i.e. synchronously
+
 
 0.5.0
 =====

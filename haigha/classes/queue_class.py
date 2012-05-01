@@ -53,10 +53,7 @@ class QueueClass(ProtocolClass):
     cb - An optional method which will be called with (queue_name, msg_count, consumer_count)
          if nowait=False
     '''
-    nowait = nowait and self.allow_nowait()
-
-    # If a callback is defined, then we have to use synchronous transactions.
-    if cb: nowait = False
+    nowait = nowait and self.allow_nowait() and not cb
 
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
@@ -79,14 +76,12 @@ class QueueClass(ProtocolClass):
       cb( queue, message_count, consumer_count )
     return message_count, consumer_count
     
-  def bind(self, queue, exchange, routing_key='', nowait=True, arguments={}, ticket=None, cb=None):
+  def bind(self, queue, exchange, routing_key='', nowait=True, arguments={}, 
+      ticket=None, cb=None):
     '''
     bind to a queue.
     '''
-    nowait = nowait and self.allow_nowait()
-
-    # If a callback is defined, then we have to use synchronous transactions.
-    if cb: nowait = False
+    nowait = nowait and self.allow_nowait() and not cb
 
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
@@ -130,10 +125,7 @@ class QueueClass(ProtocolClass):
     '''
     Purge all messages in a queue.
     '''
-    nowait = nowait and self.allow_nowait()
-
-    # If a callback is defined, then we have to use synchronous transactions.
-    if cb: nowait = False
+    nowait = nowait and self.allow_nowait() and not cb
     
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
@@ -151,14 +143,12 @@ class QueueClass(ProtocolClass):
     if cb: cb( message_count )
     return message_count
 
-  def delete(self, queue, if_unused=False, if_empty=False, nowait=True, ticket=None, cb=None):
+  def delete(self, queue, if_unused=False, if_empty=False, nowait=True, 
+    ticket=None, cb=None):
     '''
     queue delete.
     '''
-    nowait = nowait and self.allow_nowait()
-
-    # If a callback is defined, then we have to use synchronous transactions.
-    if cb: nowait = False
+    nowait = nowait and self.allow_nowait() and not cb
 
     args = Writer()
     args.write_short(ticket or self.default_ticket).\

@@ -42,10 +42,7 @@ class ExchangeClass(ProtocolClass):
     exchange - The name of the exchange to declare
     type - One of 
     """
-    nowait = nowait and self.allow_nowait()
-
-    # If a callback is defined, then we have to use synchronous transactions.
-    if cb: nowait = False
+    nowait = nowait and self.allow_nowait() and not cb
 
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
@@ -70,10 +67,7 @@ class ExchangeClass(ProtocolClass):
     '''
     Delete an exchange.
     '''
-    nowait = nowait and self.allow_nowait()
-
-    # If a callback is defined, then we have to use synchronous transactions.
-    if cb: nowait = False
+    nowait = nowait and self.allow_nowait() and not cb
 
     args = Writer()
     args.write_short(ticket or self.default_ticket).\

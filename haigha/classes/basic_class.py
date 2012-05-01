@@ -78,10 +78,8 @@ class BasicClass(ProtocolClass):
     '''
     Start a queue consumer. If `cb` is supplied, will be called when
     broker confirms that consumer is registered.
-    
-    Callbacks only apply if nowait=False
     '''
-    nowait = nowait and self.allow_nowait()
+    nowait = nowait and self.allow_nowait() and not cb
 
     if nowait and consumer_tag=='':
       consumer_tag = self._generate_consumer_tag()
@@ -112,8 +110,6 @@ class BasicClass(ProtocolClass):
     Cancel a consumer. Can choose to delete based on a consumer tag or the
     function which is consuming.  If deleting by function, take care to only
     use a consumer once per channel.
-
-    Callbacks only apply if nowait=False
     '''
     if consumer:
       for (tag,func) in self._consumer_cb.iteritems():
@@ -121,7 +117,7 @@ class BasicClass(ProtocolClass):
           consumer_tag = tag
           break
 
-    nowait = nowait and self.allow_nowait()
+    nowait = nowait and self.allow_nowait() and not cb
 
     args = Writer()
     args.write_shortstr(consumer_tag).\
