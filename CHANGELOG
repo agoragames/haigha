@@ -1,3 +1,9 @@
+master
+======
+
+GeventTransport subclasses SocketTransport
+
+
 0.5.0
 =====
 
