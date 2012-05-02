@@ -31,6 +31,10 @@ class TransactionClass(ProtocolClass):
     self._rollback_cb = deque()
 
   @property
+  def name(self):
+    return 'tx'
+
+  @property
   def enabled(self):
     '''Get whether transactions have been enabled.'''
     return self._enabled

@@ -40,6 +40,11 @@ class ProtocolClass(object):
   def default_ticket(self):
     return 0
 
+  @property
+  def name(self):
+    '''The name given this in the protocol, i.e. 'basic', 'tx', etc'''
+    raise NotImplementedError('must provide a name for %s'%(self))
+
   def allow_nowait(self):
     '''Return True if the transport allows nowait, False otherwise.'''
     # hack: this is a function to make testing easier

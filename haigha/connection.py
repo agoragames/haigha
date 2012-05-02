@@ -6,6 +6,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from haigha.channel import Channel
 from haigha.frames import *
+from haigha.classes import *
 from haigha.writer import Writer
 from haigha.reader import Reader
 from haigha.transports import Transport
@@ -77,9 +78,18 @@ class Connection(object):
       'class_id'      : 0,
       'method_id'     : 0
     }
+
+    # Not sure what's better here, setdefaults or require the caller to pass
+    # the whole thing in.
+    self._class_map = kwargs.get('class_map', {}).copy()
+    self._class_map.setdefault(20, ChannelClass)
+    self._class_map.setdefault(40, ExchangeClass)
+    self._class_map.setdefault(50, QueueClass)
+    self._class_map.setdefault(60, BasicClass)
+    self._class_map.setdefault(90, TransactionClass)
     
     self._channels = {
-      0 : ConnectionChannel(self, 0)
+      0 : ConnectionChannel(self, 0, {})
     } 
 
     # Login response seems a total hack of protocol 
@@ -146,7 +156,7 @@ class Connection(object):
   def close_info(self):
     '''Return dict with information on why this connection is closed.  Will
     return None if the connections is open.'''
-    return self._close_info if self._closed else None
+    return self._close_info if (self._closed or not self._connected) else None
 
   @property
   def transport(self):
@@ -265,7 +275,7 @@ class Connection(object):
 
     # Call open() here so that ConnectionChannel doesn't have it called.  Could
     # also solve this other ways, but it's a HACK regardless.
-    rval = Channel(self, channel_id)
+    rval = Channel(self, channel_id, self._class_map)
     self._channels[ channel_id ] = rval
     rval.add_close_listener( self._channel_closed )
     rval.open()

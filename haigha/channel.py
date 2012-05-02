@@ -6,7 +6,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from collections import deque
 
-from haigha.classes import *
+from haigha.classes import ProtocolClass
 from haigha.frames import *
 from haigha.exceptions import *
 
@@ -32,25 +32,21 @@ class Channel(object):
   class InvalidMethod(ChannelError): '''The method frame referenced an invalid method.  Non-fatal.'''
   class Inactive(ChannelError): '''Tried to send a content frame while the channel was inactive. Non-fatal.'''
 
-  def __init__(self, connection, channel_id):
-    '''Initialize with a handle to the connection and an id.'''
+  def __init__(self, connection, channel_id, class_map):
+    '''
+    Initialize with a handle to the connection and an id. Caller must
+    supply a mapping of {class_id:ProtocolClass} which defines what
+    classes and methods this channel will support.
+    '''
     self._connection = connection
     self._channel_id = channel_id
+
+    self._class_map = {}
+    for _id,_class in class_map.iteritems():
+      impl = _class(self)
+      setattr(self, impl.name, impl)
+      self._class_map[ _id ] = impl
     
-    self.channel = ChannelClass( self )
-    self.exchange = ExchangeClass( self )
-    self.queue = QueueClass( self )
-    self.basic = BasicClass( self )
-    self.tx = TransactionClass( self )
-
-    self._class_map = {
-      20 : self.channel,
-      40 : self.exchange,
-      50 : self.queue,
-      60 : self.basic,
-      90 : self.tx,
-    }
-
     # Out-bound mix of pending frames and synchronous callbacks
     self._pending_events = deque()
 
@@ -291,6 +287,8 @@ class Channel(object):
 
       elif cb in self._pending_events:
         raise ChannelError("Expected synchronous callback %s, got %s", ev, cb)
+    # Return the passed-in callback by default
+    return cb
 
   def _flush_pending_events(self):
     '''
@@ -321,11 +319,7 @@ class Channel(object):
       # clear out other references for faster cleanup
       for protocol_class in self._class_map.values():
         protocol_class._cleanup()
+        delattr(self, protocol_class.name)
       self._connection = None
-      self.channel = None
-      self.exchange = None
-      self.queue = None
-      self.basic = None
-      self.tx = None
       self._class_map = None
       self._close_listeners = set()

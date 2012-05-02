@@ -36,6 +36,10 @@ class BasicClass(ProtocolClass):
     self._recover_cb = deque()
     self._cancel_cb = deque()
 
+  @property
+  def name(self):
+    return 'basic'
+
   def _cleanup(self):
     '''
     Cleanup all the local data.

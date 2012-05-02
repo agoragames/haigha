@@ -24,6 +24,10 @@ class ChannelClass(ProtocolClass):
     }
     self._flow_control_cb = None
 
+  @property
+  def name(self):
+    return 'channel'
+
   def set_flow_cb(self, cb):
     '''
     Set a callback that will be called when the state of flow control has changed.
@@ -107,11 +111,12 @@ class ChannelClass(ProtocolClass):
       'method_id'     : method_id
     }
 
-    # exception likely due to race condition as connection is closing
+    # exceptions here likely due to race condition as connection is closing
+    # cap the reply_text we send because it may be arbitrarily long
     try:
       args = Writer()
       args.write_short( reply_code )
-      args.write_shortstr( reply_text )
+      args.write_shortstr( reply_text[:255] )
       args.write_short( class_id )
       args.write_short( method_id )
       self.send_frame( MethodFrame(self.channel_id, 20, 40, args) )

@@ -11,6 +11,7 @@ from haigha import connection, VERSION
 from haigha.connection import Connection, ConnectionChannel
 from haigha.channel import Channel
 from haigha.frames import *
+from haigha.classes import *
 
 from haigha.transports import event_transport
 from haigha.transports import gevent_transport
@@ -48,6 +49,7 @@ class ConnectionTest(Chai):
       'class_id'      : 0,
       'method_id'     : 0
     }
+    self.connection._class_map = {}
     self.connection._channels = {
       0 : self.mock()
     }
@@ -66,7 +68,7 @@ class ConnectionTest(Chai):
     strategy = mock()
     mock( connection, 'ConnectionChannel' )
 
-    expect(connection.ConnectionChannel).args( conn, 0 ).returns( 'connection_channel' )
+    expect(connection.ConnectionChannel).args( conn, 0, {} ).returns( 'connection_channel' )
     expect(gevent_transport.GeventTransport).args( conn ).returns( 'GeventTransport' )
     expect(conn.connect).args( 'localhost', 5672 )
 
@@ -100,6 +102,13 @@ class ConnectionTest(Chai):
       'class_id'      : 0,
       'method_id'     : 0
     } )
+    assert_equals( {
+      20: ChannelClass,
+      40: ExchangeClass,
+      50: QueueClass,
+      60: BasicClass,
+      90: TransactionClass
+    }, conn._class_map )
     self.assertEqual( {0:'connection_channel'}, conn._channels )
     self.assertEqual( '\x05LOGINS\x00\x00\x00\x05guest\x08PASSWORDS\x00\x00\x00\x05guest', conn._login_response )
     self.assertEqual( 0, conn._channel_counter )
@@ -113,7 +122,7 @@ class ConnectionTest(Chai):
     strategy = mock()
     mock( connection, 'ConnectionChannel' )
 
-    expect(connection.ConnectionChannel).args( conn, 0 ).returns( 'connection_channel' )
+    expect(connection.ConnectionChannel).args( conn, 0, {} ).returns( 'connection_channel' )
     expect(event_transport.EventTransport).args( conn ).returns( 'EventTransport' )
     expect(conn.connect).args( 'localhost', 5672 )
 
@@ -231,7 +240,8 @@ class ConnectionTest(Chai):
     ch = mock()
     expect( self.connection._next_channel_id ).returns( 1 )
     mock( connection, 'Channel' )
-    expect( connection.Channel ).args( self.connection, 1).returns( ch )
+    expect( connection.Channel ).args(
+      self.connection, 1, self.connection._class_map).returns( ch )
     expect( ch.add_close_listener ).args( self.connection._channel_closed )
     expect( ch.open )
 
@@ -247,7 +257,8 @@ class ConnectionTest(Chai):
     expect( self.connection._next_channel_id ).returns( 2 )
     expect( self.connection._next_channel_id ).returns( 3 )
     mock( connection, 'Channel' )
-    expect( connection.Channel ).args( self.connection, 3 ).returns( ch )
+    expect( connection.Channel ).args(
+      self.connection, 3, self.connection._class_map ).returns( ch )
     expect( ch.add_close_listener ).args( self.connection._channel_closed )
     expect( ch.open )
 
@@ -444,7 +455,7 @@ class ConnectionChannelTest(Chai):
   def setUp(self):
     super(ConnectionChannelTest,self).setUp()
     self.connection = mock()
-    self.ch = ConnectionChannel(self.connection, 0)
+    self.ch = ConnectionChannel(self.connection, 0, {})
 
   def test_init(self):
     mock( connection, 'super' )

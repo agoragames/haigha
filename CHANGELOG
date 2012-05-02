@@ -6,6 +6,16 @@ GeventTransport subclasses SocketTransport
 In all cases, if a method has 'nowait' argument and an optional callback is
 supplied, the method will execute as 'nowait=False', i.e. synchronously
 
+Connection supplies Channels with the protocol mapping
+
+Connection close_info is available if the connection is closed or disconnected
+
+The reply_text in Channel.close is truncated to 255 characters when sent to
+the broker
+
+Fixed bug in Channel.clear_synchronous_cb which needs to return the argument
+if no matching callback was found. This fixes a bug in ProtocolClass.dispatch.
+
 
 0.5.0
 =====

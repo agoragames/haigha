@@ -25,6 +25,10 @@ class ExchangeClass(ProtocolClass):
     self._declare_cb = deque()
     self._delete_cb = deque()
 
+  @property
+  def name(self):
+    return 'exchange'
+
   def _cleanup(self):
     '''
     Cleanup local data.

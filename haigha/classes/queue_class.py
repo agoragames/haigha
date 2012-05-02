@@ -30,6 +30,10 @@ class QueueClass(ProtocolClass):
     self._unbind_cb = deque()
     self._delete_cb = deque()
     self._purge_cb = deque()
+
+  @property
+  def name(self):
+    return 'queue'
   
   def _cleanup(self):
     '''
