@@ -37,9 +37,8 @@ class ExchangeClass(ProtocolClass):
     self._delete_cb = None
     super(ExchangeClass,self)._cleanup()
 
-  def declare(self, exchange, type, passive=False, durable=False,\
-      auto_delete=True, internal=False, nowait=True, arguments=None, \
-      ticket=None, cb=None):
+  def declare(self, exchange, type, passive=False, durable=False,
+      nowait=True, arguments=None, ticket=None, cb=None):
     """
     Declare the exchange.
 
@@ -52,7 +51,7 @@ class ExchangeClass(ProtocolClass):
     args.write_short(ticket or self.default_ticket).\
       write_shortstr(exchange).\
       write_shortstr(type).\
-      write_bits(passive, durable, auto_delete, internal, nowait).\
+      write_bits(passive, durable, False, False, nowait).\
       write_table(arguments or {})
     self.send_frame( MethodFrame(self.channel_id, 40, 10, args) )
 
