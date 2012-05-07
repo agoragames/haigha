@@ -161,6 +161,21 @@ class ChannelClassTest(Chai):
 
     self.klass.close()
 
+  def test_close_when_channel_reference_cleared_in_recv_close_ok(self):
+    writer = mock()
+    expect( mock(channel_class, 'Writer') ).returns( writer )
+    expect( writer.write_short ).args( 'rcode' )
+    expect( writer.write_shortstr ).args( 'reason' )
+    expect( writer.write_short ).args( 'cid' )
+    expect( writer.write_short ).args( 'mid' )
+    expect( mock(channel_class, 'MethodFrame') ).args(42, 20, 40, writer).returns( 'frame' )
+    expect( self.klass.send_frame ).args( 'frame' )
+    expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_close_ok ).side_effect(
+      setattr(self.klass, '_channel', None) )
+
+    # assert nothing raised
+    self.klass.close('rcode', 'reason', 'cid', 'mid')
+
   def test_close_when_error_sending_frame(self):
     self.klass.channel._closed = False
     writer = mock()

@@ -102,7 +102,7 @@ class ChannelClass(ProtocolClass):
     occurred.  If in the event of an exception, the channel will be marked
     as immediately closed.  If channel is already closed, call is ignored.
     '''
-    if self.channel.closed: return
+    if self.channel._closed: return
 
     self.channel._close_info = {
       'reply_code'    : reply_code,
@@ -124,7 +124,11 @@ class ChannelClass(ProtocolClass):
       self.channel.add_synchronous_cb( self._recv_close_ok )
     finally:
       # Immediately set the closed flag so that no more frames can be sent
-      self.channel._closed = True
+      # NOTE: in synchronous mode, by the time this is called we will have
+      # already run self.channel._closed_cb and so the channel reference is
+      # gone.
+      if self.channel:
+        self.channel._closed = True
 
   def _recv_close(self, method_frame):
     '''

@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+import sys, os
+sys.path.append(os.path.abspath("."))
+sys.path.append(os.path.abspath(".."))
+
+import logging
+import random
+import socket
+from optparse import OptionParser
+
+from haigha.connections import RabbitConnection
+from haigha.message import Message
+
+parser = OptionParser(
+  usage='Usage: synchronous_test [options]'
+)
+parser.add_option('--user', default='guest', type='string')
+parser.add_option('--pass', default='guest', dest='password', type='string')
+parser.add_option('--vhost', default='/', type='string')
+parser.add_option('--host', default='localhost', type='string')
+parser.add_option('--debug', default=0, action='count')
+
+(options,args) = parser.parse_args()
+
+debug = options.debug
+level = logging.DEBUG if debug else logging.INFO
+
+# Setup logging
+logging.basicConfig(level=level, format="[%(levelname)s %(asctime)s] %(message)s" )
+logger = logging.getLogger('haigha')
+
+sock_opts = {
+  (socket.IPPROTO_TCP, socket.TCP_NODELAY) : 1,
+}
+connection = RabbitConnection(logger=logger, debug=debug, 
+  user=options.user, password=options.password, 
+  vhost=options.vhost, host=options.host, 
+  heartbeat=None,
+  sock_opts=sock_opts,
+  transport='socket')
+
+ch = connection.channel()
+
+def ack(mid):
+  print 'ack message ', mid
+def nack(mid):
+  print 'nack message ', mid
+
+print 'Declaring exchange "foo"'
+ch.exchange.declare('foo', 'direct')
+
+print 'Declaring internal exchange "fooint"'
+ch.exchange.declare('fooint', 'direct', internal=True)
+
+print 'Binding "fooint" to "foo" on route "route"'
+ch.exchange.bind('fooint', 'foo', 'route')
+
+print 'Binding queue "bar" to exchange "fooint" on route "route"'
+ch.queue.declare('bar')
+ch.queue.bind('bar', 'fooint', 'route')
+
+print 'Enabling publisher confirmations'
+ch.confirm.select()
+ch.basic.set_ack_listener( ack )
+ch.basic.set_nack_listener( nack )
+
+
+print 'Publishing to exchange "foo" on route "route"'
+print 'Published message', ch.basic.publish(Message('hello world'), 'foo', 'route')
+
+# In the process of GETting, confirm comes in, so make it print cleanly
+msg = ch.basic.get('bar')
+print 'GET ', msg
+
+print 'Publishing to exchange "foo" on route "nullroute"'
+print 'Published message', ch.basic.publish(Message('hello world'), 'foo', 'nullroute')
+
+ch.close()
+connection.close()

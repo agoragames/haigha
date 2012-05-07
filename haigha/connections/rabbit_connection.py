@@ -41,9 +41,10 @@ class RabbitExchangeClass(ExchangeClass):
     self._bind_cb = deque()
     self._unbind_cb = deque()
 
-  # I hate the code copying here
+  # I hate the code copying here. Probably a better solution, like
+  # functools.
   def declare(self, exchange, type, passive=False, durable=False,
-      auto_delete=True, internal=False, nowait=True, internal=False,
+      auto_delete=True, internal=False, nowait=True,
       arguments=None, ticket=None, cb=None):
     """
     Declare the exchange.
@@ -127,14 +128,57 @@ class RabbitBasicClass(BasicClass):
 
     self._bind_cb = deque()
     self._unbind_cb = deque()
+    
+    self._ack_listener = None
+    self._nack_listener = None
 
-  # TODO: deal with ack, nack and publisher confirms
+    self._msg_id = 0
+    self._last_ack_id = 0
+
+  def set_ack_listener(self, cb):
+    '''
+    Set a callback for ack listening, to be used when the channel is
+    in publisher confirm mode. Will be called with a single integer
+    argument which is the id of the message as returned from publish().
+
+    cb(message_id)
+    '''
+    self._ack_listener = cb
+
+  def set_nack_listener(self, cb):
+    '''
+    Set a callbnack for nack listening, to be used when the channel is
+    in publisher confirm mode. Will be called with a single integer
+    argument which is the id of the message as returned from publish().
+
+    cb(message_id)
+    '''
+    self._nack_listener = cb
+
+  # Probably a better solution here, like functools
+  def publish(self, *args, **kwargs):
+    '''
+    Publish a message. Will return the id of the message if publisher 
+    confirmations are enabled, else will return 0.
+    '''
+    if self.channel.confirm._enabled:
+      self._msg_id += 1
+    super(RabbitBasicClass,self).publish(*args, **kwargs)
+    return self._msg_id
 
   def _recv_ack(self, method_frame):
     '''Receive an ack from the broker.'''
-    delivery_tag = method_frame.args.read_longlong    
+    delivery_tag = method_frame.args.read_longlong()
     multiple = method_frame.args.read_bit()
-    # TODO: clear some tracker of messages
+    
+    if self._ack_listener:
+      if multiple:
+        while self._last_ack_id < delivery_tag:
+          self._last_ack_id += 1
+          self._ack_listener(self._last_ack_id)
+      else:
+        self._last_ack_id = delivery_tag
+        self._ack_listener(self._last_ack_id)
 
   def nack(self, delivery_tag, multiple=False, requeue=False):
     '''Send a nack to the broker.'''
@@ -146,9 +190,17 @@ class RabbitBasicClass(BasicClass):
 
   def _recv_nack(self, method_frame):
     '''Receive a nack from the broker.'''
-    delivery_tag = method_frame.args.read_longlong    
+    delivery_tag = method_frame.args.read_longlong()
     multiple, requeue = method_frame.args.read_bits(2)
-    # TODO: call back to user code with messages that were nackered
+    
+    if self._nack_listener:
+      if multiple:
+        while self._last_ack_id < delivery_tag:
+          self._last_ack_id += 1
+          self._nack_listener(self._last_ack_id)
+      else:
+        self._last_ack_id = delivery_tag
+        self._nack_listener(self._last_ack_id)
 
 class RabbitConfirmClass(ProtocolClass):
   '''
@@ -176,6 +228,8 @@ class RabbitConfirmClass(ProtocolClass):
 
     if not self._enabled:
       self._enabled = True
+      self.channel.basic._msg_id = 0
+      self.channel.basic._last_ack_id = 0
       args = Writer()
       args.write_bit(nowait)
 

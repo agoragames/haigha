@@ -41,7 +41,14 @@ connection = Connection(logger=logging, debug=debug,
   sock_opts=sock_opts,
   transport='socket')
 
-hello = '''Welcome to haigha console.'''
+hello = '''Welcome to haigha console.
+
+`connection` - The established connection to %s:%s
+`Message` - The Message type
+
+Usage: Create a channel by calling `connection.channel` and then use that
+channel to interact with the broker.
+'''%(options.host, options.vhost)
 try:
   from IPython import embed
   embed(header=hello)
@@ -53,4 +60,4 @@ except ImportError:
   readline.parse_and_bind("tab: complete")
   print hello
   shell = code.InteractiveConsole( {'Message':Message, 'connection':connection} )
-  shell.interact()
+  shell.interact('')
