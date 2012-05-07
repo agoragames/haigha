@@ -16,6 +16,8 @@ the broker
 Fixed bug in Channel.clear_synchronous_cb which needs to return the argument
 if no matching callback was found. This fixes a bug in ProtocolClass.dispatch.
 
+Fix isinstance parameter ordering in Channel.SyncWrapper.__eq__
+
 
 0.5.0
 =====

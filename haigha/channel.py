@@ -18,7 +18,7 @@ class SyncWrapper(object):
     self._result = None
   def __eq__(self, other):
     return other==self._cb or \
-      (isinstance(SyncWrapper,other) and other._cb==self._cb)
+      (isinstance(other,SyncWrapper) and other._cb==self._cb)
   def __call__(self, *args, **kwargs):
     self._read = False
     self._result = self._cb(*args, **kwargs)
