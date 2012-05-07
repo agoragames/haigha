@@ -2,7 +2,7 @@
  Haigha - AMQP libevent Python client
 =====================================
 
-:Version: 0.5.0
+:Version: 0.5.1
 :Download: http://pypi.python.org/pypi/haigha
 :Source: https://github.com/agoragames/haigha
 :Keywords: python, amqp, rabbitmq, event, libevent
