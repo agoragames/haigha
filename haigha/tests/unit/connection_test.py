@@ -684,14 +684,14 @@ class ConnectionChannelTest(Chai):
   def test_send_close(self):
     self.ch.connection._close_info = {
       'reply_code':42,
-      'reply_text':'wrong answer',
+      'reply_text':'wrong answer'*60,
       'class_id':4,
       'method_id':20,
     }
     
     with expect(mock(connection,'Writer')).returns(mock()) as writer:
       expect( writer.write_short ).args( 42 )
-      expect( writer.write_shortstr ).args( 'wrong answer' )
+      expect( writer.write_shortstr ).args( ('wrong answer'*60)[:255] )
       expect( writer.write_short ).args( 4 )
       expect( writer.write_short ).args( 20 )
 

@@ -525,7 +525,7 @@ class ConnectionChannel(Channel):
   def _send_close(self):
     args = Writer()
     args.write_short( self.connection._close_info['reply_code'] )
-    args.write_shortstr( self.connection._close_info['reply_text'] )
+    args.write_shortstr( self.connection._close_info['reply_text'][:255] )
     args.write_short( self.connection._close_info['class_id'] )
     args.write_short( self.connection._close_info['method_id'] )
     self.send_frame( MethodFrame(self.channel_id, 10, 50, args) )

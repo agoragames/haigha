@@ -48,7 +48,7 @@ class ExchangeClassTest(Chai):
     expect( w.write_short ).args( self.klass.default_ticket ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
     expect( w.write_shortstr ).args( 'topic' ).returns( w )
-    expect( w.write_bits ).args( False, False, True, False, True ).returns( w )
+    expect( w.write_bits ).args( False, False, False, False, True ).returns( w )
     expect( w.write_table ).args( {} )
     expect( mock(exchange_class, 'MethodFrame') ).args(42, 40, 10, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
@@ -64,14 +64,14 @@ class ExchangeClassTest(Chai):
     expect( w.write_short ).args( 't' ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
     expect( w.write_shortstr ).args( 'topic' ).returns( w )
-    expect( w.write_bits ).args( 'p', 'd', 'a', 'i', False ).returns( w )
+    expect( w.write_bits ).args( 'p', 'd', False, False, False ).returns( w )
     expect( w.write_table ).args( 'table' )
     expect( mock(exchange_class, 'MethodFrame') ).args(42, 40, 10, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_declare_ok )
 
     self.klass.declare('exchange', 'topic', passive='p', durable='d', 
-      auto_delete='a', internal='i', nowait=False, arguments='table', ticket='t')
+      nowait=False, arguments='table', ticket='t')
     assert_equals( deque([None]), self.klass._declare_cb )
 
   def test_declare_with_cb(self):
@@ -81,15 +81,14 @@ class ExchangeClassTest(Chai):
     expect( w.write_short ).args( 't' ).returns(w)
     expect( w.write_shortstr ).args( 'exchange' ).returns( w )
     expect( w.write_shortstr ).args( 'topic' ).returns( w )
-    expect( w.write_bits ).args( 'p', 'd', 'a', 'i', False ).returns( w )
+    expect( w.write_bits ).args( 'p', 'd', False, False, False ).returns( w )
     expect( w.write_table ).args( 'table' )
     expect( mock(exchange_class, 'MethodFrame') ).args(42, 40, 10, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_declare_ok )
 
     self.klass.declare('exchange', 'topic', passive='p', durable='d', 
-      auto_delete='a', internal='i', nowait=True, arguments='table', ticket='t',
-      cb='foo')
+      nowait=True, arguments='table', ticket='t', cb='foo')
     assert_equals( deque(['foo']), self.klass._declare_cb )
   
   def test_recv_declare_ok_no_cb(self):
