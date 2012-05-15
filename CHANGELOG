@@ -1,3 +1,16 @@
+rabbitmq-extensions
+===================
+
+Added haigha.connections.RabbitConnection to support RabbitMQ-specific
+features. This includes `auto_delete` and `internal` parameters to 
+exchange.declare, exchange.bind, exchange.unbind, client side basic.nack,
+and confirm.select to enable publisher confirms. See basic.set_ack_listener
+and basic.set_nack_listener for handling the confirmations.
+http://www.rabbitmq.com/blog/2011/02/10/introducing-publisher-confirms/
+
+Removed `auto_delete` and `internal` parameters from common exchange.declare
+
+
 0.5.1
 =====
 

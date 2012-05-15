@@ -125,9 +125,6 @@ class RabbitBasicClass(BasicClass):
     super(RabbitBasicClass,self).__init__(*args, **kwargs)
     self.dispatch_map[80] = self._recv_ack
     self.dispatch_map[120] = self._recv_nack
-
-    self._bind_cb = deque()
-    self._unbind_cb = deque()
     
     self._ack_listener = None
     self._nack_listener = None
@@ -149,9 +146,10 @@ class RabbitBasicClass(BasicClass):
     '''
     Set a callbnack for nack listening, to be used when the channel is
     in publisher confirm mode. Will be called with a single integer
-    argument which is the id of the message as returned from publish().
+    argument which is the id of the message as returned from publish()
+    and a boolean flag indicating if it can be requeued.
 
-    cb(message_id)
+    cb(message_id, reque)
     '''
     self._nack_listener = cb
 
@@ -168,10 +166,9 @@ class RabbitBasicClass(BasicClass):
 
   def _recv_ack(self, method_frame):
     '''Receive an ack from the broker.'''
-    delivery_tag = method_frame.args.read_longlong()
-    multiple = method_frame.args.read_bit()
-    
     if self._ack_listener:
+      delivery_tag = method_frame.args.read_longlong()
+      multiple = method_frame.args.read_bit()
       if multiple:
         while self._last_ack_id < delivery_tag:
           self._last_ack_id += 1
@@ -190,17 +187,16 @@ class RabbitBasicClass(BasicClass):
 
   def _recv_nack(self, method_frame):
     '''Receive a nack from the broker.'''
-    delivery_tag = method_frame.args.read_longlong()
-    multiple, requeue = method_frame.args.read_bits(2)
-    
     if self._nack_listener:
+      delivery_tag = method_frame.args.read_longlong()
+      multiple, requeue = method_frame.args.read_bits(2)
       if multiple:
         while self._last_ack_id < delivery_tag:
           self._last_ack_id += 1
-          self._nack_listener(self._last_ack_id)
+          self._nack_listener(self._last_ack_id, requeue)
       else:
         self._last_ack_id = delivery_tag
-        self._nack_listener(self._last_ack_id)
+        self._nack_listener(self._last_ack_id, requeue)
 
 class RabbitConfirmClass(ProtocolClass):
   '''
