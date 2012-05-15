@@ -171,7 +171,7 @@ class ChannelClassTest(Chai):
     expect( mock(channel_class, 'MethodFrame') ).args(42, 20, 40, writer).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_close_ok ).side_effect(
-      setattr(self.klass, '_channel', None) )
+      setattr, self.klass, '_channel', None )
 
     # assert nothing raised
     self.klass.close('rcode', 'reason', 'cid', 'mid')

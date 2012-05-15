@@ -8,13 +8,41 @@ from chai import Chai
 from collections import deque
 
 from haigha import channel
-from haigha.channel import Channel
+from haigha.channel import Channel, SyncWrapper
 from haigha.exceptions import ChannelError, ChannelClosed
 from haigha.classes import *
 from haigha.frames import *
 from haigha.classes import *
 
-# TODO: Test SyncWrapper
+class SyncWrapperTest(Chai):
+
+  def test_init(self):
+    s = SyncWrapper('cb')
+    assert_equals('cb', s._cb)
+    assert_true( s._read )
+    assert_equals(None, s._result)
+
+  def test_eq_when_other_is_same_cb(self):
+    s = SyncWrapper('cb')
+    assert_equals( 'cb', s )
+    assert_not_equals( 'bb', s )
+
+  def test_eq_when_other_has_same_cb(self):
+    s = SyncWrapper('cb')
+    other = SyncWrapper('cb')
+    another = SyncWrapper('bb')
+
+    assert_equals( s, other )
+    assert_not_equals( s, another )
+
+  def test_call(self):
+    cb = mock()
+    s = SyncWrapper( cb )
+
+    expect( cb ).args('foo', 'bar', hello='mars')
+    s('foo', 'bar', hello='mars')
+    assert_false( s._read )
+    
 
 class ChannelTest(Chai):
 
