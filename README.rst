@@ -40,8 +40,7 @@ See the ``scripts`` directory for several examples, in particular the ``stress_t
   connection = Connection( 
     user='guest', password='guest', 
     vhost='/', host='localhost', 
-    heartbeat=None, debug=True,
-    transport='socket')
+    heartbeat=None, debug=True)
 
   ch = connection.channel()
   ch.exchange.declare('test_exchange', 'direct')
