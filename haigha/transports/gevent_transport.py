@@ -44,11 +44,10 @@ class GeventTransport(SocketTransport):
   client is attaching to other data stores so those could be enough to yield.
   '''
 
-  def __init__(self, *args):
+  def __init__(self, *args, **kwargs):
     super(GeventTransport,self).__init__(*args)
 
-    # TODO: support both modes
-    self._synchronous = False
+    self._synchronous = kwargs.get('synchronous',False)
     self._read_lock = Semaphore()
     self._write_lock = Semaphore()
 

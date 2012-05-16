@@ -34,7 +34,7 @@ PROTOCOL_HEADER = 'AMQP\x00\x00\x09\x01'
 #
 LIBRARY_PROPERTIES = {
   'library': 'Haigha',
-  'library_version': haigha.VERSION,
+  'library_version': haigha.__version__,
 }
 
 class Connection(object):
@@ -105,8 +105,8 @@ class Connection(object):
     self._frames_read = 0
     self._frames_written = 0
 
-    # Default to the gevent strategy
-    transport = kwargs.get('transport', 'gevent')
+    # Default to the socket strategy
+    transport = kwargs.get('transport', 'socket')
     if not isinstance(transport, Transport):
       if transport=='event':
         from haigha.transports.event_transport import EventTransport

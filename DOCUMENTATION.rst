@@ -2,7 +2,7 @@
 Haigha
 ======
 
-:Version: 0.4.5
+:Version: 0.5.2
 :Download: http://pypi.python.org/pypi/haigha
 :Source: https://github.com/agoragames/haigha
 
@@ -295,6 +295,52 @@ Client Functional Specification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **TODO** Document other features that the client implements.
+
+Connections
+-----------
+
+Any application must of course first connect to a broker. The `Connection`_ class implements 3 methods that any developer will need to be aware of to use the majority of its features.
+
+* ``__init__`` Connection constructor, also establishes the socket connection
+* ``channel`` Creates or fetches a `Channel`_ 
+* ``read_frames`` Read any pending frames, process them and write frames that result from the processing
+
+In addition, as of version 0.5.2, haigha supports the extensions exposed by RabbitMQ in the ``haigha.connections.RabbitConnection`` class. The interface is identical to the `Connection`_ class but its channels expose additional methods to match RabbitMQ's protocol. Briefly, these extensions are:
+
+* ``exchange.declare`` Accepts ``auto_delete`` and ``internal`` keyword arguments
+* ``exchange.bind`` Supports exchange to exchange bindings
+* ``exchange.unbind`` To remove an exchange to exchange binding
+* ``basic.set_ack_listener`` Local method to set a callback on publisher confirm ack
+* ``basic.set_nack_listener`` Local method to set a callback on publisher confirm nack
+* ``basic.publish`` Returns the message id when publisher confirms are enabled
+* ``basic.nack`` Send a nack to the broker when rejecting a message
+* ``confirm.select`` Enable publisher confirms
+
+
+__init__
+*********
+
+The constructor takes many keyword arguments that will affect its behavior.
+
+* ``debug`` Default ``False``. If ``True``, basic logging.  If 2, verbose logging of frames.
+* ``logger`` Default ``logging.root``. A `logging <http://docs.python.org/library/logging.html>`_ instance.
+* ``user`` Default "guest". The AMQP user to authenticate as.
+* ``password`` Default "guest". The password of the AMQP user.
+* ``host`` Default "localhost".
+* ``port`` Default 5672.
+* ``vhost`` Default "/".
+* ``connect_timeout`` Default 5 seconds. Time before socket connection fails.
+* ``sock_opts`` Default None. Recommend at least ``{(socket.IPPROTO_TCP, socket.TCP_NODELAY) : 1}``
+* ``hearbeat`` Default None (disabled). If 0, broker assigned. If >0, negotiated with broker.
+* ``open_cb`` Default None. A no-arg method to be called after connection fully negotiated and pending frames written.
+* ``close_cb`` Default None. A no-arg method to be called when connection closes due to protocol handshake or transport closure.
+* ``login_method`` Defaults to "AMQPLAIN".
+* ``locale`` Defaults to "en_US".
+* ``client_properties`` A hash of properties to send in addition to ``{ 'library' : ..., 'library_version' : ... }``
+* ``class_map`` Defaults to None. Optionally override the default mapping of AMQP ``class_id`` to the haigha `ProtocolClass`_ that implements the AMQP class.
+* ``transport`` Defaults to "socket". If a string, maps ["socket","gevent","gevent_pool","event"] to ``SocketTransport``, ``GeventTransport``, ``GeventPoolTransport`` or ``EventTransport`` respectively. If a ``Transport`` object, uses it directly.
+
+
 
 Messages and Content
 --------------------

@@ -1,5 +1,5 @@
-rabbitmq-extensions
-===================
+0.5.2
+=====
 
 Added haigha.connections.RabbitConnection to support RabbitMQ-specific
 features. This includes `auto_delete` and `internal` parameters to 
@@ -9,6 +9,10 @@ and basic.set_nack_listener for handling the confirmations.
 http://www.rabbitmq.com/blog/2011/02/10/introducing-publisher-confirms/
 
 Removed `auto_delete` and `internal` parameters from common exchange.declare
+
+Default transport is now the SocketTransport. This is unlikely to change again.
+
+Implemented PEP 396.
 
 
 0.5.1

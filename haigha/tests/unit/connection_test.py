@@ -7,7 +7,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 import logging
 from chai import Chai
 
-from haigha import connection, VERSION
+from haigha import connection, __version__
 from haigha.connection import Connection, ConnectionChannel
 from haigha.channel import Channel
 from haigha.frames import *
@@ -15,6 +15,7 @@ from haigha.classes import *
 
 from haigha.transports import event_transport
 from haigha.transports import gevent_transport
+from haigha.transports import socket_transport
 
 class ConnectionTest(Chai):
   
@@ -69,7 +70,7 @@ class ConnectionTest(Chai):
     mock( connection, 'ConnectionChannel' )
 
     expect(connection.ConnectionChannel).args( conn, 0, {} ).returns( 'connection_channel' )
-    expect(gevent_transport.GeventTransport).args( conn ).returns( 'GeventTransport' )
+    expect(socket_transport.SocketTransport).args( conn ).returns( 'SocketTransport' )
     expect(conn.connect).args( 'localhost', 5672 )
 
     conn.__init__()
@@ -92,7 +93,7 @@ class ConnectionTest(Chai):
     self.assertEqual( None, conn._client_properties )
     self.assertEqual( conn._properties, {
       'library': 'Haigha',
-      'library_version': VERSION,
+      'library_version': __version__,
     } )
     self.assertFalse( conn._closed )
     self.assertFalse( conn._connected )
@@ -115,7 +116,7 @@ class ConnectionTest(Chai):
     self.assertEqual( 65535, conn._channel_max )
     self.assertEqual( 65535, conn._frame_max )
     self.assertEqual( [], conn._output_frame_buffer )
-    self.assertEqual( 'GeventTransport', conn._transport )
+    self.assertEqual( 'SocketTransport', conn._transport )
 
   def test_init_with_event_transport(self):
     conn = Connection.__new__( Connection )
