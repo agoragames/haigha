@@ -14,7 +14,7 @@ setup(
     version=haigha.__version__,
     author='Vitaly Babiy, Aaron Westendorf',
     author_email="vbabiy@agoragames.com, aaron@agoragames.com",
-    packages = ['haigha', 'haigha.frames', 'haigha.classes', 'haigha.transports'],
+    packages = ['haigha', 'haigha.frames', 'haigha.classes', 'haigha.transports', 'haigha.connections'],
     install_requires = requirements,
     url='https://github.com/agoragames/haigha',
     license="LICENSE.txt",
