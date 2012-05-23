@@ -6,6 +6,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from chai import Chai
 import errno
+import socket
 
 from haigha.transports import socket_transport
 from haigha.transports.socket_transport import *
@@ -108,6 +109,17 @@ class SocketTransportTest(Chai):
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).raises(
       EnvironmentError(errno.EAGAIN,'tryagainlater') )
+    
+    assert_equals( None, self.transport.read(42) )
+
+  def test_read_when_raises_socket_timeout(self):
+    self.transport._sock = mock()
+    self.transport.connection.debug = 2
+    
+    expect( self.transport._sock.settimeout ).args( 42 )
+    expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
+    expect( self.transport._sock.recv ).args(4095).raises(
+      socket.timeout() )
     
     assert_equals( None, self.transport.read(42) )
 
