@@ -6,9 +6,22 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from collections import deque
 
-from haigha.classes import *
+from haigha.classes import ProtocolClass
 from haigha.frames import *
 from haigha.exceptions import *
+
+# Defined here so it's easier to test
+class SyncWrapper(object):
+  def __init__(self, cb):
+    self._cb = cb
+    self._read = True
+    self._result = None
+  def __eq__(self, other):
+    return other==self._cb or \
+      (isinstance(other,SyncWrapper) and other._cb==self._cb)
+  def __call__(self, *args, **kwargs):
+    self._read = False
+    self._result = self._cb(*args, **kwargs)
 
 class Channel(object):
   '''
@@ -19,28 +32,45 @@ class Channel(object):
   class InvalidMethod(ChannelError): '''The method frame referenced an invalid method.  Non-fatal.'''
   class Inactive(ChannelError): '''Tried to send a content frame while the channel was inactive. Non-fatal.'''
 
-  def __init__(self, connection, channel_id):
-    '''Initialize with a handle to the connection and an id.'''
+  def __init__(self, connection, channel_id, class_map):
+    '''
+    Initialize with a handle to the connection and an id. Caller must
+    supply a mapping of {class_id:ProtocolClass} which defines what
+    classes and methods this channel will support.
+    '''
     self._connection = connection
     self._channel_id = channel_id
+
+    self._class_map = {}
+    for _id,_class in class_map.iteritems():
+      impl = _class(self)
+      setattr(self, impl.name, impl)
+      self._class_map[ _id ] = impl
     
-    self.channel = ChannelClass( self )
-    self.exchange = ExchangeClass( self )
-    self.queue = QueueClass( self )
-    self.basic = BasicClass( self )
-    self.tx = TransactionClass( self )
+    # Out-bound mix of pending frames and synchronous callbacks
+    self._pending_events = deque()
 
-    self._class_map = {
-      20 : self.channel,
-      40 : self.exchange,
-      50 : self.queue,
-      60 : self.basic,
-      90 : self.tx,
-    }
-
-    self._pending_events = []
-
+    # Incoming frame buffer
     self._frame_buffer = deque()
+
+    # Listeners for when channel opens
+    self._open_listeners = set()
+
+    # Listeners for when channel closes
+    self._close_listeners = set()
+
+    # Moving state out of protocol class so that it's accessible even
+    # after we've closed and deleted references to the protocol classes.
+    # Note though that many of these fields are written to directly
+    # from within ChannelClass.
+    self._closed = False
+    self._close_info = {
+      'reply_code'    : 0,
+      'reply_text'    : 'first connect',
+      'class_id'      : 0,
+      'method_id'     : 0
+    }
+    self._active = True
 
   @property
   def connection(self):
@@ -52,19 +82,66 @@ class Channel(object):
 
   @property
   def logger(self):
+    '''Return a shared logger handle for the channel.'''
     return self._connection.logger
 
   @property
   def closed(self):
-    return self.channel.closed
+    '''Return whether this channel has been closed.'''
+    return self._closed
 
   @property
   def close_info(self):
-    return self.channel.close_info
+    '''Return dict with information on why this channel is closed.  Will
+    return None if the channel is open.'''
+    return self._close_info if self._closed else None
 
   @property
   def active(self):
-    return self.channel.active
+    '''
+    Return True if flow control turned off, False if flow control is on.
+    '''
+    return self._active
+
+  def add_open_listener(self, listener):
+    '''
+    Add a listener for open events on this channel. The listener should be
+    a callable that can take one argument, the channel that is opened. 
+    Listeners will not be called in any particular order.
+    '''
+    self._open_listeners.add( listener )
+
+  def remove_open_listener(self, listener):
+    '''
+    Remove an open event listener. Will do nothing if the listener is not
+    registered.
+    '''
+    self._open_listeners.discard( listener )
+
+  def _notify_open_listeners(self):
+    '''Call all the open listeners.'''
+    for listener in self._open_listeners:
+      listener( self )
+
+  def add_close_listener(self, listener):
+    '''
+    Add a listener for close events on this channel. The listener should be
+    a callable that can take one argument, the channel that is closed. 
+    Listeners will not be called in any particular order.
+    '''
+    self._close_listeners.add( listener )
+
+  def remove_close_listener(self, listener):
+    '''
+    Remove a close event listener. Will do nothing if the listener is not
+    registered.
+    '''
+    self._close_listeners.discard( listener )
+
+  def _notify_close_listeners(self):
+    '''Call all the close listeners.'''
+    for listener in self._close_listeners:
+      listener( self )
 
   def open(self):
     '''
@@ -125,10 +202,11 @@ class Channel(object):
       except ProtocolClass.FrameUnderflow:
         return
       except:
-        self.logger.error( 
-          "Failed to dispatch %s", frame, exc_info=True )
+        # Spec says that channel should be closed if there's a framing error.
+        # Unsure if we can send close if the current exception is transport
+        # level (e.g. gevent.GreenletExit)
         self.close( 500, "Failed to dispatch %s"%(str(frame)) )
-        return
+        raise
 
   def next_frame(self):
     '''
@@ -168,7 +246,7 @@ class Channel(object):
     # seems that it's safe to assume the len>0 means to buffer the frame. The
     # other advantage here is 
     if not len(self._pending_events):
-      if not self.channel.active and isinstance( frame, (ContentFrame,HeaderFrame) ):
+      if not self._active and isinstance( frame, (ContentFrame,HeaderFrame) ):
         raise Channel.Inactive( "Channel %d flow control activated", self.channel_id )
       self._connection.send_frame(frame)
     else:
@@ -178,7 +256,14 @@ class Channel(object):
     '''
     Add an expectation of a callback to release a synchronous transaction.
     '''
-    self._pending_events.append( cb )
+    if self.connection.synchronous:
+      wrapper = SyncWrapper(cb)
+      self._pending_events.append( wrapper )
+      while wrapper._read:
+        self.connection.read_frames()
+      return wrapper._result
+    else:
+      self._pending_events.append( cb )
 
   def clear_synchronous_cb(self, cb):
     '''
@@ -196,14 +281,45 @@ class Channel(object):
       # received stuff out of order.  Else just pass it through.
       # Note that this situation could happen on any broker-initiated message.
       if ev==cb:
-        self._pending_events.pop(0)
+        self._pending_events.popleft()
         self._flush_pending_events()
+        return ev
+
       elif cb in self._pending_events:
         raise ChannelError("Expected synchronous callback %s, got %s", ev, cb)
+    # Return the passed-in callback by default
+    return cb
 
   def _flush_pending_events(self):
     '''
     Send pending frames that are in the event queue.
     '''
     while len(self._pending_events) and isinstance(self._pending_events[0],Frame):
-      self._connection.send_frame( self._pending_events.pop(0) )
+      self._connection.send_frame( self._pending_events.popleft() )
+
+  def _closed_cb(self, final_frame=None):
+    '''
+    "Private" callback from the ChannelClass when a channel is closed. Only
+    called after broker initiated close, or we receive a close_ok. Caller has
+    the option to send a final frame, to be used to bypass any synchronous or
+    otherwise-pending frames so that the channel can be cleanly closed.
+    '''
+    # delete all pending data and send final frame if thre is one. note that
+    # it bypasses send_frame so that even if the closed state is set, the frame
+    # is published.
+    if final_frame:
+      self._connection.send_frame( final_frame )
+
+    try:
+      self._notify_close_listeners()
+    finally:
+      self._pending_events = deque()
+      self._frame_buffer = deque()
+
+      # clear out other references for faster cleanup
+      for protocol_class in self._class_map.values():
+        protocol_class._cleanup()
+        delattr(self, protocol_class.name)
+      self._connection = None
+      self._class_map = None
+      self._close_listeners = set()

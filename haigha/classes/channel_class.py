@@ -22,35 +22,11 @@ class ChannelClass(ProtocolClass):
       40 : self._recv_close,
       41 : self._recv_close_ok,
     }
-
-    self._closed = False
-    self._close_info = {
-      'reply_code'    : 0,
-      'reply_text'    : 'first connect',
-      'class_id'      : 0,
-      'method_id'     : 0
-    }
-
-    self._active = True
     self._flow_control_cb = None
 
   @property
-  def closed(self):
-    '''Return whether this channel has been closed.'''
-    return self._closed
-
-  @property
-  def close_info(self):
-    '''Return dict with information on why this channel is closed.  Will
-    return None if the channel is open.'''
-    return self._close_info if self._closed else None
-
-  @property
-  def active(self):
-    '''
-    Return True if flow control turned off, False if flow control is on.
-    '''
-    return self._active
+  def name(self):
+    return 'channel'
 
   def set_flow_cb(self, cb):
     '''
@@ -70,20 +46,23 @@ class ChannelClass(ProtocolClass):
     self.channel.add_synchronous_cb( self._recv_open_ok )
 
   def _recv_open_ok(self, method_frame):
-    pass
+    '''
+    Channel is opened.
+    '''
+    self.channel._notify_open_listeners()
 
   def activate(self):
     '''
     Activate this channel (disable flow control).
     '''
-    if not self._active:
+    if not self.channel.active:
       self._send_flow( True )
 
   def deactivate(self):
     '''
     Deactivate this channel (enable flow control).
     '''
-    if self._active:
+    if self.channel.active:
       self._send_flow( False )
 
   def _send_flow(self, active):
@@ -99,10 +78,10 @@ class ChannelClass(ProtocolClass):
     '''
     Receive a flow control command from the broker
     '''
-    self._active = method_frame.args.read_bit()
+    self.channel._active = method_frame.args.read_bit()
     
     args = Writer()
-    args.write_bit( self._active )
+    args.write_bit( self.channel.active )
     self.send_frame( MethodFrame(self.channel_id, 20, 21, args) )
 
     if self._flow_control_cb is not None:
@@ -112,7 +91,7 @@ class ChannelClass(ProtocolClass):
     '''
     Receive a flow control ack from the broker.
     '''
-    self._active = method_frame.args.read_bit()
+    self.channel._active = method_frame.args.read_bit()
     if self._flow_control_cb is not None:
       self._flow_control_cb()
 
@@ -123,51 +102,51 @@ class ChannelClass(ProtocolClass):
     occurred.  If in the event of an exception, the channel will be marked
     as immediately closed.  If channel is already closed, call is ignored.
     '''
-    if self._closed: return
+    if not getattr(self, 'channel', None) or self.channel._closed: return
 
-    self._close_info = {
+    self.channel._close_info = {
       'reply_code'    : reply_code,
       'reply_text'    : reply_text,
       'class_id'      : class_id,
       'method_id'     : method_id
     }
 
-    # exception likely due to race condition as connection is closing
+    # exceptions here likely due to race condition as connection is closing
+    # cap the reply_text we send because it may be arbitrarily long
     try:
       args = Writer()
       args.write_short( reply_code )
-      args.write_shortstr( reply_text )
+      args.write_shortstr( reply_text[:255] )
       args.write_short( class_id )
       args.write_short( method_id )
       self.send_frame( MethodFrame(self.channel_id, 20, 40, args) )
       
       self.channel.add_synchronous_cb( self._recv_close_ok )
-    except:
-      self.logger.error("Failed to close channel %d", 
-        self.channel_id, exc_info=True)
-
-    # Immediately set the closed flag so that no more frames can be sent
-    self._closed = True
+    finally:
+      # Immediately set the closed flag so that no more frames can be sent
+      # NOTE: in synchronous mode, by the time this is called we will have
+      # already run self.channel._closed_cb and so the channel reference is
+      # gone.
+      if self.channel:
+        self.channel._closed = True
 
   def _recv_close(self, method_frame):
     '''
     Receive a close command from the broker.
     '''
-    self._close_info = {
+    self.channel._close_info = {
       'reply_code'    : method_frame.args.read_short(),
       'reply_text'    : method_frame.args.read_shortstr(),
       'class_id'      : method_frame.args.read_short(),
       'method_id'     : method_frame.args.read_short()
     }
 
-    self.send_frame( MethodFrame(self.channel_id, 20, 41) )
-
-    # Must set this *after* send_frame so that it doesn't throw an exception
-    self._closed = True
-
+    self.channel._closed = True
+    self.channel._closed_cb( final_frame=MethodFrame(self.channel_id, 20, 41) )
 
   def _recv_close_ok(self, method_frame):
     '''
     Receive a close ack from the broker.
     '''
-    self._closed = True
+    self.channel._closed = True
+    self.channel._closed_cb()

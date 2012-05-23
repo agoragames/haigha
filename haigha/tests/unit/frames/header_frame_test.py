@@ -38,7 +38,7 @@ class HeaderFrameTest(Chai):
     val_writer = Writer()
 
     # strip ms because amqp doesn't include it
-    now = datetime.fromtimestamp( long(time.mktime(datetime.now().timetuple())) )
+    now = datetime.utcfromtimestamp( long(time.mktime(datetime.now().timetuple())) )
 
     bit_field = 0
     for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
@@ -88,7 +88,7 @@ class HeaderFrameTest(Chai):
     val_writer = Writer()
 
     # strip ms because amqp doesn't include it
-    now = datetime.fromtimestamp( long(time.mktime(datetime.now().timetuple())) )
+    now = datetime.utcfromtimestamp( long(time.mktime(datetime.now().timetuple())) )
 
     bit_field = 0
     for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
@@ -136,7 +136,7 @@ class HeaderFrameTest(Chai):
   def test_write_frame_fast_for_standard_properties(self):
     bit_field = 0
     properties = {}
-    now = datetime.fromtimestamp( long(time.mktime(datetime.now().timetuple())) )
+    now = datetime.utcfromtimestamp( long(time.mktime(datetime.now().timetuple())) )
     for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
       bit_field |= mask
 
@@ -181,7 +181,7 @@ class HeaderFrameTest(Chai):
     HeaderFrame.DEFAULT_PROPERTIES = False
     bit_field = 0
     properties = {}
-    now = datetime.fromtimestamp( long(time.mktime(datetime.now().timetuple())) )
+    now = datetime.utcfromtimestamp( long(time.mktime(datetime.now().timetuple())) )
     for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
       bit_field |= mask
 

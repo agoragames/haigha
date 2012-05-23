@@ -2,10 +2,10 @@
  Haigha - AMQP libevent Python client
 =====================================
 
-:Version: 0.3.1
+:Version: 0.5.3
 :Download: http://pypi.python.org/pypi/haigha
 :Source: https://github.com/agoragames/haigha
-:Keywords: python, amqp, rabbitmq, event, libevent
+:Keywords: python, amqp, rabbitmq, event, libevent, gevent
 
 .. contents::
     :local:
@@ -15,11 +15,18 @@
 Overview
 ========
 
-Haigha provides a simple to use client library for interacting with AMQP brokers. It currently supports the 0.9.1 protocol and is integration tested against the latest RabbitMQ 2.4.1 (see `errata <http://dev.rabbitmq.com/wiki/Amqp091Errata>`_). Haigha is a descendant of ``py-amqplib`` and owes much to its developers.
+Haigha provides a simple to use client library for interacting with AMQP brokers. It currently supports the 0.9.1 protocol and is integration tested against the latest RabbitMQ 2.8.1 (see `errata <http://dev.rabbitmq.com/wiki/Amqp091Errata>`_). Haigha is a descendant of ``py-amqplib`` and owes much to its developers.
 
 The goals of haigha are performance, simplicity, and adherence to the form and function of the AMQP protocol. It adds a few useful features, such as the ``ChannelPool`` class and ``Channel.publish_synchronous``, to ease use of powerful features in real-world applications.
 
 By default, Haigha operates in a completely asynchronous mode, relying on callbacks to notify application code of responses from the broker. Where applicable, ``nowait`` defaults to ``True``. The application code is welcome to call a series of methods, and Haigha will manage the stack and synchronous handshakes in the event loop.
+
+Starting with the 0.5.0 series, haigha natively supports 3 transport types; libevent, gevent and standard sockets. The socket implementation defaults to synchronous mode and is useful for an interactive console or scripting, and the gevent transport is the preferred asynchronous backend though it can also be used synchronously as well.
+
+Documentation
+=============
+
+This file and the various files in the ``scripts`` directory serve as a simple introduction to haigha. For more complete documentation, see `DOCUMENTATION.rst <https://github.com/agoragames/haigha/blob/master/DOCUMENTATION.rst>`_.
 
 
 Example
@@ -29,43 +36,42 @@ See the ``scripts`` directory for several examples, in particular the ``stress_t
 
   from haigha.connection import Connection
   from haigha.message import Message
-  import event
-
 
   connection = Connection( 
     user='guest', password='guest', 
     vhost='/', host='localhost', 
     heartbeat=None, debug=True)
 
-  def consumer(msg):
-    print msg
-    connection.close()
-    event.timeout( 2, event.abort )
-
   ch = connection.channel()
-  ch.exchange.declare('test_exchange', 'direct', auto_delete=True)
+  ch.exchange.declare('test_exchange', 'direct')
   ch.queue.declare('test_queue', auto_delete=True)
   ch.queue.bind('test_queue', 'test_exchange', 'test_key')
-  ch.basic.consume('test_queue', consumer)
   ch.basic.publish( Message('body', application_headers={'hello':'world'}),
     'test_exchange', 'test_key' )
+  print ch.basic.get('test_queue')
+  connection.close()
 
-  event.dispatch()
+Roadmap
+=======
 
-Future
-======
+The 0.5 series will focus on the following areas:
 
-The 0.3.0 series will focus on the following areas:
+* RabbitMQ extensions to the protocol
+* Support and bug fixes for synchronous transport
+* Documentation
 
-* Full unit test coverage
-* Implementation of error response codes according to spec
-* Add callback chains where they're missing
-* Documentation, including doctstrings, API docs, and tutorials
-* Bug fixes
+Beyond that, there is no specific order of features to implement. Generally, the following areas need to be addressed.
 
-By the 0.4.0 series the library should be feature-complete and well documented. We'll then switch our focus to libevent itself, with the goal of supporting `gevent <http://www.gevent.org/>`_, `libev <http://software.schmorp.de/pkg/libev.html>`_ and `pypy <http://pypy.org/>`_.
+* Documentation (there's always more)
+* Improved error handling
+* Implementation of error codes in the spec
+* Testing and integration with brokers other than RabbitMQ
+* Flow control
+* Identify and improve inefficient code
+* Edge cases in frame management
+* Improvements to usabililty
 
-Haigha has been tested exclusively with Python 2.6 and 2.7, but we intend for it to work with the 3.x series as well. Please `report <http://pypi.python.org/pypi/haigha>`_ any issues you may have.
+Haigha has been tested exclusively with Python 2.6 and 2.7, but we intend for it to work with the 3.x series as well. Please `report <https://github.com/agoragames/haigha/issues>`_ any issues you may have.
 
 Installation
 ============
@@ -83,6 +89,8 @@ If installing from source:
 * without development requirements ::
 
     pip install -r requirements.txt
+
+Note that haigha does not install either gevent or libevent support automatically. For libevent, haigha has been tested and deployed with the ``event-agora==0.4.1`` library.
 
 
 Testing

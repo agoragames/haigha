@@ -1,3 +1,164 @@
+0.5.3
+=====
+
+Added 'haigha.connections' to package. Thanks to @grncdr
+https://github.com/agoragames/haigha/pull/16
+
+
+0.5.2
+=====
+
+Added haigha.connections.RabbitConnection to support RabbitMQ-specific
+features. This includes `auto_delete` and `internal` parameters to 
+exchange.declare, exchange.bind, exchange.unbind, client side basic.nack,
+and confirm.select to enable publisher confirms. See basic.set_ack_listener
+and basic.set_nack_listener for handling the confirmations.
+http://www.rabbitmq.com/blog/2011/02/10/introducing-publisher-confirms/
+
+Removed `auto_delete` and `internal` parameters from common exchange.declare
+
+Default transport is now the SocketTransport. This is unlikely to change again.
+
+Implemented PEP 396.
+
+
+0.5.1
+=====
+
+GeventTransport subclasses SocketTransport
+
+In all cases, if a method has 'nowait' argument and an optional callback is
+supplied, the method will execute as 'nowait=False', i.e. synchronously
+
+Connection supplies Channels with the protocol mapping
+
+Connection close_info is available if the connection is closed or disconnected
+
+The reply_text in Channel.close is truncated to 255 characters when sent to
+the broker
+
+Fixed bug in Channel.clear_synchronous_cb which needs to return the argument
+if no matching callback was found. This fixes a bug in ProtocolClass.dispatch.
+
+Fix isinstance parameter ordering in Channel.SyncWrapper.__eq__
+
+
+0.5.0
+=====
+
+Fix message reading in basic.get
+
+Added optional open_cb kwarg to Connection constructor
+
+Added optional callback to basic.consume for notifications when broker has
+registered the consumer
+
+Moved channel state out of ChannelClass and into Channel to fix access problems
+after Channel has been cleaned up
+
+Added support for Channel open notification listeners
+
+All AMQP timestamps are in UTC
+
+Most exceptions will now propagate to user code, fixing problems with 
+gevent.GreenletExit and SystemExit
+
+Preliminary support for synchronous clients
+
+
+0.4.5
+=====
+
+Fix heartbeat support in event transport
+
+
+0.4.4
+=====
+
+Fix handling of socket timeouts in gevent transport
+
+
+0.4.3
+=====
+
+Client sends heartbeat frames on its own rather than simply replying to ones 
+received from the broker
+
+
+0.4.2
+=====
+
+Channel close listeners are now notified before channel local data is cleaned
+up
+
+Default to the gevent transport
+
+Removed fixed requirements for libevent or gevent. It is now up to the user to
+install the packages corresponding to their preferred transport.
+
+
+0.4.1
+=====
+
+Added a write lock around GeventTransport.write() call to socket.sendall()
+
+
+0.4.0
+=====
+
+Fixed handling of channel closures due to error. This cleaned up several DoS
+vulnerabilities, including a lockup in the ChannelPool, unbounded memory 
+consumption, and failure to re-use channel ids after max id enumerator
+rolled over. Channel cleanup relies on reference counting to ensure a client
+can respond to rapid opening and closing of channels.
+
+Fixed failure to always cast GeventTransport.read() return to a bytearray,
+which caused problems when reading partial frames.
+
+Fixed failure in GeventTransport to switch to non-blocking socket after
+connecting.
+
+Fixed fetching of close_info when connection close callback executes.
+
+
+0.3.4
+=====
+
+Abstracted libevent requirement and added support for gevent backend
+
+Support non-blocking connect on libevent transport
+
+Removed connection strategies from Connection and deleted ConnectionStrategy
+class. Combined with a simplified and abstracted approach to IO and scheduling
+in the Transports, the strategy for failed connections is more deterministic
+and left in the hands of the user.
+
+
+0.3.3
+=====
+
+Added cap to ChannelPool. This should be used to ensure that all of the broker
+memory is consumed by channels in cases where it is slow to process 
+transactions.
+
+0.3.2
+=====
+
+Fixed calling into user-provided close callback, changed interface of close_cb
+to accept no arguments
+
+Use buffer-per-frame in Connection.send_frame() to work around a memory 
+freeing problem in EventSocket
+
+First round of in-depth documentation in DOCUMENTATION.rst
+
+Added callbacks to Exchange.declare(), Exchange.delete() and 
+Transaction.select().
+
+Fixed FIFO ordering problems for all methods that support callbacks to user 
+after a synchronous operation.
+
+
 0.3.1
 =====
 

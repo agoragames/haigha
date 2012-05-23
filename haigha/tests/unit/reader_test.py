@@ -179,7 +179,7 @@ class ReaderTest(Chai):
 
   def test_read_timestamp(self):
     b = Reader('\x00\x00\x00\x00\x4d\x34\xc4\x71')
-    d = datetime(2011, 1, 17, 17, 36, 33)
+    d = datetime(2011, 1, 17, 22, 36, 33)
 
     assert_equals( d, b.read_timestamp() )
 
@@ -299,7 +299,7 @@ class ReaderTest(Chai):
   
   def test_field_timestamp(self):
     b = Reader('\x00\x00\x00\x00\x4d\x34\xc4\x71')
-    d = datetime(2011, 1, 17, 17, 36, 33)
+    d = datetime(2011, 1, 17, 22, 36, 33)
 
     assert_equals( d, b._field_timestamp() )
 

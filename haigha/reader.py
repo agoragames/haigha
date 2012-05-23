@@ -203,12 +203,12 @@ class Reader(object):
     """
     Read and AMQP timestamp, which is a 64-bit integer representing
     seconds since the Unix epoch in 1-second resolution.  Return as
-    a Python datetime.datetime object, expressed as localtime.
+    a Python datetime.datetime object, expressed as UTC time.
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return datetime.fromtimestamp( self.read_longlong() )
+    return datetime.utcfromtimestamp( self.read_longlong() )
 
   def read_table(self):
     """
@@ -327,12 +327,12 @@ class Reader(object):
     """
     Read and AMQP timestamp, which is a 64-bit integer representing
     seconds since the Unix epoch in 1-second resolution.  Return as
-    a Python datetime.datetime object, expressed as localtime.
+    a Python datetime.datetime object, expressed as UTC time.
 
     Will raise BufferUnderflow if there's not enough bytes in the buffer.
     Will raise struct.error if the data is malformed
     """
-    return datetime.fromtimestamp( self._field_long_long_uint() )
+    return datetime.utcfromtimestamp( self._field_long_long_uint() )
 
   def _field_bytearray(self):
     slen = self._field_long_uint()

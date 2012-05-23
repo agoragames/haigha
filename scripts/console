@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+
+import sys, os
+sys.path.append(os.path.abspath("."))
+sys.path.append(os.path.abspath(".."))
+
+import logging
+import random
+import socket
+from optparse import OptionParser
+
+from haigha.connection import Connection
+from haigha.message import Message
+
+parser = OptionParser(
+  usage='Usage: synchronous_test [options]'
+)
+parser.add_option('--user', default='guest', type='string')
+parser.add_option('--pass', default='guest', dest='password', type='string')
+parser.add_option('--vhost', default='/', type='string')
+parser.add_option('--host', default='localhost', type='string')
+parser.add_option('--debug', default=0, action='count')
+
+(options,args) = parser.parse_args()
+
+debug = options.debug
+level = logging.DEBUG if debug else logging.INFO
+
+# Setup logging
+logging.basicConfig(level=level, format="%(message)s", stream=sys.stdout )
+
+sock_opts = {
+  (socket.IPPROTO_TCP, socket.TCP_NODELAY) : 1,
+}
+
+connection = Connection(logger=logging, debug=debug, 
+  user=options.user, password=options.password, 
+  vhost=options.vhost, host=options.host, 
+  heartbeat=None,
+  sock_opts=sock_opts,
+  transport='socket')
+
+hello = '''Welcome to haigha console.
+
+`connection` - The established connection to %s:%s
+`Message` - The Message type
+
+Usage: Create a channel by calling `connection.channel` and then use that
+channel to interact with the broker.
+'''%(options.host, options.vhost)
+try:
+  from IPython import embed
+  embed(header=hello)
+except ImportError:
+  # Fallback to python console, with benefits
+  import code
+  import rlcompleter
+  import readline
+  readline.parse_and_bind("tab: complete")
+  print hello
+  shell = code.InteractiveConsole( {'Message':Message, 'connection':connection} )
+  shell.interact('')
