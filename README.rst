@@ -70,6 +70,7 @@ Beyond that, there is no specific order of features to implement. Generally, the
 * Identify and improve inefficient code
 * Edge cases in frame management
 * Improvements to usabililty
+* SSL
 
 Haigha has been tested exclusively with Python 2.6 and 2.7, but we intend for it to work with the 3.x series as well. Please `report <https://github.com/agoragames/haigha/issues>`_ any issues you may have.
 
