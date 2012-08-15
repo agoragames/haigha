@@ -24,10 +24,12 @@ class SocketTransportTest(Chai):
     assert_equals( bytearray(), self.transport._buffer )
     assert_true( self.transport._synchronous )
 
-  def test_connect(self):
+  def test_connect_with_no_klass_arg(self):
+    klass = mock()
     sock = mock()
-    mock( socket_transport, 'socket' )
-    expect( socket_transport.socket.socket ).returns( sock )
+    orig_defaults = self.transport.connect.im_func.func_defaults
+    self.transport.connect.im_func.func_defaults = (klass,)
+    expect( klass ).returns( sock )
     self.connection._connect_timeout = 4.12
     self.connection._sock_opts = {
       ('family','tcp') : 34,
@@ -42,6 +44,26 @@ class SocketTransportTest(Chai):
     expect( sock.settimeout ).args( None )
 
     self.transport.connect( ('host',5309) )
+    self.transport.connect.im_func.func_defaults = orig_defaults
+
+  def test_connect_with_klass_arg(self):
+    klass = mock()
+    sock = mock()
+    expect( klass ).returns( sock )
+    self.connection._connect_timeout = 4.12
+    self.connection._sock_opts = {
+      ('family','tcp') : 34,
+      ('range','ipv6') : 'hex'
+    }
+
+    expect( sock.setblocking ).args( True )
+    expect( sock.settimeout ).args( 4.12 )
+    expect( sock.setsockopt ).any_order().args( 'family', 'tcp', 34 ).any_order()
+    expect( sock.setsockopt ).any_order().args( 'range', 'ipv6', 'hex' ).any_order()
+    expect( sock.connect ).args( ('host',5309) )
+    expect( sock.settimeout ).args( None )
+
+    self.transport.connect( ('host',5309), klass=klass )
 
   def test_read(self):
     self.transport._sock = mock()

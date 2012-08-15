@@ -55,7 +55,11 @@ class GeventTransport(SocketTransport):
   ### Transport API
   ###
 
-  # nothing to overload with connect()
+  def connect(self, (host,port)):
+    '''
+    Connect using a host,port tuple
+    '''
+    super(GeventTransport,self).connect( (host,port), klass=gevent.socket )
 
   def read(self, timeout=None):
     '''

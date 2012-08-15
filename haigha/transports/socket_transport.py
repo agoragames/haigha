@@ -22,12 +22,12 @@ class SocketTransport(Transport):
   ###
   ### Transport API
   ###
-  def connect(self, (host,port)):
+  def connect(self, (host,port), klass=socket.socket):
     '''
     Connect assuming a host and port tuple.
     '''
     self._host = "%s:%s"%(host,port)
-    self._sock = socket.socket()
+    self._sock = klass()
     self._sock.setblocking( True )
     self._sock.settimeout( self.connection._connect_timeout )
     if self.connection._sock_opts:

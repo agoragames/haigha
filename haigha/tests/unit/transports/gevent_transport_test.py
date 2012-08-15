@@ -29,6 +29,12 @@ class GeventTransportTest(Chai):
     assert_true( isinstance(self.transport._read_lock,Semaphore) )
     assert_true( isinstance(self.transport._write_lock,Semaphore) )
 
+  def test_connect(self):
+    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+      expect( parent.connect ).args(('host','port'), klass=gevent.socket).returns( 'somedata' )
+
+    self.transport.connect( ('host','port') )
+
   def test_read(self):
     self.transport._read_lock = mock()
     expect( self.transport._read_lock.acquire )
