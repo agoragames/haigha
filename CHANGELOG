@@ -1,3 +1,12 @@
+0.5.4
+=====
+
+Gevent transport can be used without monkey patching sockets
+
+If there is an error in a channel close callback, don't fail in the second
+call to Channel.close
+
+
 0.5.3
 =====
 
