@@ -165,6 +165,11 @@ class ChannelTest(Chai):
     c.close(1, 'two', 3, 4)
     c.close(reply_code=1, reply_text='two', class_id=3, method_id=4)
 
+  def test_close_when_channel_attr_cleared(self):
+    c = Channel(None,None,{})
+    assert_false( hasattr(c, 'channel') )
+    c.close()
+
   def test_publish(self):
     c = Channel(None,None,{})
     expect( mock(c,'basic').publish ).args( 'arg1', 'arg2', foo='bar' )

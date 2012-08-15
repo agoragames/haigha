@@ -153,7 +153,12 @@ class Channel(object):
     '''
     Close this channel.  Routes to channel.close.
     '''
-    self.channel.close(reply_code, reply_text, class_id, method_id)
+    # In the off chance that we call this twice. A good example is if there's
+    # an error in close listeners and so we're still inside a single call to
+    # process_frames, which will try to close this channel if there's an
+    # exception.
+    if hasattr(self, 'channel'):
+      self.channel.close(reply_code, reply_text, class_id, method_id)
 
   def publish(self, *args, **kwargs):
     '''
