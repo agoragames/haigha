@@ -31,7 +31,7 @@ class GeventTransportTest(Chai):
 
   def test_connect(self):
     with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
-      expect( parent.connect ).args(('host','port'), klass=gevent.socket).returns( 'somedata' )
+      expect( parent.connect ).args(('host','port'), klass=is_arg(socket.socket)).returns( 'somedata' )
 
     self.transport.connect( ('host','port') )
 

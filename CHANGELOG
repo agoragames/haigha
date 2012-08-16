@@ -1,3 +1,9 @@
+0.5.5
+=====
+
+Fixed bug in gevent transport connect parameter to socket transport
+
+
 0.5.4
 =====
 
