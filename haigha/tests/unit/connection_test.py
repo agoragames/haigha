@@ -213,6 +213,18 @@ class ConnectionTest(Chai):
     assert_false( self.connection._connected )
     assert_equals( None, self.connection._transport )
 
+  def test_disconnect_when_systemexit(self):
+    self.connection._connected = 'yup'
+    self.connection._host = 'server'
+
+    expect( self.connection._transport.disconnect ).raises( SystemExit() )
+    stub( self.connection.logger.error )
+    assert_raises( SystemExit, self.connection.disconnect )
+
+    assert_false( self.connection._connected )
+    assert_equals( None, self.connection._transport )
+    
+
   def test_transport_closed_with_no_args(self):
     self.connection._host = 'server'
     self.connection._connected = 'yes'

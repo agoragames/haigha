@@ -209,7 +209,7 @@ class Connection(object):
     if self._transport!=None:
       try:
         self._transport.disconnect()
-      except: 
+      except Exception: 
         self.logger.error("Failed to disconnect from %s", self._host, exc_info=True)
         raise
       finally:

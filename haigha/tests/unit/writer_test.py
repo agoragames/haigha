@@ -145,9 +145,9 @@ class WriterTest(Chai):
   def test_write_table(self):
     w = Writer()
     expect( w._write_item ).args( 'a', 'foo' ).any_order().side_effect( 
-      lambda: (setattr(w,'_pos',20), w._output_buffer.extend('afoo')) )
+      lambda *args: (setattr(w,'_pos',20), w._output_buffer.extend('afoo')) )
     expect( w._write_item ).args( 'b', 'bar' ).any_order().side_effect( 
-      lambda: (setattr(w,'_pos',20), w._output_buffer.extend('bbar')) )
+      lambda *args: (setattr(w,'_pos',20), w._output_buffer.extend('bbar')) )
 
     assert_true( w is w.write_table({'a':'foo','b':'bar'}) )
     assert_equals( '\x00\x00\x00\x08', w._output_buffer[:4] )
@@ -226,7 +226,7 @@ class WriterTest(Chai):
   def test_field_table(self):
     w = Writer()
     expect( w.write_table ).args( {'foo':'bar'} ).side_effect(
-      lambda: w._output_buffer.extend('tdata') )
+      lambda *args: w._output_buffer.extend('tdata') )
     w._field_table( {'foo':'bar'} )
 
     assert_equals( 'Ftdata', w._output_buffer )
@@ -245,21 +245,21 @@ class WriterTest(Chai):
   def test_field_iterable(self):
     w = Writer()
     expect( w._write_field ).args('la').side_effect( 
-      lambda: w._output_buffer.append('a') )
+      lambda field: w._output_buffer.append('a') )
     expect( w._write_field ).args('lb').side_effect(
-      lambda: w._output_buffer.append('b') )
+      lambda field: w._output_buffer.append('b') )
     w._field_iterable( ['la','lb'] )
     
     expect( w._write_field ).args('ta').side_effect( 
-      lambda: w._output_buffer.append('a') )
+      lambda field: w._output_buffer.append('a') )
     expect( w._write_field ).args('tb').side_effect(
-      lambda: w._output_buffer.append('b') )
+      lambda field: w._output_buffer.append('b') )
     w._field_iterable( ('ta','tb') )
     
     expect( w._write_field ).args('sa').any_order().side_effect( 
-      lambda: w._output_buffer.append('s') )
+      lambda field: w._output_buffer.append('s') )
     expect( w._write_field ).args('sb').any_order().side_effect(
-      lambda: w._output_buffer.append('s') )
+      lambda field: w._output_buffer.append('s') )
     w._field_iterable( set(('sa','sb')) )
 
     assert_equals( 'AabAabAss', w._output_buffer )

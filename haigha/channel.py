@@ -206,7 +206,7 @@ class Channel(object):
         self.dispatch( frame )
       except ProtocolClass.FrameUnderflow:
         return
-      except:
+      except Exception:
         # Spec says that channel should be closed if there's a framing error.
         # Unsure if we can send close if the current exception is transport
         # level (e.g. gevent.GreenletExit)

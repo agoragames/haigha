@@ -2,7 +2,7 @@
 Haigha
 ======
 
-:Version: 0.5.3
+:Version: 0.5.6
 :Download: http://pypi.python.org/pypi/haigha
 :Source: https://github.com/agoragames/haigha
 
