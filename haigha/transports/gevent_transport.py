@@ -9,7 +9,11 @@ from haigha.transports.socket_transport import SocketTransport
 import errno
 try:
   import gevent
-  from gevent.coros import Semaphore
+  try:
+    # Semaphore moved here since gevent-1.0b2
+    from gevent.lock import Semaphore
+  except ImportError:
+    from gevent.coros import Semaphore
   from gevent import socket
   from gevent import pool
 except ImportError:
