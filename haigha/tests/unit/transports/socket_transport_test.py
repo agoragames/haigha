@@ -153,9 +153,12 @@ class SocketTransportTest(Chai):
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).raises(
       EnvironmentError(errno.EBADF,'baddog') )
+    expect( self.transport.connection.logger.exception ).args( 
+      'error reading from server:1234' )
+    expect( self.transport.connection.transport_closed ).args(
+      msg='error reading from server:1234' )
     
-    with assert_raises(EnvironmentError):
-      self.transport.read(42)
+    self.transport.read(42)
 
   def test_read_when_no_sock(self):
     self.transport.read()
@@ -189,6 +192,18 @@ class SocketTransportTest(Chai):
 
     expect( self.transport._sock.sendall ).args( 'somedata' ).raises(Exception('fail'))
     assert_raises(Exception, self.transport.write, 'somedata' )
+
+  def test_write_when_sendall_raises_environmenterror(self):
+    self.transport._sock = mock()
+    self.transport.connection.debug = False
+
+    expect( self.transport._sock.sendall ).args( 'somedata' ).raises(
+      EnvironmentError(errno.EAGAIN,'tryagainlater') )
+    expect( self.transport.connection.logger.exception ).args(
+      'error writing to server:1234' )
+    expect( self.transport.connection.transport_closed ).args(
+      msg='error writing to server:1234' )
+    self.transport.write( 'somedata' )
 
   def test_write_when_debugging(self):
     self.transport._sock = mock()

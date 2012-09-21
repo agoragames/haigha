@@ -65,6 +65,9 @@ class SocketTransport(Transport):
           self._buffer = bytearray()
         return data
 
+      # Note that no data means the socket is closed and we'll mark that
+      # below
+
     except socket.timeout as e:
       # Note that this is implemented differently and though it would be
       # caught as an EnvironmentError, it has no errno. Not sure whose
@@ -79,7 +82,8 @@ class SocketTransport(Transport):
       # that case here
       elif isinstance(e, socket.timeout):
         return None
-      raise
+      
+      self.connection.logger.exception( 'error reading from %s'%(self._host) )
 
     self.connection.transport_closed( msg='error reading from %s'%(self._host) )
   
@@ -103,10 +107,22 @@ class SocketTransport(Transport):
     if not hasattr(self,'_sock'):
       return None
 
-    self._sock.sendall( data )
+    try:
+      self._sock.sendall( data )
 
-    if self.connection.debug > 1:
-      self.connection.logger.debug( 'sent %d bytes to %s'%(len(data), self._host) )
+      if self.connection.debug > 1:
+        self.connection.logger.debug( 'sent %d bytes to %s'%(len(data), self._host) )
+
+      return
+    except EnvironmentError as e:
+      # sockets raise this type of error, and since if sendall() fails we're
+      # left in an indeterminate state, assume that any error we catch means
+      # that the connection is dead. Note that this assumption requires this
+      # to be a blocking socket; if we ever support non-blocking in this class
+      # then this whole method has to change a lot.
+      self.connection.logger.exception( 'error writing to %s'%(self._host) )
+    
+    self.connection.transport_closed( msg='error writing to %s'%(self._host) )
     
   def disconnect(self):
     '''

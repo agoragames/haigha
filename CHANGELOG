@@ -1,3 +1,10 @@
+0.5.7
+=====
+
+Fixed exception in handling in SocketTransport when sendall() raises a socket
+error. Also fixed re-raise of exception on SocketTransport.read() so that it
+always marks the transport as closed.
+
 0.5.6
 =====
 
