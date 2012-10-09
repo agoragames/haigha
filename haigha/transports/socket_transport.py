@@ -78,10 +78,6 @@ class SocketTransport(Transport):
       # thrown if we have a timeout and no data
       if e.errno in (errno.EAGAIN,errno.EWOULDBLOCK):
         return None
-      # gevent throws this too, and rather than handle separately just catch
-      # that case here
-      elif isinstance(e, socket.timeout):
-        return None
       
       self.connection.logger.exception( 'error reading from %s'%(self._host) )
 
