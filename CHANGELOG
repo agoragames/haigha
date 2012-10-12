@@ -1,3 +1,8 @@
+0.5.8
+=====
+
+Merge pull requests, suppresses DeprecationWarning in latest gevent.
+
 0.5.7
 =====
 
