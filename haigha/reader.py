@@ -345,6 +345,7 @@ class Reader(object):
 
   # A mapping for quick lookups
   # Rabbit and Qpid 0.9.1 mapping
+  # Based on: http://www.rabbitmq.com/amqp-0-9-1-errata.html (3. Field types)
   field_type_map = {
     't' : _field_bool,
     'b' : _field_short_short_int,
@@ -355,6 +356,7 @@ class Reader(object):
     'd' : _field_double,
     'D' : _field_decimal,
     'S' : _field_longstr,
+    'A' : _field_array,
     'T' : _field_timestamp,
     'F' : read_table,
     'V' : _field_none,
@@ -362,23 +364,23 @@ class Reader(object):
   }
 
   # 0.9.1 spec mapping
-  #field_type_map = {
-  #  't' : _field_bool,
-  #  'b' : _field_short_short_int,
-  #  'B' : _field_short_short_uint,
-  #  'U' : _field_short_int,
-  #  'u' : _field_short_uint,
-  #  'I' : _field_long_int,
-  #  'i' : _field_long_uint,
-  #  'L' : _field_long_long_int,
-  #  'l' : _field_long_long_uint,
-  #  'f' : _field_float,
-  #  'd' : _field_double,
-  #  'D' : _field_decimal,
-  #  's' : _field_shortstr,
-  #  'S' : _field_longstr,
-  #  'A' : _field_array,
-  #  'T' : _field_timestamp,
-  #  'F' : read_table,
-  #  'V' : _field_none,
+  #  field_type_map = {
+  #   't' : _field_bool,
+  #   'b' : _field_short_short_int,
+  #   'B' : _field_short_short_uint,
+  #   'U' : _field_short_int,
+  #   'u' : _field_short_uint,
+  #   'I' : _field_long_int,
+  #   'i' : _field_long_uint,
+  #   'L' : _field_long_long_int,
+  #   'l' : _field_long_long_uint,
+  #   'f' : _field_float,
+  #   'd' : _field_double,
+  #   'D' : _field_decimal,
+  #   's' : _field_shortstr,
+  #   'S' : _field_longstr,
+  #   'A' : _field_array,
+  #   'T' : _field_timestamp,
+  #   'F' : read_table,
+  #   'V' : _field_none,
   #}
