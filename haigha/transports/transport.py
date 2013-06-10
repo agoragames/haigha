@@ -1,4 +1,4 @@
-  '''
+'''
 Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
@@ -27,11 +27,11 @@ class Transport(object):
 
   def process_channels(self, channels):
     '''
-    Process a set of channels by calling Channel.process_frames() on each. 
-    Some transports may choose to do this in unique ways, such as through 
+    Process a set of channels by calling Channel.process_frames() on each.
+    Some transports may choose to do this in unique ways, such as through
     a pool of threads.
 
-    The default implementation will simply iterate over them and call 
+    The default implementation will simply iterate over them and call
     process_frames() on each.
     '''
     for channel in channels:
@@ -57,10 +57,10 @@ class Transport(object):
     '''
     Write some bytes to the transport.
     '''
-    
+
   def disconnect(self):
     '''
-    Disconnect from the transport. Typically socket.close(). This call is 
+    Disconnect from the transport. Typically socket.close(). This call is
     welcome to raise exceptions, which the Connection will catch.
 
     The transport is encouraged to allow for any pending writes to complete
