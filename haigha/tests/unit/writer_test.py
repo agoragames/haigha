@@ -242,6 +242,12 @@ class WriterTest(Chai):
     w._field_bytearray( bytearray('foo') )
     assert_equals( 'x\x00\x00\x00\x03foo', w._output_buffer )
 
+  def test_write_field_supports_subclasses(self):
+    class SubString(str): pass
+    w = Writer()
+    w._write_field( SubString('foo') )
+    assert_equals( 'S\x00\x00\x00\x03foo', w._output_buffer )
+
   def test_field_iterable(self):
     w = Writer()
     expect( w._write_field ).args('la').side_effect( 
@@ -276,7 +282,7 @@ class WriterTest(Chai):
         unicode   : Writer._field_unicode.im_func,
         datetime  : Writer._field_timestamp.im_func,
         dict      : Writer._field_table.im_func,
-        None      : Writer._field_none.im_func,
+        type(None): Writer._field_none.im_func,
         bytearray : Writer._field_bytearray.im_func,
       }, Writer.field_type_map )
 

@@ -324,6 +324,7 @@ class ReaderTest(Chai):
         'd' : Reader._field_double.im_func,
         'D' : Reader._field_decimal.im_func,
         'S' : Reader._field_longstr.im_func,
+        'A' : Reader._field_array.im_func,
         'T' : Reader._field_timestamp.im_func,
         'F' : Reader.read_table.im_func,
         'V' : Reader._field_none.im_func,

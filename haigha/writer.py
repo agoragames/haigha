@@ -199,8 +199,13 @@ class Writer(object):
     if writer:
       writer(self, value)
     else:
-      # Write a None because we've already written a key
-      self._field_none( value )
+      for kls, writer in self.field_type_map.items():
+        if isinstance(value, kls):
+          writer(self, value)
+          break
+      else:
+        # Write a None because we've already written a key
+        self._field_none( value )
 
   def _field_bool(self, val, pack=Struct('B').pack):
     self._output_buffer.append( 't' )
@@ -274,7 +279,7 @@ class Writer(object):
     unicode   : _field_unicode,
     datetime  : _field_timestamp,
     dict      : _field_table,
-    None      : _field_none,
+    type(None): _field_none,
     bytearray : _field_bytearray,
   }
 
