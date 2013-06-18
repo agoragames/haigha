@@ -1,3 +1,9 @@
+0.5.11
+======
+
+Fixed writing headers if the type of a field is a subclass of the supported
+native types
+
 0.5.10
 ======
 
