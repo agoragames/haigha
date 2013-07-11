@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+import sys, os
+sys.path.append(os.path.abspath("."))
+
+import gevent
+from gevent.event import AsyncResult
+from haigha.connection import Connection
+from haigha.message import Message
+
+# NOTE: Work around a bug in Haigha 0.5.1-0.5.3 that breaks gevent
+#  compatibility
+import haigha
+try:
+  haigha_version = haigha.__version__
+except AttributeError:
+  pass
+else:
+  from distutils import version
+  if (version.StrictVersion(haigha_version) >=
+      version.StrictVersion("0.5.1")
+      and
+      version.StrictVersion(haigha_version) <=
+      version.StrictVersion("0.5.3")):
+    print >>sys.stderr, \
+    "WARNING: DEPLOYING GEVENT-FRIENDLINESS BUG WORK-AROUND FOR HAIGHA v%s" % (
+      haigha_version)
+    from haigha.transports import socket_transport
+    import gevent.socket
+  socket_transport.socket = gevent.socket
+
+
+def test_haigha():
+  """
+  A simple test to check Haigha's connection/channel opening and closing.
+
+  Note that Rabbit MQ must be running
+  """
+
+  channel1CloseWaiter = AsyncResult()
+  connectionCloseWaiter = AsyncResult()
+
+  def handleChannel1Closed(ch, channelImpl):
+    print "CHANNEL1 CLOSED: %r" % (channelImpl.close_info,)
+    channel1CloseWaiter.set()
+
+  def handleConnectionClosed():
+    print "CONNECTION CLOSED!"
+    connectionCloseWaiter.set()
+
+  print "Connecting..."
+  connection = Connection(
+    user='guest', password='guest',
+    vhost='/', host='localhost',
+   heartbeat=None, debug=True, transport="gevent",
+   close_cb=handleConnectionClosed)
+
+  def readFrames(conn):
+    while True:
+      conn.read_frames()
+      if connectionCloseWaiter.ready():
+        break
+
+  # Start Haigha message pump
+  print "Starting message pump greenlet..."
+  g = gevent.spawn(readFrames, conn=connection)
+
+  ch1 = connection.channel()
+  channel1Impl = ch1.channel
+  ch1.add_close_listener(lambda ch: handleChannel1Closed(ch, channel1Impl))
+
+  # Close the channels and wait for close-done
+  print "Closing channel1..."
+  ch1.close()
+  with gevent.Timeout(seconds=10) as myTimeout:
+    channel1CloseWaiter.wait()
+
+  # Close the connection and wait for close-done
+  print "Closing connection..."
+  connection.close()
+  with gevent.Timeout(seconds=10) as myTimeout:
+    connectionCloseWaiter.wait()
+
+  print "Killing message pump..."
+  sys.stdout.flush()
+
+  g.kill()
+
+
+
+if __name__ == '__main__':
+  test_haigha()
