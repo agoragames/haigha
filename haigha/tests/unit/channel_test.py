@@ -363,6 +363,23 @@ class ChannelTest(Chai):
     # in this method
     assertEquals( deque([wrapper]), c._pending_events )
 
+  def test_add_synchronous_cb_when_transport_synchronous_and_channel_closes(self):
+    conn = mock()
+    conn.synchronous = True
+    c = Channel(conn,None,{})
+
+    wrapper = mock()
+    wrapper._read = True
+    wrapper._result = 'done'
+
+    expect( channel.SyncWrapper ).args( 'foo' ).returns( wrapper )
+    expect( conn.read_frames )
+    expect( conn.read_frames ).side_effect(
+      lambda: setattr(c, '_closed', True) )
+    
+    with assert_raises( ChannelClosed ):
+      c.add_synchronous_cb('foo')
+
   def test_clear_synchronous_cb_when_no_pending(self):
     c = Channel(None,None,{})
     stub( c._flush_pending_events )
