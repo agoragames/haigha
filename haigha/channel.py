@@ -266,6 +266,16 @@ class Channel(object):
       self._pending_events.append( wrapper )
       while wrapper._read:
         self.connection.read_frames()
+
+        # frame processing may have resulted in a closed channel
+        if self.closed:
+          if self.close_info and len(self.close_info['reply_text'])>0:
+            raise ChannelClosed(
+              "channel %d is closed: %s : %s",
+              self.channel_id,
+              self.close_info['reply_code'],
+              self.close_info['reply_text'] )
+          raise ChannelClosed()
       return wrapper._result
     else:
       self._pending_events.append( cb )
