@@ -1,3 +1,9 @@
+0.5.12
+======
+
+Fixes #31 wherein a channel is closed on a synchronous transport while reading
+frames and waiting for the synchronous callback to be executed.
+
 0.5.11
 ======
 
