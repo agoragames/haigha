@@ -1,0 +1,19 @@
+#!/usr/bin/env python
+
+from haigha.connection import Connection
+from haigha.message import Message
+
+connection = Connection(user='guest', password='guest', vhost='/', host='localhost', heartbeat=None, debug=True)
+ch = connection.channel()
+ch.exchange.declare('test_exchange', 'direct', durable=True)
+ch.queue.declare('test_queue', durable=True)
+ch.queue.bind('test_queue', 'test_exchange', 'test_key')
+ch.basic.publish( Message(), 'test_exchange', 'test_key' )
+
+try:
+  ch.basic.publish( Message(body=None), 'test_exchange', 'test_key' )
+  print 'FAIL did not raise expected type error'
+except TypeError:
+  print 'SUCCESS expected type raised'
+
+connection.close()
