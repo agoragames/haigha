@@ -9,11 +9,14 @@ class Message(object):
   Represents an AMQP message.
   '''
 
-  def __init__(self, body=None, delivery_info=None, **properties):
+  def __init__(self, body='', delivery_info=None, **properties):
     if isinstance(body, unicode):
       if 'content_encoding' not in properties:
         properties['content_encoding'] = 'utf-8'
       body = body.encode(properties['content_encoding'])
+
+    if not isinstance(body, (str,unicode,bytearray)):
+      raise TypeError("Invalid message content type %s"%(type(body)))
     
     self._body = body
     self._delivery_info = delivery_info
