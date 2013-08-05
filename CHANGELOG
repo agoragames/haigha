@@ -1,3 +1,9 @@
+0.6.0
+=====
+
+Fixes #33, only accept (str,unicode,bytearray) as Message body types. Default 
+to empty string.
+
 0.5.12
 ======
 
