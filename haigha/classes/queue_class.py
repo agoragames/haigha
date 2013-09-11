@@ -78,7 +78,7 @@ class QueueClass(ProtocolClass):
     cb = self._declare_cb.popleft()
     if cb:
       cb( queue, message_count, consumer_count )
-    return message_count, consumer_count
+    return queue, message_count, consumer_count
     
   def bind(self, queue, exchange, routing_key='', nowait=True, arguments={}, 
       ticket=None, cb=None):
