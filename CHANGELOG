@@ -1,3 +1,11 @@
+0.6.1
+=====
+
+Merge https://github.com/agoragames/haigha/pull/35 from @xjdrew
+Fix exception raising when there's an application error on a synchronous transport
+Fixes synchronous return values from queue.declare
+Adds an example synchronous RPC client and server
+
 0.6.0
 =====
 
