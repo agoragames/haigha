@@ -246,6 +246,21 @@ class ChannelTest(Chai):
     assert_raises( RuntimeError, c.process_frames )
     assertEquals( f1, c._frame_buffer[0] )
   
+  def test_process_frames_logs_and_closes_when_dispatch_error_raised_even_when_exception_on_close(self):
+    c = Channel(None,None,{})
+    c._connection = mock()
+    c._connection.logger = mock()
+    
+    f0 = MethodFrame(20, 30, 40)
+    f1 = MethodFrame('ch_id', 'c_id', 'm_id')
+    c._frame_buffer = deque([ f0, f1 ])
+
+    expect( c.dispatch ).args( f0 ).raises( RuntimeError("zomg it broked") )
+    expect( c.close ).raises( ValueError() )
+
+    assert_raises( RuntimeError, c.process_frames )
+    assertEquals( f1, c._frame_buffer[0] )
+  
   def test_process_frames_logs_and_closes_when_systemexit_raised(self):
     c = Channel(None,None,{})
     c._connection = mock()

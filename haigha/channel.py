@@ -210,8 +210,10 @@ class Channel(object):
         # Spec says that channel should be closed if there's a framing error.
         # Unsure if we can send close if the current exception is transport
         # level (e.g. gevent.GreenletExit)
-        self.close( 500, "Failed to dispatch %s"%(str(frame)) )
-        raise
+        try:
+          self.close( 500, "Failed to dispatch %s"%(str(frame)) )
+        finally:
+          raise
 
   def next_frame(self):
     '''

@@ -13,7 +13,7 @@ class MessageTest(Chai):
 
   def test_init_no_args(self):
     m = Message()
-    self.assertEquals( None, m._body )
+    self.assertEquals( '', m._body )
     self.assertEquals( None, m._delivery_info )
     self.assertEquals( {}, m._properties )
 

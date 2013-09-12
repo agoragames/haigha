@@ -117,7 +117,7 @@ class QueueClassTest(Chai):
     expect( rframe.args.read_long ).returns( 5 )
     expect( cb ).args( 'queue', 32, 5 )
 
-    assert_equals( (32,5), self.klass._recv_declare_ok(rframe) )
+    assert_equals( ('queue',32,5), self.klass._recv_declare_ok(rframe) )
     assert_equals( 1, len(self.klass._declare_cb) )
     assert_false( cb in self.klass._declare_cb )
 
@@ -131,7 +131,7 @@ class QueueClassTest(Chai):
     expect( rframe.args.read_long ).returns( 32 )
     expect( rframe.args.read_long ).returns( 5 )
 
-    assert_equals( (32,5), self.klass._recv_declare_ok(rframe) )
+    assert_equals( ('queue',32,5), self.klass._recv_declare_ok(rframe) )
     assert_equals( 1, len(self.klass._declare_cb) )
     assert_false( None in self.klass._declare_cb )
 
