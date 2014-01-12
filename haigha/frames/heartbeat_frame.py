@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -22,7 +22,7 @@ class HeartbeatFrame(Frame):
     # XML spec: http://www.amqp.org/confluence/download/attachments/720900/amqp0-9-1.xml?version=1&modificationDate=1227526672000
     # This is addressed in http://dev.rabbitmq.com/wiki/Amqp091Errata#section_29
     return 8
-  
+
   @classmethod
   def parse(self, channel_id, payload):
     return HeartbeatFrame( channel_id )

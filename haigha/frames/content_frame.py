@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -36,20 +36,20 @@ class ContentFrame(Frame):
       payload = buf[offset:(offset+size)]
       if len(payload)==0: break
       offset += size
-      
+
       yield ContentFrame(channel_id, payload)
       if offset >= len(buf): break
-    
+
   def __init__(self, channel_id, payload):
     Frame.__init__(self, channel_id)
     self._payload = payload
-  
+
   def __str__(self):
     if isinstance(self._payload, str):
       payload = ''.join( ['\\x%s'%(c.encode('hex')) for c in self._payload] )
     else:
       payload = str(self._payload)
-    
+
     return "%s[channel: %d, payload: %s]"%( self.__class__.__name__, self.channel_id, payload )
 
   def write_frame(self, buf):

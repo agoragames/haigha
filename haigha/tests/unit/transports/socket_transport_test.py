@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -103,61 +103,61 @@ class SocketTransportTest(Chai):
   def test_read_when_socket_closes(self):
     self.transport._sock = mock()
     self.transport.connection.debug = 2
-    
+
     expect( self.transport._sock.settimeout ).args( None )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).returns('')
     expect( self.transport.connection.transport_closed ).args(
       msg='error reading from server:1234' )
-    
+
     self.transport.read()
 
   def test_read_when_socket_timeout(self):
     self.transport._sock = mock()
     self.transport.connection.debug = 2
-    
+
     expect( self.transport._sock.settimeout ).args( 42 )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).raises(
       socket.timeout('not now') )
-    
+
     assert_equals( None, self.transport.read(42) )
 
   def test_read_when_raises_eagain(self):
     self.transport._sock = mock()
     self.transport.connection.debug = 2
-    
+
     expect( self.transport._sock.settimeout ).args( 42 )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).raises(
       EnvironmentError(errno.EAGAIN,'tryagainlater') )
-    
+
     assert_equals( None, self.transport.read(42) )
 
   def test_read_when_raises_socket_timeout(self):
     self.transport._sock = mock()
     self.transport.connection.debug = 2
-    
+
     expect( self.transport._sock.settimeout ).args( 42 )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).raises(
       socket.timeout() )
-    
+
     assert_equals( None, self.transport.read(42) )
 
   def test_read_when_raises_other_errno(self):
     self.transport._sock = mock()
     self.transport.connection.debug = 2
-    
+
     expect( self.transport._sock.settimeout ).args( 42 )
     expect( self.transport._sock.getsockopt ).any_args().returns( 4095 )
     expect( self.transport._sock.recv ).args(4095).raises(
       EnvironmentError(errno.EBADF,'baddog') )
-    expect( self.transport.connection.logger.exception ).args( 
+    expect( self.transport.connection.logger.exception ).args(
       'error reading from server:1234' )
     expect( self.transport.connection.transport_closed ).args(
       msg='error reading from server:1234' )
-    
+
     self.transport.read(42)
 
   def test_read_when_no_sock(self):
@@ -172,7 +172,7 @@ class SocketTransportTest(Chai):
   def test_buffer_when_already_buffered(self):
     self.transport._sock = mock()
     self.transport._buffer = bytearray('some')
-    
+
     self.transport.buffer( bytearray('data') )
     assert_equals( bytearray('somedata'), self.transport._buffer )
 
@@ -223,6 +223,6 @@ class SocketTransportTest(Chai):
     expect( self.transport._sock.close )
     self.transport.disconnect()
     assert_equals( None, self.transport._sock )
-  
+
   def test_disconnect_when_no_sock(self):
     self.transport.disconnect()

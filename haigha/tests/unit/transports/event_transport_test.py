@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -19,12 +19,12 @@ class EventTransportTest(Chai):
     self.transport._host = 'server'
 
   def test_sock_close_cb(self):
-    expect( self.connection.transport_closed ).args( 
+    expect( self.connection.transport_closed ).args(
       msg='socket to server closed unexpectedly' )
     self.transport._sock_close_cb('sock')
 
   def test_sock_error_cb(self):
-    expect( self.connection.transport_closed ).args( 
+    expect( self.connection.transport_closed ).args(
       msg='error on connection to server: amsg' )
     self.transport._sock_error_cb('sock', 'amsg')
 
@@ -41,7 +41,7 @@ class EventTransportTest(Chai):
       ('range','ipv6') : 'hex'
     }
 
-    expect( event_transport.EventSocket ).args( 
+    expect( event_transport.EventSocket ).args(
       read_cb = self.transport._sock_read_cb,
       close_cb = self.transport._sock_close_cb,
       error_cb = self.transport._sock_error_cb,
@@ -65,10 +65,10 @@ class EventTransportTest(Chai):
     self.transport._heartbeat_timeout = None
     self.transport._sock = mock()
     mock( event_transport, 'event' )
-    expect( event_transport.event.timeout ).args( 
+    expect( event_transport.event.timeout ).args(
       'timeout', self.transport._sock_read_cb, self.transport._sock ).returns(
       'timer' )
-    
+
     expect( self.transport._sock.read ).returns('buffereddata')
     assert_equals( 'buffereddata', self.transport.read('timeout') )
     assert_equals( 'timer', self.transport._heartbeat_timeout )
@@ -78,10 +78,10 @@ class EventTransportTest(Chai):
     self.transport._sock = mock()
     mock( event_transport, 'event' )
     expect( self.transport._heartbeat_timeout.delete )
-    expect( event_transport.event.timeout ).args( 
+    expect( event_transport.event.timeout ).args(
       'timeout', self.transport._sock_read_cb, self.transport._sock ).returns(
       'timer' )
-    
+
     expect( self.transport._sock.read ).returns('buffereddata')
     assert_equals( 'buffereddata', self.transport.read('timeout') )
     assert_equals( 'timer', self.transport._heartbeat_timeout )
@@ -91,7 +91,7 @@ class EventTransportTest(Chai):
     self.transport._sock = mock()
     mock( event_transport, 'event' )
     expect( self.transport._heartbeat_timeout.delete )
-    
+
     expect( self.transport._sock.read ).returns('buffereddata')
     assert_equals( 'buffereddata', self.transport.read() )
     assert_equals( None, self.transport._heartbeat_timeout )
@@ -121,6 +121,6 @@ class EventTransportTest(Chai):
     expect( self.transport._sock.close )
     self.transport.disconnect()
     assert_equals( None, self.transport._sock.close_cb )
-  
+
   def test_disconnect_when_no_sock(self):
     self.transport.disconnect()

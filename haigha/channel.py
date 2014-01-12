@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -46,7 +46,7 @@ class Channel(object):
       impl = _class(self)
       setattr(self, impl.name, impl)
       self._class_map[ _id ] = impl
-    
+
     # Out-bound mix of pending frames and synchronous callbacks
     self._pending_events = deque()
 
@@ -106,7 +106,7 @@ class Channel(object):
   def add_open_listener(self, listener):
     '''
     Add a listener for open events on this channel. The listener should be
-    a callable that can take one argument, the channel that is opened. 
+    a callable that can take one argument, the channel that is opened.
     Listeners will not be called in any particular order.
     '''
     self._open_listeners.add( listener )
@@ -126,7 +126,7 @@ class Channel(object):
   def add_close_listener(self, listener):
     '''
     Add a listener for close events on this channel. The listener should be
-    a callable that can take one argument, the channel that is closed. 
+    a callable that can take one argument, the channel that is closed.
     Listeners will not be called in any particular order.
     '''
     self._close_listeners.add( listener )
@@ -184,7 +184,7 @@ class Channel(object):
     if klass:
       klass.dispatch( method_frame )
     else:
-      raise Channel.InvalidClass( "class %d is not supported on channel %d", 
+      raise Channel.InvalidClass( "class %d is not supported on channel %d",
         method_frame.class_id, self.channel_id )
 
   def buffer_frame(self, frame):
@@ -251,7 +251,7 @@ class Channel(object):
     # dispatch loop started, all possible frames were flushed and the remaining
     # item(s) starts with a sync callback.  After careful consideration, it
     # seems that it's safe to assume the len>0 means to buffer the frame. The
-    # other advantage here is 
+    # other advantage here is
     if not len(self._pending_events):
       if not self._active and isinstance( frame, (ContentFrame,HeaderFrame) ):
         raise Channel.Inactive( "Channel %d flow control activated", self.channel_id )

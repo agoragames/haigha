@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -12,7 +12,7 @@ class ChannelClass(ProtocolClass):
   '''
   Implements the AMQP Channel class
   '''
-  
+
   def __init__(self, *args, **kwargs):
     super(ChannelClass, self).__init__(*args, **kwargs)
     self.dispatch_map = {
@@ -35,7 +35,7 @@ class ChannelClass(ProtocolClass):
     on which flow control changes.
     '''
     self._flow_control_cb = cb
-  
+
   def open(self):
     '''
     Open the channel for communication.
@@ -79,7 +79,7 @@ class ChannelClass(ProtocolClass):
     Receive a flow control command from the broker
     '''
     self.channel._active = method_frame.args.read_bit()
-    
+
     args = Writer()
     args.write_bit( self.channel.active )
     self.send_frame( MethodFrame(self.channel_id, 20, 21, args) )
@@ -120,7 +120,7 @@ class ChannelClass(ProtocolClass):
       args.write_short( class_id )
       args.write_short( method_id )
       self.send_frame( MethodFrame(self.channel_id, 20, 40, args) )
-      
+
       self.channel.add_synchronous_cb( self._recv_close_ok )
     finally:
       # Immediately set the closed flag so that no more frames can be sent

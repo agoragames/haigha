@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -55,7 +55,7 @@ class HeaderFrameTest(Chai):
 
     bit_field <<= (16- len(HeaderFrame.PROPERTIES))
     bit_writer.write_short( bit_field )
-    
+
     header_writer = Writer()
     header_writer.write_short( 5 )
     header_writer.write_short( 6 )
@@ -81,7 +81,7 @@ class HeaderFrameTest(Chai):
     assert_equals( 5, frame._class_id )
     assert_equals( 6, frame._weight )
     assert_equals( 7, frame._size )
-  
+
   def test_parse_slow_for_standard_properties(self):
     HeaderFrame.DEFAULT_PROPERTIES = False
     bit_writer = Writer()
@@ -105,7 +105,7 @@ class HeaderFrameTest(Chai):
 
     bit_field <<= (16- len(HeaderFrame.PROPERTIES))
     bit_writer.write_short( bit_field )
-    
+
     header_writer = Writer()
     header_writer.write_short( 5 )
     header_writer.write_short( 6 )
@@ -176,7 +176,7 @@ class HeaderFrameTest(Chai):
     end_pos = reader.tell()
     assert_equals( size, end_pos-start_pos )
     assert_equals( 0xce, reader.read_octet() )
-  
+
   def test_write_frame_slow_for_standard_properties(self):
     HeaderFrame.DEFAULT_PROPERTIES = False
     bit_field = 0

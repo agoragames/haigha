@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -18,7 +18,7 @@ from haigha.transports import gevent_transport
 from haigha.transports import socket_transport
 
 class ConnectionTest(Chai):
-  
+
   def setUp(self):
     super(ConnectionTest,self).setUp()
 
@@ -74,7 +74,7 @@ class ConnectionTest(Chai):
     expect(conn.connect).args( 'localhost', 5672 )
 
     conn.__init__()
-    
+
     self.assertFalse( conn._debug )
     self.assertEqual( logging.root, conn._logger )
     self.assertEqual( 'guest', conn._user )
@@ -223,13 +223,13 @@ class ConnectionTest(Chai):
 
     assert_false( self.connection._connected )
     assert_equals( None, self.connection._transport )
-    
+
 
   def test_transport_closed_with_no_args(self):
     self.connection._host = 'server'
     self.connection._connected = 'yes'
 
-    expect( self.connection.logger.warning ).args( 'transport to server closed : unknown cause' ) 
+    expect( self.connection.logger.warning ).args( 'transport to server closed : unknown cause' )
     expect( self.connection._callback_close )
 
     self.connection.transport_closed()
@@ -243,7 +243,7 @@ class ConnectionTest(Chai):
     self.connection._channel_counter = 32
     self.connection._channel_max = 23423
     assert_equals( 33, self.connection._next_channel_id() )
-  
+
   def test_next_channel_id_when_at_max(self):
     self.connection._channel_counter = 32
     self.connection._channel_max = 32
@@ -306,13 +306,13 @@ class ConnectionTest(Chai):
   def test_close(self):
     self.connection._channels[0] = mock()
     expect( self.connection._channels[0].close ).times(2)
-    
+
     self.connection.close()
-    assert_equals( {'reply_code':0, 'reply_text':'', 'class_id':0, 'method_id':0}, 
+    assert_equals( {'reply_code':0, 'reply_text':'', 'class_id':0, 'method_id':0},
       self.connection._close_info )
-    
+
     self.connection.close(1, 'foo', 2, 3)
-    assert_equals( {'reply_code':1, 'reply_text':'foo', 'class_id':2, 'method_id':3}, 
+    assert_equals( {'reply_code':1, 'reply_text':'foo', 'class_id':2, 'method_id':3},
       self.connection._close_info )
 
   def test_callback_open_when_no_cb(self):
@@ -362,7 +362,7 @@ class ConnectionTest(Chai):
     channel = mock()
     mock( connection, 'Reader' )
     self.connection._heartbeat = 3
-    
+
     expect( self.connection._channels[0].send_heartbeat )
     expect( self.connection._transport.read ).args(3).returns( 'data' )
     expect( connection.Reader ).args( 'data' ).returns( reader )
@@ -382,7 +382,7 @@ class ConnectionTest(Chai):
     channel = mock()
     mock( connection, 'Reader' )
     self.connection._debug = 2
-    
+
     expect( self.connection._channels[0].send_heartbeat )
     expect( self.connection._transport.read ).args(None).returns( 'data' )
     expect( connection.Reader ).args( 'data' ).returns( reader )
@@ -409,7 +409,7 @@ class ConnectionTest(Chai):
     frame = mock()
     expect( frame.write_frame ).args( var('ba') )
     expect( self.connection._transport.write ).args( var('ba') )
-    
+
     self.connection._connected = True
     self.connection.send_frame( frame )
     assert_true( isinstance(var('ba').value, bytearray) )
@@ -420,7 +420,7 @@ class ConnectionTest(Chai):
     frame.channel_id = 42
     stub( frame.write_frame )
     stub( self.connection._transport.write )
-    
+
     self.connection._connected = False
     self.connection.send_frame( frame )
     assert_equals( [frame], self.connection._output_frame_buffer )
@@ -430,7 +430,7 @@ class ConnectionTest(Chai):
     frame.channel_id = 0
     expect( frame.write_frame ).args( var('ba') )
     expect( self.connection._transport.write ).args( var('ba') )
-    
+
     self.connection._connected = False
     self.connection.send_frame( frame )
     assert_true( isinstance(var('ba').value, bytearray) )
@@ -441,7 +441,7 @@ class ConnectionTest(Chai):
     expect( self.connection.logger.debug ).args( 'WRITE: %s', frame )
     expect( frame.write_frame ).args( var('ba') )
     expect( self.connection._transport.write ).args( var('ba') )
-    
+
     self.connection._connected = True
     self.connection._debug = 2
     self.connection.send_frame( frame )
@@ -453,18 +453,18 @@ class ConnectionTest(Chai):
     self.connection._close_info['reply_text'] = 'failed'
     assert_raises( connection.ConnectionClosed,
       self.connection.send_frame, 'frame' )
-    
+
     self.connection._close_info['reply_text'] = ''
     assert_raises( connection.ConnectionClosed,
       self.connection.send_frame, 'frame' )
-    
+
     self.connection._close_info = None
     assert_raises( connection.ConnectionClosed,
       self.connection.send_frame, 'frame' )
 
 
 class ConnectionChannelTest(Chai):
-  
+
   def setUp(self):
     super(ConnectionChannelTest,self).setUp()
     self.connection = mock()
@@ -590,7 +590,7 @@ class ConnectionChannelTest(Chai):
     self.ch.connection._login_method = 'please'
     self.ch.connection._login_response = 'thanks'
     self.ch.connection._locale = 'home'
-    
+
     with expect(mock(connection,'Writer')).returns(mock()) as writer:
       expect( writer.write_table ).args( 'props' )
       expect( writer.write_shortstr ).args( 'please' )
@@ -610,7 +610,7 @@ class ConnectionChannelTest(Chai):
     frame = mock()
     expect( frame.args.read_short ).returns(0)
     expect( frame.args.read_long ).returns(0)
-    
+
     expect( self.ch._send_tune_ok )
     expect( self.ch._send_open )
     expect( self.ch.send_heartbeat )
@@ -629,7 +629,7 @@ class ConnectionChannelTest(Chai):
     expect( frame.args.read_short ).returns(500)
     expect( frame.args.read_long ).returns(501)
     expect( frame.args.read_short ).returns(7)
-    
+
     expect( self.ch._send_tune_ok )
     expect( self.ch._send_open )
     expect( self.ch.send_heartbeat )
@@ -643,7 +643,7 @@ class ConnectionChannelTest(Chai):
     self.ch.connection._channel_max = 42
     self.ch.connection._frame_max = 43
     self.ch.connection._heartbeat = 8
-    
+
     with expect(mock(connection,'Writer')).returns(mock()) as writer:
       expect( writer.write_short ).args( 42 )
       expect( writer.write_long ).args( 43 )
@@ -658,7 +658,7 @@ class ConnectionChannelTest(Chai):
     self.ch.connection._channel_max = 42
     self.ch.connection._frame_max = 43
     self.ch.connection._heartbeat = None
-    
+
     with expect(mock(connection,'Writer')).returns(mock()) as writer:
       expect( writer.write_short ).args( 42 )
       expect( writer.write_long ).args( 43 )
@@ -675,7 +675,7 @@ class ConnectionChannelTest(Chai):
 
   def test_send_open(self):
     self.connection._vhost = '/foo'
-    
+
     with expect(mock(connection,'Writer')).returns(mock()) as writer:
       expect( writer.write_shortstr ).args( '/foo' )
       expect( writer.write_shortstr ).args( '' )
@@ -701,7 +701,7 @@ class ConnectionChannelTest(Chai):
       'class_id':4,
       'method_id':20,
     }
-    
+
     with expect(mock(connection,'Writer')).returns(mock()) as writer:
       expect( writer.write_short ).args( 42 )
       expect( writer.write_shortstr ).args( ('wrong answer'*60)[:255] )

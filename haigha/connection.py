@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -87,17 +87,17 @@ class Connection(object):
     self._class_map.setdefault(50, QueueClass)
     self._class_map.setdefault(60, BasicClass)
     self._class_map.setdefault(90, TransactionClass)
-    
+
     self._channels = {
       0 : ConnectionChannel(self, 0, {})
-    } 
+    }
 
-    # Login response seems a total hack of protocol 
-    # Skip the length at the beginning   
+    # Login response seems a total hack of protocol
+    # Skip the length at the beginning
     login_response = Writer()
     login_response.write_table({'LOGIN': self._user, 'PASSWORD': self._password})
     self._login_response = login_response.buffer()[4:]
-    
+
     self._channel_counter = 0
     self._channel_max = 65535
     self._frame_max = 65535
@@ -125,7 +125,7 @@ class Connection(object):
 
     self._output_frame_buffer = []
     self.connect( self._host, self._port )
-    
+
   @property
   def logger(self):
     return self._logger
@@ -167,7 +167,7 @@ class Connection(object):
   def synchronous(self):
     '''True if transport is synchronous, False otherwise.'''
     return self.transport.synchronous
-  
+
   def connect(self, host, port):
     '''
     Connect to a host and port. Can be called directly, or is called by the
@@ -176,7 +176,7 @@ class Connection(object):
     # Clear the connect state immediately since we're no longer connected
     # at this point.
     self._connected = False
-    
+
     # Only after the socket has connected do we clear this state; closed must
     # be False so that writes can be buffered in writePacket().  The closed
     # state might have been set to True due to a socket error or a redirect.
@@ -194,27 +194,27 @@ class Connection(object):
 
     while self.synchronous and not self._connected:
       self.read_frames()
-  
+
   def disconnect(self):
     '''
     Disconnect from the current host, but do not update the closed state. After
-    the transport is disconnected, the closed state will be True if this is 
+    the transport is disconnected, the closed state will be True if this is
     called after a protocol shutdown, or False if the disconnect was in error.
 
-    TODO: do we really need closed vs. connected states? this only adds 
+    TODO: do we really need closed vs. connected states? this only adds
     complication and the whole reconnect process has been scrapped anyway.
-    
+
     '''
     self._connected = False
     if self._transport!=None:
       try:
         self._transport.disconnect()
-      except Exception: 
+      except Exception:
         self.logger.error("Failed to disconnect from %s", self._host, exc_info=True)
         raise
       finally:
         self._transport = None
-  
+
   ###
   ### Transport methods
   ###
@@ -326,7 +326,7 @@ class Connection(object):
     # It's possible in a concurrent environment that our transport handle has
     # gone away, so handle that cleanly.
     # TODO: Consider moving this block into Translator base class. In many
-    # ways it belongs there. One of the problems though is that this is 
+    # ways it belongs there. One of the problems though is that this is
     # essentially the read loop. Each Transport has different rules for how to
     # kick this off, and in the case of gevent, this is how a blocking call to
     # read from the socket is kicked off.
@@ -335,14 +335,14 @@ class Connection(object):
 
     # Send a heartbeat (if needed)
     self._channels[0].send_heartbeat()
-    
+
     data = self._transport.read( self._heartbeat )
     if data is None:
       return
 
     reader = Reader( data )
     p_channels = set()
-    
+
     for frame in Frame.read_frames( reader ):
       if self._debug > 1:
         self.logger.debug( "READ: %s", frame )
@@ -372,10 +372,10 @@ class Connection(object):
     self._output_frame_buffer = []
     for frame in frames:
       self.send_frame( frame )
-  
+
   def send_frame(self, frame):
     '''
-    Send a single frame. If there is no transport or we're not connected yet, 
+    Send a single frame. If there is no transport or we're not connected yet,
     append to the output buffer, else send immediately to the socket. This is
     called from within the MethodFrames.
     '''
@@ -388,23 +388,23 @@ class Connection(object):
     if self._transport==None or (not self._connected and frame.channel_id!=0):
       self._output_frame_buffer.append( frame )
       return
-    
+
     if self._debug > 1:
       self.logger.debug( "WRITE: %s", frame )
 
     buf = bytearray()
     frame.write_frame(buf)
     self._transport.write( buf )
-    
+
     self._frames_written += 1
-    
+
 
 class ConnectionChannel(Channel):
   '''
   A special channel for the Connection class.  It's used for performing the special
   methods only available on the main connection channel.  It's also partly used to
   hide the 'connection' protocol implementation, which would show up as a property,
-  from the more useful 'connection' property that is a handle to a Channel's 
+  from the more useful 'connection' property that is a handle to a Channel's
   Connection object.
   '''
 
@@ -434,10 +434,10 @@ class ConnectionChannel(Channel):
         if cb:
           cb( frame )
         else:
-          raise Channel.InvalidMethod("unsupported method %d on channel %d", 
+          raise Channel.InvalidMethod("unsupported method %d on channel %d",
             frame.method_id, self.channel_id )
       else:
-        raise Channel.InvalidClass( "class %d is not supported on channel %d", 
+        raise Channel.InvalidClass( "class %d is not supported on channel %d",
           frame.class_id, self.channel_id )
 
     else:
@@ -490,7 +490,7 @@ class ConnectionChannel(Channel):
     self._send_tune_ok()
     self._send_open()
 
-    # 4.2.7: The client should start sending heartbeats after receiving a 
+    # 4.2.7: The client should start sending heartbeats after receiving a
     # Connection.Tune method
     self.send_heartbeat()
 
@@ -498,7 +498,7 @@ class ConnectionChannel(Channel):
     args = Writer()
     args.write_short( self.connection._channel_max )
     args.write_long( self.connection._frame_max )
-    
+
     if self.connection._heartbeat:
       args.write_short( self.connection._heartbeat )
     else:
@@ -514,7 +514,7 @@ class ConnectionChannel(Channel):
     args.write_shortstr(self.connection._vhost)
     args.write_shortstr('')
     args.write_bit(True)  # insist flag for older amqp, not used in 0.9.1
-    
+
     self.send_frame( MethodFrame(self.channel_id, 10, 40, args) )
 
   def _recv_open_ok(self, method_frame):

@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -45,7 +45,7 @@ class FrameTest(Chai):
   def test_read_frames_handles_reader_errors(self):
     reader = mock()
     self.mock( Frame, '_read_frame' )
-    
+
     expect( reader.tell ).returns( 0 )
     expect( Frame._read_frame ).args(reader).raises( Reader.ReaderError("bad!") )
 
@@ -54,7 +54,7 @@ class FrameTest(Chai):
   def test_read_frames_handles_struct_errors(self):
     reader = mock()
     self.mock( Frame, '_read_frame' )
-    
+
     expect( reader.tell ).returns( 0 )
     expect( Frame._read_frame ).args(reader).raises( struct.error("bad!") )
 
@@ -77,7 +77,7 @@ class FrameTest(Chai):
     expect( reader.read_octet ).returns( 45 ) # frame type
     expect( reader.read_short ).returns( 32 ) # channel id
     expect( reader.read_long ).returns( 42 )  # size
-    
+
     expect( reader.tell ).returns( 5 )
     expect( frame.Reader ).args(reader, 5, 42).returns( payload )
     expect( reader.seek ).args( 42, 1 )
@@ -94,7 +94,7 @@ class FrameTest(Chai):
     expect( reader.read_octet ).returns( 45 ) # frame type
     expect( reader.read_short ).returns( 32 ) # channel id
     expect( reader.read_long ).returns( 42 )  # size
-    
+
     expect( reader.tell ).returns( 5 )
     expect( frame.Reader ).args(reader, 5, 42).returns( 'payload' )
     expect( reader.seek ).args( 42, 1 )
@@ -109,7 +109,7 @@ class FrameTest(Chai):
     expect( reader.read_octet ).returns( 45 ) # frame type
     expect( reader.read_short ).returns( 32 ) # channel id
     expect( reader.read_long ).returns( 42 )  # size
-    
+
     expect( reader.tell ).returns( 5 )
     expect( frame.Reader ).args(reader, 5, 42).returns( 'payload' )
     expect( reader.seek ).args( 42, 1 )
@@ -125,7 +125,7 @@ class FrameTest(Chai):
     expect( reader.read_octet ).returns( 54 ) # frame type
     expect( reader.read_short ).returns( 32 ) # channel id
     expect( reader.read_long ).returns( 42 )  # size
-    
+
     expect( reader.tell ).returns( 5 )
     expect( frame.Reader ).args(reader, 5, 42).returns( payload )
     expect( reader.seek ).args( 42, 1 )
@@ -133,7 +133,7 @@ class FrameTest(Chai):
     expect( reader.read_octet ).returns( 0xce )
 
     assertRaises( Frame.InvalidFrameType, Frame._read_frame, reader )
-  
+
   def test_parse_raises_not_implemented(self):
     assertRaises( NotImplementedError, Frame.parse, 'channel_id', 'payload' )
 

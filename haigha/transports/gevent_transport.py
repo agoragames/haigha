@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -26,14 +26,14 @@ except ImportError:
 
 class GeventTransport(SocketTransport):
   '''
-  Transport using gevent backend. It relies on gevent's implementation of 
+  Transport using gevent backend. It relies on gevent's implementation of
   sendall to send whole frames at a time. On the input side, it uses a gevent
   semaphore to ensure exclusive access to the socket and input buffer.
 
   NOTE:
   This is new to haigha and there may be integration issues with some versions
   of RabbitMQ. In particular, what may happen when a blocking call to send a
-  frame allows another thread to queue another frame, but the frames can't be 
+  frame allows another thread to queue another frame, but the frames can't be
   interlaced due to how the protocol is defined or implemented. A lot of the
   'synchronous' calls have very specific expectations. If this becomes a
   problem then the quickest way to solve it would be to switch to non-blocking
@@ -43,7 +43,7 @@ class GeventTransport(SocketTransport):
 
   Note also that the blocking nature of the sockets means that the any threads
   running IO should actively yield with a sleep(0) to ensure other threads are
-  serviced. In a saturated environment, failure to do so will lead to 
+  serviced. In a saturated environment, failure to do so will lead to
   significant lags in signal handling or other IO. In practice, a typical
   client is attaching to other data stores so those could be enough to yield.
   '''
@@ -117,11 +117,11 @@ class GeventPoolTransport(GeventTransport):
 
   def process_channels(self, channels):
     '''
-    Process a set of channels by calling Channel.process_frames() on each. 
-    Some transports may choose to do this in unique ways, such as through 
+    Process a set of channels by calling Channel.process_frames() on each.
+    Some transports may choose to do this in unique ways, such as through
     a pool of threads.
 
-    The default implementation will simply iterate over them and call 
+    The default implementation will simply iterate over them and call
     process_frames() on each.
     '''
     for channel in channels:

@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -22,11 +22,11 @@ class ChannelClassTest(Chai):
 
   def test_init(self):
     expect(ProtocolClass.__init__).args('foo', a='b' )
-    
+
     klass = ChannelClass.__new__(ChannelClass)
     klass.__init__('foo', a='b')
 
-    assert_equals( 
+    assert_equals(
       {
         11 : klass._recv_open_ok,
         20 : klass._recv_flow,

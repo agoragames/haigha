@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -19,14 +19,14 @@ class ExchangeClassTest(Chai):
     ch.channel_id = 42
     ch.logger = mock()
     self.klass = ExchangeClass( ch )
-  
+
   def test_init(self):
     expect(ProtocolClass.__init__).args('foo', a='b' )
-    
+
     klass = ExchangeClass.__new__(ExchangeClass)
     klass.__init__('foo', a='b')
 
-    assert_equals( 
+    assert_equals(
       {
         11 : klass._recv_declare_ok,
         21 : klass._recv_delete_ok,
@@ -70,7 +70,7 @@ class ExchangeClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_declare_ok )
 
-    self.klass.declare('exchange', 'topic', passive='p', durable='d', 
+    self.klass.declare('exchange', 'topic', passive='p', durable='d',
       nowait=False, arguments='table', ticket='t')
     assert_equals( deque([None]), self.klass._declare_cb )
 
@@ -87,15 +87,15 @@ class ExchangeClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_declare_ok )
 
-    self.klass.declare('exchange', 'topic', passive='p', durable='d', 
+    self.klass.declare('exchange', 'topic', passive='p', durable='d',
       nowait=True, arguments='table', ticket='t', cb='foo')
     assert_equals( deque(['foo']), self.klass._declare_cb )
-  
+
   def test_recv_declare_ok_no_cb(self):
     self.klass._declare_cb = deque([None])
     self.klass._recv_declare_ok('frame')
     assert_equals( deque(), self.klass._declare_cb )
-  
+
   def test_recv_declare_ok_with_cb(self):
     cb = mock()
     self.klass._declare_cb = deque([cb])

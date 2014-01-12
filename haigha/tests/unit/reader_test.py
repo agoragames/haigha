@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -98,7 +98,7 @@ class ReaderTest(Chai):
   def test_read(self):
     b = Reader('foo')
     assert_equals('foo', b.read(3) )
-    
+
     b = Reader('foo')
     assert_equals('fo', b.read(2) )
 
@@ -108,26 +108,26 @@ class ReaderTest(Chai):
   def test_read_bit(self):
     b = Reader('\x01')
     assert_true( b.read_bit() )
-    
+
     b = Reader('\x00')
     assert_false( b.read_bit() )
-    
+
     b = Reader('\x02')
     assert_false( b.read_bit() )
 
     b = Reader('')
     assert_raises( Reader.BufferUnderflow, b.read_bit )
-  
+
   def test_read_bits(self):
     b = Reader('\x01')
     assert_equals( [True], b.read_bits(1) )
-    
+
     b = Reader('\x00')
     assert_equals( [False], b.read_bits(1) )
-    
+
     b = Reader('\x02')
     assert_equals( [False,True], b.read_bits(2) )
-    
+
     b = Reader('\x02')
     assert_equals( [False,True,False,False,False,False,False,False], b.read_bits(8) )
 
@@ -148,12 +148,12 @@ class ReaderTest(Chai):
     b = Reader('\xff\x00')
     assert_equals( 65280, b.read_short() )
     assert_raises( Reader.BufferUnderflow, b.read_short )
-  
+
   def test_read_long(self):
     b = Reader('\xff\x00\xff\x00')
     assert_equals( 4278255360, b.read_long() )
     assert_raises( Reader.BufferUnderflow, b.read_long )
-  
+
   def test_read_longlong(self):
     b = Reader('\xff\x00\xff\x00\xff\x00\xff\x00')
     assert_equals( 18374966859414961920L, b.read_longlong() )
@@ -163,17 +163,17 @@ class ReaderTest(Chai):
     b = Reader('\x05hello')
     assert_equals( 'hello', b.read_shortstr() )
     assert_raises( Reader.BufferUnderflow, b.read_shortstr )
-    
+
     b = Reader('\x0bD\xc3\xbcsseldorf')
     assert_equals( 'D\xc3\xbcsseldorf', b.read_shortstr() )
-    
+
     b = Reader('\x05hell')
     assert_raises( Reader.BufferUnderflow, b.read_shortstr )
 
   def test_read_longstr(self):
     b = Reader('\x00\x00\x01\x00'+('a'*256))
     assert_equals( 'a'*256, b.read_longstr() )
-    
+
     b = Reader('\x00\x00\x01\x00'+('a'*255))
     assert_raises( Reader.BufferUnderflow, b.read_longstr )
 
@@ -192,14 +192,14 @@ class ReaderTest(Chai):
     expect( r._read_field ).returns( 3.14 ).side_effect( lambda: setattr(r, '_pos', 20) )
     expect( r._field_shortstr ).returns( 'b' )
     expect( r._read_field ).returns( 'pi' ).side_effect( lambda: setattr(r, '_pos', 42) )
-    
+
     assert_equals( {'a':3.14,'b':'pi'}, r.read_table() )
 
   def test_read_field(self):
     r = Reader('Z')
     r.field_type_map['Z'] = mock()
     expect( r.field_type_map['Z'] ).args( r )
-    
+
     r._read_field()
 
   def test_read_field_raises_fielderror_on_unknown_type(self):
@@ -218,7 +218,7 @@ class ReaderTest(Chai):
     assert_equals( 5, r._field_short_short_int() )
     assert_equals( -5, r._field_short_short_int() )
     assert_equals( 2, r._pos )
-  
+
   def test_field_short_short_uint(self):
     r = Reader( struct.pack('BB', 5, 255) )
     assert_equals( 5, r._field_short_short_uint() )
@@ -273,7 +273,7 @@ class ReaderTest(Chai):
     r = Reader( struct.pack('>Bi', 2, 5) )
     assert_equals( Decimal('0.05'), r._field_decimal() )
     assert_equals( 5, r._pos )
-    
+
     r = Reader( struct.pack('>Bi', 2, -5) )
     assert_equals( Decimal('-0.05'), r._field_decimal() )
     assert_equals( 5, r._pos )
@@ -294,9 +294,9 @@ class ReaderTest(Chai):
     expect( r.read_long ).returns( 42 )
     expect( r._read_field ).returns( 3.14 ).side_effect( lambda: setattr(r, '_pos', 20) )
     expect( r._read_field ).returns( 'pi' ).side_effect( lambda: setattr(r, '_pos', 42) )
-    
+
     assert_equals( [3.14,'pi'], r._field_array() )
-  
+
   def test_field_timestamp(self):
     b = Reader('\x00\x00\x00\x00\x4d\x34\xc4\x71')
     d = datetime(2011, 1, 17, 22, 36, 33)
@@ -310,7 +310,7 @@ class ReaderTest(Chai):
   def test_field_none(self):
     b = Reader('')
     assert_equals( None, b._field_none() )
-  
+
   def test_field_type_map_rabbit_errata(self):
     # http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3
     assert_equals(

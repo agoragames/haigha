@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -14,7 +14,7 @@ class ProtocolClassTest(Chai):
     ch = mock()
     frame = mock()
     frame.method_id = 42
-    
+
     klass = ProtocolClass( ch )
     klass.dispatch_map = { 42: 'method' }
 

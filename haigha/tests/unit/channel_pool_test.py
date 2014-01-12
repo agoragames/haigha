@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -19,7 +19,7 @@ class ChannelPoolTest(Chai):
     assert_equals( None, c._size )
     assert_equals( 0, c._channels )
     assert_equals( deque(), c._queue )
-    
+
     c = ChannelPool('connection', size=50)
     self.assertEquals('connection', c._connection)
     self.assertEquals(set(), c._free_channels)
@@ -36,7 +36,7 @@ class ChannelPoolTest(Chai):
 
     cp.publish( 'arg1', 'arg2', doit='harder' )
     assert_equals( set(), cp._free_channels )
-    
+
     # run committed callback
     var('cb').value()
     assert_equals( set([ch]), cp._free_channels )
@@ -92,7 +92,7 @@ class ChannelPoolTest(Chai):
     assert_equals( 1, len(cp._queue) )
 
     ch.active = False
-    
+
     stub(cp._process_queue)
     expect(user_cb)
     var('cb').value()
@@ -144,7 +144,7 @@ class ChannelPoolTest(Chai):
 
     cp.publish( 'arg1', 'arg2', arg3='foo', cb='usercb' )
     self.assertEquals( set(), cp._free_channels )
-    assert_equals( deque([ (('arg1','arg2'), {'arg3':'foo','cb':'usercb'})]), 
+    assert_equals( deque([ (('arg1','arg2'), {'arg3':'foo','cb':'usercb'})]),
       cp._queue )
 
   def test_publish_appends_to_queue_when_no_ready_channels_out_of_several(self):
@@ -157,7 +157,7 @@ class ChannelPoolTest(Chai):
 
     cp.publish( 'arg1', 'arg2', arg3='foo', cb='usercb' )
     self.assertEquals( set([ch1]), cp._free_channels )
-    assert_equals( deque([ (('arg1','arg2'), {'arg3':'foo','cb':'usercb'})]), 
+    assert_equals( deque([ (('arg1','arg2'), {'arg3':'foo','cb':'usercb'})]),
       cp._queue )
 
   def test_process_queue(self):
@@ -190,7 +190,7 @@ class ChannelPoolTest(Chai):
     cp._channels = 1
 
     stub(conn.channel)
-    
+
     self.assertEquals( None, cp._get_channel() )
     self.assertEquals( set(), cp._free_channels )
 

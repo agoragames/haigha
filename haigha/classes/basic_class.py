@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -183,7 +183,7 @@ class BasicClass(ProtocolClass):
     pass
 
   def _recv_deliver(self, method_frame):
-    msg = self._read_msg( method_frame, 
+    msg = self._read_msg( method_frame,
       with_consumer_tag=True, with_message_count=False )
 
     func = self._consumer_cb.get(msg.delivery_info['consumer_tag'], None)
@@ -192,7 +192,7 @@ class BasicClass(ProtocolClass):
   def get(self, queue, consumer=None, no_ack=True, ticket=None):
     '''
     Ask to fetch a single message from a queue.  If a consumer is supplied,
-    the consumer will be called with either a Message argument, or None if 
+    the consumer will be called with either a Message argument, or None if
     there is no message in queue. If a synchronous transport, Message or
     None is returned.
     '''
@@ -218,7 +218,7 @@ class BasicClass(ProtocolClass):
       return self._recv_get_empty( method_frame )
 
   def _recv_get_ok(self, method_frame):
-    msg = self._read_msg( method_frame, 
+    msg = self._read_msg( method_frame,
       with_consumer_tag=False, with_message_count=True )
     cb = self._get_cb.popleft()
     if cb: cb( msg )

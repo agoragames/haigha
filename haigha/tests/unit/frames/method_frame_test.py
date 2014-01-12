@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -40,7 +40,7 @@ class MethodFrameTest(Chai):
   def test_str(self):
     frame = MethodFrame( 42, 5, 6, Reader(bytearray('hello')) )
     assert_equals( 'MethodFrame[channel: 42, class_id: 5, method_id: 6, args: \\x68\\x65\\x6c\\x6c\\x6f]', str(frame) )
-    
+
     frame = MethodFrame( 42, 5, 6 )
     assert_equals( 'MethodFrame[channel: 42, class_id: 5, method_id: 6, args: None]', str(frame) )
 

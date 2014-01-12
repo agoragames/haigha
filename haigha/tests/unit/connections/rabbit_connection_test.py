@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -72,8 +72,8 @@ class RabbitExchangeClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_declare_ok )
 
-    self.klass.declare('exchange', 'topic', passive='p', durable='d', 
-      nowait=False, arguments='table', ticket='t', 
+    self.klass.declare('exchange', 'topic', passive='p', durable='d',
+      nowait=False, arguments='table', ticket='t',
       auto_delete='ad', internal='yes')
     assert_equals( deque([None]), self.klass._declare_cb )
 
@@ -90,13 +90,13 @@ class RabbitExchangeClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_declare_ok )
 
-    self.klass.declare('exchange', 'topic', passive='p', durable='d', 
+    self.klass.declare('exchange', 'topic', passive='p', durable='d',
       nowait=True, arguments='table', ticket='t', cb='foo')
     assert_equals( deque(['foo']), self.klass._declare_cb )
 
   def test_bind_default_args(self):
     w = mock()
-    
+
     expect( self.klass.allow_nowait ).returns( True )
     expect( mock(rabbit_connection, 'Writer') ).returns( w )
     expect( w.write_short ).args( 0 ).returns( w )
@@ -113,7 +113,7 @@ class RabbitExchangeClassTest(Chai):
 
   def test_bind_with_args(self):
     w = mock()
-    
+
     stub( self.klass.allow_nowait )
     expect( mock(rabbit_connection, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
@@ -126,13 +126,13 @@ class RabbitExchangeClassTest(Chai):
     expect( mock(rabbit_connection, 'MethodFrame') ).args(42, 40, 30, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
-    self.klass.bind('destination', 'source', routing_key='route', 
+    self.klass.bind('destination', 'source', routing_key='route',
       ticket='t', nowait=False, arguments='table')
     assert_equals( deque([None]), self.klass._bind_cb )
 
   def test_bind_with_cb(self):
     w = mock()
-    
+
     expect( self.klass.allow_nowait ).returns( True )
     expect( mock(rabbit_connection, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
@@ -145,15 +145,15 @@ class RabbitExchangeClassTest(Chai):
     expect( mock(rabbit_connection, 'MethodFrame') ).args(42, 40, 30, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
-    self.klass.bind('destination', 'source', routing_key='route', 
+    self.klass.bind('destination', 'source', routing_key='route',
       ticket='t', arguments='table', cb='foo')
     assert_equals( deque(['foo']), self.klass._bind_cb )
-  
+
   def test_recv_bind_ok_no_cb(self):
     self.klass._bind_cb = deque([None])
     self.klass._recv_bind_ok('frame')
     assert_equals( deque(), self.klass._bind_cb )
-  
+
   def test_recv_bind_ok_with_cb(self):
     cb = mock()
     self.klass._bind_cb = deque([cb])
@@ -163,7 +163,7 @@ class RabbitExchangeClassTest(Chai):
 
   def test_unbind_default_args(self):
     w = mock()
-    
+
     expect( self.klass.allow_nowait ).returns( True )
     expect( mock(rabbit_connection, 'Writer') ).returns( w )
     expect( w.write_short ).args( 0 ).returns( w )
@@ -180,7 +180,7 @@ class RabbitExchangeClassTest(Chai):
 
   def test_unbind_with_args(self):
     w = mock()
-    
+
     stub( self.klass.allow_nowait )
     expect( mock(rabbit_connection, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
@@ -193,13 +193,13 @@ class RabbitExchangeClassTest(Chai):
     expect( mock(rabbit_connection, 'MethodFrame') ).args(42, 40, 40, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
-    self.klass.unbind('destination', 'source', routing_key='route', 
+    self.klass.unbind('destination', 'source', routing_key='route',
       ticket='t', nowait=False, arguments='table')
     assert_equals( deque([None]), self.klass._unbind_cb )
 
   def test_unbind_with_cb(self):
     w = mock()
-    
+
     expect( self.klass.allow_nowait ).returns( True )
     expect( mock(rabbit_connection, 'Writer') ).returns( w )
     expect( w.write_short ).args( 't' ).returns(w)
@@ -212,15 +212,15 @@ class RabbitExchangeClassTest(Chai):
     expect( mock(rabbit_connection, 'MethodFrame') ).args(42, 40, 40, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
-    self.klass.unbind('destination', 'source', routing_key='route', 
+    self.klass.unbind('destination', 'source', routing_key='route',
       ticket='t', arguments='table', cb='foo')
     assert_equals( deque(['foo']), self.klass._unbind_cb )
-  
+
   def test_recv_unbind_ok_no_cb(self):
     self.klass._unbind_cb = deque([None])
     self.klass._recv_unbind_ok('frame')
     assert_equals( deque(), self.klass._unbind_cb )
-  
+
   def test_recv_unbind_ok_with_cb(self):
     cb = mock()
     self.klass._unbind_cb = deque([cb])
@@ -280,7 +280,7 @@ class RabbitBasicClassTest(Chai):
     expect( frame.args.read_longlong ).returns( 42 )
     expect( frame.args.read_bit ).returns( False )
     expect( self.klass._ack_listener ).args( 42 )
-    
+
     self.klass._recv_ack( frame )
     assert_equals( 42, self.klass._last_ack_id )
 
@@ -292,10 +292,10 @@ class RabbitBasicClassTest(Chai):
     expect( frame.args.read_bit ).returns( True )
     expect( self.klass._ack_listener ).args( 41 )
     expect( self.klass._ack_listener ).args( 42 )
-    
+
     self.klass._recv_ack( frame )
     assert_equals( 42, self.klass._last_ack_id )
-  
+
   def test_nack_default_args(self):
     w = mock()
     expect( mock( rabbit_connection, 'Writer' ) ).returns( w )
@@ -305,7 +305,7 @@ class RabbitBasicClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
 
     self.klass.nack( 8675309 )
-  
+
   def test_nack_with_args(self):
     w = mock()
     expect( mock( rabbit_connection, 'Writer' ) ).returns( w )
@@ -325,7 +325,7 @@ class RabbitBasicClassTest(Chai):
     expect( frame.args.read_longlong ).returns( 42 )
     expect( frame.args.read_bits ).args(2).returns( (False,False) )
     expect( self.klass._nack_listener ).args( 42, False )
-    
+
     self.klass._recv_nack( frame )
     assert_equals( 42, self.klass._last_ack_id )
 
@@ -337,7 +337,7 @@ class RabbitBasicClassTest(Chai):
     expect( frame.args.read_bits ).args(2).returns( (True,True) )
     expect( self.klass._nack_listener ).args( 41, True )
     expect( self.klass._nack_listener ).args( 42, True )
-    
+
     self.klass._recv_nack( frame )
     assert_equals( 42, self.klass._last_ack_id )
 
@@ -409,12 +409,12 @@ class RabbitConfirmClassTest(Chai):
     assert_equals( deque(), self.klass._select_cb )
     self.klass.select()
     assert_equals( deque(), self.klass._select_cb )
-  
+
   def test_recv_select_ok_no_cb(self):
     self.klass._select_cb = deque([None])
     self.klass._recv_select_ok('frame')
     assert_equals( deque(), self.klass._select_cb )
-  
+
   def test_recv_select_ok_with_cb(self):
     cb = mock()
     self.klass._select_cb = deque([cb])

@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -75,7 +75,7 @@ class WriterTest(Chai):
     w = Writer( bytearray('\x00'*6) )
     assert_true( w is w.write_short_at(2**16-1,2) )
     assert_equals( bytearray('\x00\x00\xff\xff\x00\x00'), w._output_buffer )
-    
+
     assert_raises( ValueError, w.write_short_at, -1, 2 )
     assert_raises( ValueError, w.write_short_at, 2**16, 3 )
 
@@ -84,7 +84,7 @@ class WriterTest(Chai):
     assert_true( w is w.write_long(0) )
     assert_true( w is w.write_long(2**32-2) )
     assert_equals( bytearray('\x00\x00\x00\x00\xff\xff\xff\xfe'), w._output_buffer )
-    
+
     assert_raises( ValueError, w.write_long, -1 )
     assert_raises( ValueError, w.write_long, 2**32 )
 
@@ -92,7 +92,7 @@ class WriterTest(Chai):
     w = Writer( bytearray('\x00'*8) )
     assert_true( w is w.write_long_at(2**32-1,2) )
     assert_equals( bytearray('\x00\x00\xff\xff\xff\xff\x00\x00'), w._output_buffer )
-    
+
     assert_raises( ValueError, w.write_long_at, -1, 2 )
     assert_raises( ValueError, w.write_long_at, 2**32, 3 )
 
@@ -100,10 +100,10 @@ class WriterTest(Chai):
     w = Writer()
     assert_true( w is w.write_longlong(0) )
     assert_true( w is w.write_longlong(2**64-2) )
-    assert_equals( 
+    assert_equals(
       bytearray('\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xfe'),
       w._output_buffer )
-    
+
     assert_raises( ValueError, w.write_longlong, -1 )
     assert_raises( ValueError, w.write_longlong, 2**64 )
 
@@ -144,9 +144,9 @@ class WriterTest(Chai):
 
   def test_write_table(self):
     w = Writer()
-    expect( w._write_item ).args( 'a', 'foo' ).any_order().side_effect( 
+    expect( w._write_item ).args( 'a', 'foo' ).any_order().side_effect(
       lambda *args: (setattr(w,'_pos',20), w._output_buffer.extend('afoo')) )
-    expect( w._write_item ).args( 'b', 'bar' ).any_order().side_effect( 
+    expect( w._write_item ).args( 'b', 'bar' ).any_order().side_effect(
       lambda *args: (setattr(w,'_pos',20), w._output_buffer.extend('bbar')) )
 
     assert_true( w is w.write_table({'a':'foo','b':'bar'}) )
@@ -164,7 +164,7 @@ class WriterTest(Chai):
     unknown = mock()
     expect( w._field_none ).args( unknown )
     w._write_field( unknown )
-    
+
     Writer.field_type_map[type(unknown)] = unknown
     expect( unknown ).args( w, unknown )
     w._write_field( unknown )
@@ -180,17 +180,17 @@ class WriterTest(Chai):
     w._field_int( -2**15 )
     w._field_int( 2**15-1 )
     assert_equals( 's\x80\x00s\x7f\xff', w._output_buffer )
-    
+
     w = Writer()
     w._field_int( -2**31 )
     w._field_int( 2**31-1 )
     assert_equals( 'I\x80\x00\x00\x00I\x7f\xff\xff\xff', w._output_buffer )
-    
+
     w = Writer()
     w._field_int( -2**63 )
     w._field_int( 2**63-1 )
-    assert_equals( 
-      'l\x80\x00\x00\x00\x00\x00\x00\x00l\x7f\xff\xff\xff\xff\xff\xff\xff', 
+    assert_equals(
+      'l\x80\x00\x00\x00\x00\x00\x00\x00l\x7f\xff\xff\xff\xff\xff\xff\xff',
       w._output_buffer )
 
   def test_field_double(self):
@@ -202,7 +202,7 @@ class WriterTest(Chai):
     w = Writer()
     w._field_decimal( Decimal('1.50') )
     assert_equals( 'D\x02\x00\x00\x00\x96', w._output_buffer )
-    
+
     w = Writer()
     w._field_decimal( Decimal('-1.50') )
     assert_equals( 'D\x02\xff\xff\xff\x6a', w._output_buffer )
@@ -236,7 +236,7 @@ class WriterTest(Chai):
     w._field_none( None )
     w._field_none( 'zomg' )
     assert_equals( 'VV', w._output_buffer )
-  
+
   def test_field_bytearray(self):
     w = Writer()
     w._field_bytearray( bytearray('foo') )
@@ -250,19 +250,19 @@ class WriterTest(Chai):
 
   def test_field_iterable(self):
     w = Writer()
-    expect( w._write_field ).args('la').side_effect( 
+    expect( w._write_field ).args('la').side_effect(
       lambda field: w._output_buffer.append('a') )
     expect( w._write_field ).args('lb').side_effect(
       lambda field: w._output_buffer.append('b') )
     w._field_iterable( ['la','lb'] )
-    
-    expect( w._write_field ).args('ta').side_effect( 
+
+    expect( w._write_field ).args('ta').side_effect(
       lambda field: w._output_buffer.append('a') )
     expect( w._write_field ).args('tb').side_effect(
       lambda field: w._output_buffer.append('b') )
     w._field_iterable( ('ta','tb') )
-    
-    expect( w._write_field ).args('sa').any_order().side_effect( 
+
+    expect( w._write_field ).args('sa').any_order().side_effect(
       lambda field: w._output_buffer.append('s') )
     expect( w._write_field ).args('sb').any_order().side_effect(
       lambda field: w._output_buffer.append('s') )

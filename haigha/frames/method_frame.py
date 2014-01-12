@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -16,15 +16,15 @@ class MethodFrame(Frame):
   @classmethod
   def type(cls):
     return 1
-  
+
   @property
   def class_id(self):
     return self._class_id
-  
+
   @property
   def method_id(self):
     return self._method_id
-  
+
   @property
   def args(self):
     return self._args
@@ -48,7 +48,7 @@ class MethodFrame(Frame):
     else:
       return "%s[channel: %d, class_id: %d, method_id: %d, args: None]"%\
         ( self.__class__.__name__, self.channel_id, self.class_id, self.method_id)
-  
+
   def write_frame(self, buf):
     writer = Writer(buf)
     writer.write_octet( self.type() )
@@ -75,6 +75,6 @@ class MethodFrame(Frame):
 
     # Write the footer
     writer.write_octet(0xce)
-    
-  
+
+
 MethodFrame.register()

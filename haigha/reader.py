@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -198,7 +198,7 @@ class Reader(object):
     """
     slen = self.read_long()
     return self.read(slen)
-  
+
   def read_timestamp(self):
     """
     Read and AMQP timestamp, which is a 64-bit integer representing
@@ -234,13 +234,13 @@ class Reader(object):
     '''
     ftype = self._input[ self._pos ]
     self._pos += 1
-    
+
     reader = self.field_type_map.get( ftype )
     if reader:
       return reader(self)
 
     raise Reader.FieldError('Unknown field type %s', ftype)
-    
+
   def _field_bool(self):
     result = ord(self._input[ self._pos ]) & 1
     self._pos += 1
@@ -250,7 +250,7 @@ class Reader(object):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
     return rval
-    
+
   def _field_short_short_uint(self, unpacker=Struct('B').unpack_from, size=Struct('B').size):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
@@ -260,7 +260,7 @@ class Reader(object):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
     return rval
-    
+
   def _field_short_uint(self, unpacker=Struct('>H').unpack_from, size=Struct('>H').size):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
@@ -270,7 +270,7 @@ class Reader(object):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
     return rval
-    
+
   def _field_long_uint(self, unpacker=Struct('>I').unpack_from, size=Struct('>I').size):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
@@ -280,7 +280,7 @@ class Reader(object):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
     return rval
-    
+
   def _field_long_long_uint(self, unpacker=Struct('>Q').unpack_from, size=Struct('>Q').size):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
@@ -290,7 +290,7 @@ class Reader(object):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
     return rval
-    
+
   def _field_double(self, unpacker=Struct('>d').unpack_from, size=Struct('>d').size):
     rval = unpacker( self._input, self._pos )[0]
     self._pos += size
@@ -308,7 +308,7 @@ class Reader(object):
     rval = self._input[ self._pos:self._pos+slen ]
     self._pos += slen
     return rval
-  
+
   def _field_longstr(self):
     slen = self._field_long_uint()
     rval = self._input[ self._pos:self._pos+slen ]
@@ -322,7 +322,7 @@ class Reader(object):
     while self._pos < end_pos:
       rval.append( self._read_field() )
     return rval
-     
+
   def _field_timestamp(self):
     """
     Read and AMQP timestamp, which is a 64-bit integer representing

@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -34,7 +34,7 @@ class QueueClass(ProtocolClass):
   @property
   def name(self):
     return 'queue'
-  
+
   def _cleanup(self):
     '''
     Cleanup all the local data.
@@ -79,8 +79,8 @@ class QueueClass(ProtocolClass):
     if cb:
       cb( queue, message_count, consumer_count )
     return queue, message_count, consumer_count
-    
-  def bind(self, queue, exchange, routing_key='', nowait=True, arguments={}, 
+
+  def bind(self, queue, exchange, routing_key='', nowait=True, arguments={},
       ticket=None, cb=None):
     '''
     bind to a queue.
@@ -95,7 +95,7 @@ class QueueClass(ProtocolClass):
       write_bit(nowait).\
       write_table(arguments)
     self.send_frame( MethodFrame(self.channel_id, 50, 20, args) )
-    
+
     if not nowait:
       self._bind_cb.append( cb )
       self.channel.add_synchronous_cb( self._recv_bind_ok )
@@ -124,13 +124,13 @@ class QueueClass(ProtocolClass):
     # No arguments defined
     cb = self._unbind_cb.popleft()
     if cb: cb()
-    
+
   def purge(self, queue, nowait=True, ticket=None, cb=None):
     '''
     Purge all messages in a queue.
     '''
     nowait = nowait and self.allow_nowait() and not cb
-    
+
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
       write_shortstr(queue).\
@@ -147,7 +147,7 @@ class QueueClass(ProtocolClass):
     if cb: cb( message_count )
     return message_count
 
-  def delete(self, queue, if_unused=False, if_empty=False, nowait=True, 
+  def delete(self, queue, if_unused=False, if_empty=False, nowait=True,
     ticket=None, cb=None):
     '''
     queue delete.

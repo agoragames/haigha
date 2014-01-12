@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -25,12 +25,12 @@ class ContentFrameTest(Chai):
 
   def test_create_frames(self):
     itr = ContentFrame.create_frames(42, 'helloworld', 13)
-    
+
     frame = itr.next()
     assert_true( isinstance(frame, ContentFrame) )
     assert_equals( 42, frame.channel_id )
     assert_equals( 'hello', frame.payload )
-    
+
     frame = itr.next()
     assert_true( isinstance(frame, ContentFrame) )
     assert_equals( 42, frame.channel_id )

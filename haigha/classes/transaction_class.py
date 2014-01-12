@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -14,7 +14,7 @@ class TransactionClass(ProtocolClass):
   Implements the AMQP Transaction class
   '''
 
-  class TransactionsNotEnabled(ProtocolClass.ProtocolError): 
+  class TransactionsNotEnabled(ProtocolClass.ProtocolError):
     '''Tried to use transactions without enabling them.'''
 
   def __init__(self, *args, **kwargs):
@@ -38,7 +38,7 @@ class TransactionClass(ProtocolClass):
   def enabled(self):
     '''Get whether transactions have been enabled.'''
     return self._enabled
-  
+
   def _cleanup(self):
     '''
     Cleanup all the local data.
@@ -47,7 +47,7 @@ class TransactionClass(ProtocolClass):
     self._commit_cb = None
     self._rollback_cb = None
     super(TransactionClass,self)._cleanup()
-  
+
   def select(self, cb=None):
     '''
     Set this channel to use transactions.
@@ -61,7 +61,7 @@ class TransactionClass(ProtocolClass):
   def _recv_select_ok(self, _method_frame):
     cb = self._select_cb.popleft()
     if cb: cb()
-    
+
   def commit(self, cb=None):
     '''
     Commit the current transaction.  Caller can specify a callback to use

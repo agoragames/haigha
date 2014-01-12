@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -41,7 +41,7 @@ class SocketTransport(Transport):
 
   def read(self, timeout=None):
     '''
-    Read from the transport. If timeout>0, will only block for `timeout` 
+    Read from the transport. If timeout>0, will only block for `timeout`
     seconds.
     '''
     if not hasattr(self,'_sock'):
@@ -78,11 +78,11 @@ class SocketTransport(Transport):
       # thrown if we have a timeout and no data
       if e.errno in (errno.EAGAIN,errno.EWOULDBLOCK):
         return None
-      
+
       self.connection.logger.exception( 'error reading from %s'%(self._host) )
 
     self.connection.transport_closed( msg='error reading from %s'%(self._host) )
-  
+
   def buffer(self, data):
     '''
     Buffer unused bytes from the input stream.
@@ -117,12 +117,12 @@ class SocketTransport(Transport):
       # to be a blocking socket; if we ever support non-blocking in this class
       # then this whole method has to change a lot.
       self.connection.logger.exception( 'error writing to %s'%(self._host) )
-    
+
     self.connection.transport_closed( msg='error writing to %s'%(self._host) )
-    
+
   def disconnect(self):
     '''
-    Disconnect from the transport. Typically socket.close(). This call is 
+    Disconnect from the transport. Typically socket.close(). This call is
     welcome to raise exceptions, which the Connection will catch.
     '''
     if not hasattr(self,'_sock'):

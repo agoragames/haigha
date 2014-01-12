@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -43,7 +43,7 @@ class ExchangeClass(ProtocolClass):
     Declare the exchange.
 
     exchange - The name of the exchange to declare
-    type - One of 
+    type - One of
     """
     nowait = nowait and self.allow_nowait() and not cb
 
@@ -65,7 +65,7 @@ class ExchangeClass(ProtocolClass):
     '''
     cb = self._declare_cb.popleft()
     if cb: cb()
-    
+
   def delete(self, exchange, if_unused=False, nowait=True, ticket=None, cb=None):
     '''
     Delete an exchange.
@@ -77,7 +77,7 @@ class ExchangeClass(ProtocolClass):
       write_shortstr(exchange).\
       write_bits(if_unused, nowait)
     self.send_frame( MethodFrame(self.channel_id, 40, 20, args) )
-    
+
     if not nowait:
       self._delete_cb.append( cb )
       self.channel.add_synchronous_cb( self._recv_delete_ok )

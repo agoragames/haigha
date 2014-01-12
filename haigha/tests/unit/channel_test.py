@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -42,7 +42,7 @@ class SyncWrapperTest(Chai):
     expect( cb ).args('foo', 'bar', hello='mars')
     s('foo', 'bar', hello='mars')
     assert_false( s._read )
-    
+
 
 class ChannelTest(Chai):
 
@@ -95,7 +95,7 @@ class ChannelTest(Chai):
     assert_equals( 'yes', c.closed )
     assert_equals( 'ithappened', c.close_info )
     assert_equals( 'record', c.active )
-    
+
     c._closed = False
     assert_equals( None, c.close_info )
 
@@ -145,7 +145,7 @@ class ChannelTest(Chai):
     c = Channel(None,None,{})
     expect( mock(c,'channel').open )
     c.open()
- 
+
   def test_active(self):
     c = Channel(None, None,{})
     expect( mock(c,'channel').open )
@@ -156,7 +156,7 @@ class ChannelTest(Chai):
     c = Channel(None,None,{})
     expect( mock(c,'channel').close ).args( 0, '', 0, 0 )
     c.close()
-  
+
   def test_close_with_args(self):
     c = Channel(None,None,{})
     expect( mock(c,'channel').close ).args(1, 'two', 3, 4)
@@ -188,7 +188,7 @@ class ChannelTest(Chai):
     frame = mock()
     frame.class_id = 32
     klass = mock()
-    
+
     c._class_map[32] = klass
     expect( klass.dispatch ).args( frame )
     c.dispatch( frame )
@@ -201,7 +201,7 @@ class ChannelTest(Chai):
     c.buffer_frame( 'f1' )
     c.buffer_frame( 'f2' )
     assertEquals( deque(['f1', 'f2']), c._frame_buffer )
-  
+
   def test_process_frames_when_no_frames(self):
     # Not that this should ever happen, but to be sure
     c = Channel(None,None,{})
@@ -230,12 +230,12 @@ class ChannelTest(Chai):
 
     c.process_frames()
     assertEquals( f1, c._frame_buffer[0] )
-  
+
   def test_process_frames_logs_and_closes_when_dispatch_error_raised(self):
     c = Channel(None,None,{})
     c._connection = mock()
     c._connection.logger = mock()
-    
+
     f0 = MethodFrame(20, 30, 40)
     f1 = MethodFrame('ch_id', 'c_id', 'm_id')
     c._frame_buffer = deque([ f0, f1 ])
@@ -245,12 +245,12 @@ class ChannelTest(Chai):
 
     assert_raises( RuntimeError, c.process_frames )
     assertEquals( f1, c._frame_buffer[0] )
-  
+
   def test_process_frames_logs_and_closes_when_dispatch_error_raised_even_when_exception_on_close(self):
     c = Channel(None,None,{})
     c._connection = mock()
     c._connection.logger = mock()
-    
+
     f0 = MethodFrame(20, 30, 40)
     f1 = MethodFrame('ch_id', 'c_id', 'm_id')
     c._frame_buffer = deque([ f0, f1 ])
@@ -260,12 +260,12 @@ class ChannelTest(Chai):
 
     assert_raises( RuntimeError, c.process_frames )
     assertEquals( f1, c._frame_buffer[0] )
-  
+
   def test_process_frames_logs_and_closes_when_systemexit_raised(self):
     c = Channel(None,None,{})
     c._connection = mock()
     c._connection.logger = mock()
-    
+
     f0 = MethodFrame(20, 30, 40)
     f1 = MethodFrame('ch_id', 'c_id', 'm_id')
     c._frame_buffer = deque([ f0, f1 ])
@@ -297,13 +297,13 @@ class ChannelTest(Chai):
 
     c.requeue_frames(f[2:])
     assertEquals(c._frame_buffer, deque([f[i] for i in [3, 2, 0, 1]]))
-  
+
   def test_send_frame_when_not_closed_no_flow_control_no_pending_events(self):
     conn = mock()
     c = Channel(conn, 32, {})
 
     expect( conn.send_frame ).args('frame')
-    
+
     c.send_frame( 'frame' )
 
   def test_send_frame_when_not_closed_no_flow_control_pending_event(self):
@@ -323,7 +323,7 @@ class ChannelTest(Chai):
     heartbeat = HeartbeatFrame()
     header = HeaderFrame(1,2,3,4)
     content = ContentFrame(1,'foo')
-    
+
     expect( conn.send_frame ).args( method )
     expect( conn.send_frame ).args( heartbeat )
 
@@ -339,7 +339,7 @@ class ChannelTest(Chai):
     c._close_info = {'reply_code':42, 'reply_text':'bad'}
 
     assertRaises( ChannelClosed, c.send_frame, 'frame' )
-  
+
   def test_send_frame_when_closed_for_no_reason(self):
     conn = mock()
     c = Channel(conn, 32, {})
@@ -370,7 +370,7 @@ class ChannelTest(Chai):
     expect( conn.read_frames )
     expect( conn.read_frames ).side_effect(
       lambda: setattr(wrapper, '_read', False) )
-    
+
     assertEquals( deque([]), c._pending_events )
     assert_equals( 'done', c.add_synchronous_cb('foo') )
 
@@ -391,7 +391,7 @@ class ChannelTest(Chai):
     expect( conn.read_frames )
     expect( conn.read_frames ).side_effect(
       lambda: setattr(c, '_closed', True) )
-    
+
     with assert_raises( ChannelClosed ):
       c.add_synchronous_cb('foo')
 
@@ -452,7 +452,7 @@ class ChannelTest(Chai):
     })
     c._pending_events = 'foo'
     c._frame_buffer = 'foo'
-    
+
     for val in c._class_map.values():
       expect( val._cleanup )
     expect( c._notify_close_listeners )
@@ -473,7 +473,7 @@ class ChannelTest(Chai):
     conn = mock()
     c = Channel(conn,None,{})
 
-    expect( conn.send_frame ).args('final')    
+    expect( conn.send_frame ).args('final')
     for val in c._class_map.values():
       expect( val._cleanup )
 

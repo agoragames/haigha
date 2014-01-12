@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -32,7 +32,7 @@ class RabbitExchangeClass(ExchangeClass):
   '''
   Exchange class Rabbit extensions
   '''
-  
+
   def __init__(self, *args, **kwargs):
     super(RabbitExchangeClass,self).__init__(*args, **kwargs)
     self.dispatch_map[31] = self._recv_bind_ok
@@ -50,7 +50,7 @@ class RabbitExchangeClass(ExchangeClass):
     Declare the exchange.
 
     exchange - The name of the exchange to declare
-    type - One of 
+    type - One of
     """
     nowait = nowait and self.allow_nowait() and not cb
 
@@ -66,13 +66,13 @@ class RabbitExchangeClass(ExchangeClass):
       self._declare_cb.append( cb )
       self.channel.add_synchronous_cb( self._recv_declare_ok )
 
-  def bind(self, exchange, source, routing_key='', nowait=True, 
+  def bind(self, exchange, source, routing_key='', nowait=True,
       arguments={}, ticket=None, cb=None):
     '''
     Bind an exchange to another.
     '''
     nowait = nowait and self.allow_nowait() and not cb
-    
+
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
       write_shortstr(exchange).\
@@ -91,13 +91,13 @@ class RabbitExchangeClass(ExchangeClass):
     cb = self._bind_cb.popleft()
     if cb: cb()
 
-  def unbind(self, exchange, source, routing_key='', nowait=True, 
+  def unbind(self, exchange, source, routing_key='', nowait=True,
       arguments={}, ticket=None, cb=None):
     '''
     Unbind an exchange from another.
     '''
     nowait = nowait and self.allow_nowait() and not cb
-    
+
     args = Writer()
     args.write_short(ticket or self.default_ticket).\
       write_shortstr(exchange).\
@@ -125,7 +125,7 @@ class RabbitBasicClass(BasicClass):
     super(RabbitBasicClass,self).__init__(*args, **kwargs)
     self.dispatch_map[80] = self._recv_ack
     self.dispatch_map[120] = self._recv_nack
-    
+
     self._ack_listener = None
     self._nack_listener = None
 
@@ -156,7 +156,7 @@ class RabbitBasicClass(BasicClass):
   # Probably a better solution here, like functools
   def publish(self, *args, **kwargs):
     '''
-    Publish a message. Will return the id of the message if publisher 
+    Publish a message. Will return the id of the message if publisher
     confirmations are enabled, else will return 0.
     '''
     if self.channel.confirm._enabled:
@@ -202,7 +202,7 @@ class RabbitConfirmClass(ProtocolClass):
   '''
   Implementation of Rabbit's confirm class.
   '''
-  
+
   def __init__(self, *args, **kwargs):
     super(RabbitConfirmClass, self).__init__(*args, **kwargs)
     self.dispatch_map = {

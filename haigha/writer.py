@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -9,16 +9,16 @@ from calendar import timegm
 from datetime import datetime
 from decimal import Decimal
 from operator import xor
-    
+
 class Writer(object):
   """
-  Implements writing of structured AMQP data. Buffers data directly to a 
+  Implements writing of structured AMQP data. Buffers data directly to a
   bytearray or a buffer supplied in the constructor. The buffer must
   supply append, extend and struct.pack_into semantics.
   """
 
   def __init__(self, buf=None):
-    if buf is not None: 
+    if buf is not None:
       self._output_buffer = buf
     else:
       self._output_buffer = bytearray()
@@ -183,10 +183,10 @@ class Writer(object):
 
     for key,value in d.iteritems():
       self._write_item( key, value )
-    
+
     table_end_pos = len(self._output_buffer)
     table_len = table_end_pos - table_data_pos
-    
+
     self.write_long_at( table_len, table_len_pos )
     return self
 
@@ -268,7 +268,7 @@ class Writer(object):
     self._output_buffer.append( 'A' )
     for x in val:
       self._write_field( x )
-  
+
   field_type_map = {
     bool      : _field_bool,
     int       : _field_int,

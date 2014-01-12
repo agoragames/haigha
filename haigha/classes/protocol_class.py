@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -8,11 +8,11 @@ class ProtocolClass(object):
   '''
   The base class of all protocol classes.
   '''
-  
+
   class ProtocolError(Exception): pass
   class InvalidMethod(ProtocolError): pass
   class FrameUnderflow(ProtocolError): pass
-  
+
   dispatch_map = {}
 
   def __init__(self, channel):

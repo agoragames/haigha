@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -23,7 +23,7 @@ class BasicClassTest(Chai):
     ch.channel_id = 42
     ch.logger = mock()
     self.klass = BasicClass( ch )
-  
+
   def test_init(self):
     expect(ProtocolClass.__init__).args('foo', a='b' )
 
@@ -154,7 +154,7 @@ class BasicClassTest(Chai):
     cb = mock()
     expect( frame.args.read_shortstr ).returns( 'ctag' )
     self.klass._pending_consumers = deque([('consumer',None), ('blargh',cb)])
-    
+
     assert_equals( {}, self.klass._consumer_cb )
     self.klass._recv_consume_ok( frame )
     assert_equals( {'ctag':'consumer'}, self.klass._consumer_cb )
@@ -174,10 +174,10 @@ class BasicClassTest(Chai):
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( '' ).returns( w )
     expect( w.write_bit ).args( True )
-    
+
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 30, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
-    
+
     self.klass._consumer_cb[ '' ] = 'foo'
     assert_equals( deque(), self.klass._cancel_cb )
     self.klass.cancel()
@@ -190,13 +190,13 @@ class BasicClassTest(Chai):
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( 'ctag' ).returns( w )
     expect( w.write_bit ).args( True )
-    
+
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 30, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
-    expect( self.klass.logger.warning ).args( 
+    expect( self.klass.logger.warning ).args(
       'no callback registered for consumer tag " %s "', 'ctag' )
-    
+
     assert_equals( deque(), self.klass._cancel_cb )
     self.klass.cancel( consumer_tag='ctag' )
     assert_equals( deque(), self.klass._cancel_cb )
@@ -208,12 +208,12 @@ class BasicClassTest(Chai):
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( '' ).returns( w )
     expect( w.write_bit ).args( False )
-    
+
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 30, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_cancel_ok )
-    
+
     assert_equals( deque(), self.klass._cancel_cb )
     self.klass.cancel( nowait=False )
     assert_equals( deque([None]), self.klass._cancel_cb )
@@ -225,12 +225,12 @@ class BasicClassTest(Chai):
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( '' ).returns( w )
     expect( w.write_bit ).args( False )
-    
+
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 30, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_cancel_ok )
-    
+
     self.klass._cancel_cb = deque(['blargh'])
     self.klass.cancel( nowait=False, cb='user_cb' )
     assert_equals( deque(['blargh','user_cb']), self.klass._cancel_cb )
@@ -242,7 +242,7 @@ class BasicClassTest(Chai):
     expect( mock(basic_class, 'Writer') ).returns( w )
     expect( w.write_shortstr ).args( 'ctag' ).returns( w )
     expect( w.write_bit ).args( True )
-    
+
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 30, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
 
@@ -267,7 +267,7 @@ class BasicClassTest(Chai):
   def test_recv_cancel_ok_when_no_consumer_or_callback(self):
     frame = mock()
     expect( frame.args.read_shortstr ).returns( 'ctag' )
-    expect( self.klass.logger.warning ).args( 
+    expect( self.klass.logger.warning ).args(
       'no callback registered for consumer tag " %s "', 'ctag' )
     self.klass._cancel_cb = deque( [ None, mock() ] )
 
@@ -283,7 +283,7 @@ class BasicClassTest(Chai):
         .write_shortstr('routing_key')\
         .write_bits(False, False)
     self.klass.channel.connection.frame_max = 3
-    
+
     expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 40, args).returns( 'methodframe' )
     expect( mock(basic_class, 'HeaderFrame') ).args(42, 60, 0, len(msg), msg.properties).returns( 'headerframe' )
     expect(mock(basic_class, 'ContentFrame').create_frames).args(42, msg.body, 3).returns(['f0', 'f1', 'f2'])
@@ -303,7 +303,7 @@ class BasicClassTest(Chai):
     expect( w.write_shortstr ).args( 'route' ).returns( w )
     expect( w.write_bits ).args( 'm','i' )
     self.klass.channel.connection.frame_max = 3
-    
+
     expect( mock(basic_class, 'MethodFrame') ).args(42, 60, 40, w).returns( 'methodframe' )
     expect( mock(basic_class, 'HeaderFrame') ).args(42, 60, 0, len(msg), msg.properties).returns( 'headerframe' )
     expect(mock(basic_class, 'ContentFrame').create_frames).args(42, msg.body, 3).returns(['f0', 'f1', 'f2'])
@@ -334,7 +334,7 @@ class BasicClassTest(Chai):
     cb = mock()
     self.klass._consumer_cb['ctag'] = cb
 
-    expect( self.klass._read_msg ).args( 
+    expect( self.klass._read_msg ).args(
       'frame', with_consumer_tag=True, with_message_count=False ).returns( msg )
     expect( cb ).args( msg )
 
@@ -357,7 +357,7 @@ class BasicClassTest(Chai):
     expect( w.write_bit ).args( True )
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 70, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
-    expect( self.klass.channel.add_synchronous_cb ).args( 
+    expect( self.klass.channel.add_synchronous_cb ).args(
       self.klass._recv_get_response ).returns('msg')
 
     assert_equals( deque(), self.klass._get_cb )
@@ -372,7 +372,7 @@ class BasicClassTest(Chai):
     expect( w.write_bit ).args( 'ack' )
     expect( mock(basic_class,'MethodFrame') ).args(42, 60, 70, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
-    expect( self.klass.channel.add_synchronous_cb ).args( 
+    expect( self.klass.channel.add_synchronous_cb ).args(
       self.klass._recv_get_response ).returns('msg')
 
     self.klass._get_cb = deque(['blargh'])
@@ -394,7 +394,7 @@ class BasicClassTest(Chai):
     self.klass._get_cb.append( cb )
     self.klass._get_cb.append( mock() )
 
-    expect( self.klass._read_msg ).args( 
+    expect( self.klass._read_msg ).args(
       'frame', with_consumer_tag=False, with_message_count=True ).returns( 'msg' )
     expect( cb ).args( 'msg' )
 
@@ -431,7 +431,7 @@ class BasicClassTest(Chai):
     self.klass._recv_get_empty( 'frame' )
     assert_equals( 1, len(self.klass._get_cb) )
     assert_false( None in self.klass._get_cb )
-  
+
   def test_ack_default_args(self):
     w = mock()
     expect( mock( basic_class, 'Writer' ) ).returns( w )
@@ -441,7 +441,7 @@ class BasicClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
 
     self.klass.ack( 8675309 )
-  
+
   def test_ack_with_args(self):
     w = mock()
     expect( mock( basic_class, 'Writer' ) ).returns( w )
@@ -451,7 +451,7 @@ class BasicClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
 
     self.klass.ack( 8675309, multiple='many' )
-  
+
   def test_reject_default_args(self):
     w = mock()
     expect( mock( basic_class, 'Writer' ) ).returns( w )
@@ -461,7 +461,7 @@ class BasicClassTest(Chai):
     expect( self.klass.send_frame ).args( 'frame' )
 
     self.klass.reject( 8675309 )
-  
+
   def test_reject_with_args(self):
     w = mock()
     expect( mock( basic_class, 'Writer' ) ).returns( w )
@@ -522,12 +522,12 @@ class BasicClassTest(Chai):
     self.klass._recv_recover_ok( 'frame' )
     assert_equals( 1, len(self.klass._recover_cb) )
     assert_false( None in self.klass._recover_cb )
-    
+
   def test_read_msg_raises_frameunderflow_when_no_header_frame(self):
     expect(self.klass.channel.next_frame).returns(None)
     expect(self.klass.channel.requeue_frames).args(['method_frame'])
     assert_raises(self.klass.FrameUnderflow, self.klass._read_msg, 'method_frame')
-  
+
   def test_read_msg_raises_frameunderflow_when_no_content_frames(self):
     header_frame = mock()
     header_frame.size = 1000000

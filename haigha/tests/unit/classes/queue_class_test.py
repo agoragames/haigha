@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -23,11 +23,11 @@ class QueueClassTest(Chai):
 
   def test_init(self):
     expect(ProtocolClass.__init__).args('foo', a='b')
-    
+
     klass = QueueClass.__new__(QueueClass)
     klass.__init__('foo', a='b')
 
-    assert_equals( 
+    assert_equals(
       {
         11 : klass._recv_declare_ok,
         21 : klass._recv_bind_ok,
@@ -82,7 +82,7 @@ class QueueClassTest(Chai):
       returns('stuffs')
 
     assert_equals( deque(), self.klass._declare_cb )
-    assert_equals( 'stuffs', self.klass.declare('queue', passive='p', durable='d', exclusive='e', 
+    assert_equals( 'stuffs', self.klass.declare('queue', passive='p', durable='d', exclusive='e',
       auto_delete='a', nowait=False, arguments={'foo':'bar'}, ticket='ticket') )
     assert_equals( deque([None]), self.klass._declare_cb )
 
@@ -101,7 +101,7 @@ class QueueClassTest(Chai):
 
     # assert it's put in the right spot too
     self.klass._declare_cb = deque(['blargh'])
-    assert_equals( 'stuffs', self.klass.declare('queue', passive='p', durable='d', exclusive='e', 
+    assert_equals( 'stuffs', self.klass.declare('queue', passive='p', durable='d', exclusive='e',
       auto_delete='a', nowait=True, arguments={'foo':'bar'}, ticket='ticket',
       cb='callback') )
     assert_equals( deque(['blargh','callback']), self.klass._declare_cb )
@@ -239,7 +239,7 @@ class QueueClassTest(Chai):
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_unbind_ok )
 
     self.klass._unbind_cb = deque(['blargh'])
-    self.klass.unbind('queue', 'exchange', routing_key='route', 
+    self.klass.unbind('queue', 'exchange', routing_key='route',
       arguments={'foo':'bar'}, ticket='ticket', cb='callback')
     assert_equals( deque(['blargh','callback']), self.klass._unbind_cb )
 
@@ -357,7 +357,7 @@ class QueueClassTest(Chai):
     expect( w.write_bits ).args( 'yes', 'no', False )
     expect( mock(queue_class, 'MethodFrame') ).args(42, 50, 40, w).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
-    expect( self.klass.channel.add_synchronous_cb ).args( 
+    expect( self.klass.channel.add_synchronous_cb ).args(
       self.klass._recv_delete_ok ).returns( 'five' )
 
     assert_equals( deque(), self.klass._delete_cb )

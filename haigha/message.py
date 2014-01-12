@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -17,11 +17,11 @@ class Message(object):
 
     if not isinstance(body, (str,unicode,bytearray)):
       raise TypeError("Invalid message content type %s"%(type(body)))
-    
+
     self._body = body
     self._delivery_info = delivery_info
     self._properties = properties
- 
+
   @property
   def body(self):
     return self._body

@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -23,11 +23,11 @@ class TransactionClassTest(Chai):
 
   def test_init(self):
     expect(ProtocolClass.__init__).args('foo', a='b' )
-    
+
     klass = TransactionClass.__new__(TransactionClass)
     klass.__init__('foo', a='b')
 
-    assert_equals( 
+    assert_equals(
       {
         11 : klass._recv_select_ok,
         21 : klass._recv_commit_ok,
@@ -90,14 +90,14 @@ class TransactionClassTest(Chai):
   def test_recv_select_ok_without_cb(self):
     self.klass._select_cb.append( None )
     self.klass._select_cb.append( mock() )
-    
+
     self.klass._recv_select_ok( 'frame' )
     assert_equals( 1, len(self.klass._select_cb) )
     assert_false( None in self.klass._select_cb )
 
   def test_commit_when_enabled_no_cb(self):
     self.klass._enabled = True
-    
+
     expect( mock(transaction_class, 'MethodFrame') ).args(42, 90, 20).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_commit_ok )
@@ -108,7 +108,7 @@ class TransactionClassTest(Chai):
 
   def test_commit_when_enabled_with_cb(self):
     self.klass._enabled = True
-    
+
     expect( mock(transaction_class, 'MethodFrame') ).args(42, 90, 20).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_commit_ok )
@@ -126,7 +126,7 @@ class TransactionClassTest(Chai):
     self.klass._commit_cb.append( cb )
     self.klass._commit_cb.append( mock() )
     expect(cb)
-    
+
     self.klass._recv_commit_ok('frame')
     assert_equals( 1, len(self.klass._commit_cb) )
     assert_false( cb in self.klass._commit_cb )
@@ -134,14 +134,14 @@ class TransactionClassTest(Chai):
   def test_recv_commit_ok_without_cb(self):
     self.klass._commit_cb.append( None )
     self.klass._commit_cb.append( mock() )
-    
+
     self.klass._recv_commit_ok('frame')
     assert_equals( 1, len(self.klass._commit_cb) )
     assert_false( None in self.klass._commit_cb )
 
   def test_rollback_when_enabled_no_cb(self):
     self.klass._enabled = True
-    
+
     expect( mock(transaction_class, 'MethodFrame') ).args(42, 90, 30).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_rollback_ok )
@@ -152,7 +152,7 @@ class TransactionClassTest(Chai):
 
   def test_rollback_when_enabled_with_cb(self):
     self.klass._enabled = True
-    
+
     expect( mock(transaction_class, 'MethodFrame') ).args(42, 90, 30).returns( 'frame' )
     expect( self.klass.send_frame ).args( 'frame' )
     expect( self.klass.channel.add_synchronous_cb ).args( self.klass._recv_rollback_ok )
@@ -170,7 +170,7 @@ class TransactionClassTest(Chai):
     self.klass._rollback_cb.append( cb )
     self.klass._rollback_cb.append( mock() )
     expect(cb)
-    
+
     self.klass._recv_rollback_ok('frame')
     assert_equals( 1, len(self.klass._rollback_cb) )
     assert_false( cb in self.klass._rollback_cb )
@@ -178,7 +178,7 @@ class TransactionClassTest(Chai):
   def test_recv_rollback_ok_without_cb(self):
     self.klass._rollback_cb.append( None )
     self.klass._rollback_cb.append( mock() )
-    
+
     self.klass._recv_rollback_ok('frame')
     assert_equals( 1, len(self.klass._rollback_cb) )
     assert_false( None in self.klass._rollback_cb )

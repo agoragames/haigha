@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -37,15 +37,15 @@ class HeaderFrame(Frame):
   @classmethod
   def type(cls):
     return 2
-  
+
   @property
   def class_id(self):
     return self._class_id
-  
+
   @property
   def weight(self):
     return self._weight
-  
+
   @property
   def size(self):
     return self._size
@@ -53,7 +53,7 @@ class HeaderFrame(Frame):
   @property
   def properties(self):
     return self._properties
-  
+
   @classmethod
   def parse(self, channel_id, payload):
     '''
@@ -99,7 +99,7 @@ class HeaderFrame(Frame):
         shift -= 1
 
     return HeaderFrame( channel_id, class_id, weight, size, properties)
-    
+
   def __init__(self, channel_id, class_id, weight, size, properties={}):
     Frame.__init__(self, channel_id)
     self._class_id = class_id
@@ -117,12 +117,12 @@ class HeaderFrame(Frame):
     writer = Writer(buf)
     writer.write_octet( self.type() )
     writer.write_short( self.channel_id )
-  
+
     # Track the position where we're going to write the total length
     # of the frame arguments.
     stream_args_len_pos = len(buf)
     writer.write_long(0)
-    
+
     stream_method_pos = len(buf)
 
     writer.write_short( self._class_id )
@@ -141,7 +141,7 @@ class HeaderFrame(Frame):
           flag_bits |= mask
           wfunc(writer, val)
       writer.write_short_at( flag_bits, flags_pos )
-    else:    
+    else:
       shift = 15
       flag_bits = 0
       flags = []

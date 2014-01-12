@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -14,13 +14,13 @@ class ChannelPool(object):
 
   The pool can accept an optional `size` argument in the ctor, which caps the
   number of channels which the pool will allocate. If no channels are available
-  on `publish()`, the message will be locally queued and sent as soon as a 
+  on `publish()`, the message will be locally queued and sent as soon as a
   channel is available. It is recommended that you use the pool with a max
   size, as each channel consumes memory on the broker and it is possible to
   exercise memory limit protection seems on the broker due to number of
   channels.
   '''
-  
+
   def __init__(self, connection, size=None):
     '''Initialize the channel on a connection.'''
     self._connection = connection
@@ -66,7 +66,7 @@ class ChannelPool(object):
     else:
       kwargs['cb'] = user_cb
       self._queue.append( (args,kwargs) )
-    
+
   def _process_queue(self):
     '''
     If there are any message in the queue, process one of them.
@@ -84,7 +84,7 @@ class ChannelPool(object):
     '''
     while len(self._free_channels):
       rval = self._free_channels.pop()
-      if not rval.closed: 
+      if not rval.closed:
         return rval
       # don't adjust _channels value because the callback will do that and
       # we don't want to double count it.

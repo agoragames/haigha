@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -21,7 +21,7 @@ class Frame(object):
 
   # Class data
   _frame_type_map = {}
-  
+
   # Class methods
   @classmethod
   def register(cls):
@@ -66,7 +66,7 @@ class Frame(object):
       except struct.error as e:
         raise Frame.FormatError, str(e), sys.exc_info()[-1]
 
-      if frame is None: 
+      if frame is None:
         reader.seek( frame_start_pos )
         break
 
@@ -85,7 +85,7 @@ class Frame(object):
     frame_type = reader.read_octet()
     channel_id = reader.read_short()
     size = reader.read_long()
-    
+
     payload = Reader(reader, reader.tell(), size)
 
     # Seek to end of payload

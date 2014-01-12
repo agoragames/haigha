@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2011-2013, Agora Games, LLC All rights reserved.
+Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
@@ -18,7 +18,7 @@ class EventTransport(Transport):
   '''
   Transport using libevent-based EventSocket.
   '''
-  
+
   def __init__(self, *args):
     super(EventTransport,self).__init__(*args)
     self._synchronous = False
@@ -38,7 +38,7 @@ class EventTransport(Transport):
 
   def _sock_read_cb(self, sock):
     self.connection.read_frames()
-  
+
   ###
   ### Transport API
   ###
@@ -50,9 +50,9 @@ class EventTransport(Transport):
     self._host = "%s:%s"%(host,port)
     self._sock = EventSocket(
       read_cb=self._sock_read_cb,
-      close_cb=self._sock_close_cb, 
+      close_cb=self._sock_close_cb,
       error_cb=self._sock_error_cb,
-      debug=self.connection.debug, 
+      debug=self.connection.debug,
       logger=self.connection.logger )
     if self.connection._sock_opts:
       for k,v in self.connection._sock_opts.iteritems():
@@ -89,7 +89,7 @@ class EventTransport(Transport):
     elif self._heartbeat_timeout:
       self._heartbeat_timeout.delete()
       self._heartbeat_timeout = None
-      
+
     return self._sock.read()
 
   def buffer(self, data):
@@ -107,10 +107,10 @@ class EventTransport(Transport):
     if not hasattr(self,'_sock'):
       return
     self._sock.write( data )
-    
+
   def disconnect(self):
     '''
-    Disconnect from the transport. Typically socket.close(). This call is 
+    Disconnect from the transport. Typically socket.close(). This call is
     welcome to raise exceptions, which the Connection will catch.
 
     The transport is encouraged to allow for any pending writes to complete
