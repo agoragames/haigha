@@ -1,3 +1,9 @@
+0.6.2
+=====
+
+Raise ConnectionClosed in Connection.synchronous if the transport has
+been cleared
+
 0.6.1
 =====
 
