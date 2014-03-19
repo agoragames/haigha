@@ -166,6 +166,11 @@ class Connection(object):
   @property
   def synchronous(self):
     '''True if transport is synchronous, False otherwise.'''
+    if self._transport==None:
+      if self._close_info and len(self._close_info['reply_text'])>0:
+        raise ConnectionClosed("connection is closed: %s : %s"%\
+          (self._close_info['reply_code'],self._close_info['reply_text']) )
+      raise ConnectionClosed("connection is closed")
     return self.transport.synchronous
 
   def connect(self, host, port):

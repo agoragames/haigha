@@ -137,6 +137,24 @@ class ConnectionTest(Chai):
     self.assertEqual( self.connection._frames_read, self.connection.frames_read )
     self.assertEqual( self.connection._frames_written, self.connection.frames_written )
 
+  def test_synchronous_when_no_transport(self):
+    self.connection._transport = None
+    with assert_raises( connection.ConnectionClosed ):
+      self.connection.synchronous
+
+    self.connection._close_info = {
+      'reply_code':100,
+      'reply_text':'breakdown'
+    }
+    with assert_raises( connection.ConnectionClosed ):
+      self.connection.synchronous
+
+  def test_synchronous_when_transport(self):
+    self.connection._transport.synchronous = True
+    assert_true( self.connection.synchronous )
+    self.connection._transport.synchronous = False
+    assert_false( self.connection.synchronous )
+
   def test_connect_when_asynchronous_transport(self):
     self.connection._transport.synchronous = False
     self.connection._connected = 'maybe'
