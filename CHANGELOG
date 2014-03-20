@@ -1,3 +1,39 @@
+sync-and-exception-fixes
+========================
+
+Adds `synchronous` keyword argument to `Connection` constructor, which makes
+the connection behave as if it were synchronous, no matter the underlying
+transport type. Useful for gevent where one does not want to use callbacks.
+Applies to all channels, enforces `nowait=False` where applicable.
+
+Adds `synchronous` keyword argument to `Connection.channel`, which makes the
+`Channel` object synchronous independent of the underlying transport type.
+For example, if a synchronous channel on an asynchronous transport has a
+protocol method called with `nowait=False` (where applicable), then the method
+will not return until the response frame has been read. Does not enforce
+`nowait=False` where applicable.
+
+Adds `synchronous_connect` option to Connection constructor which will enforce
+synchronous behavior in `Connection.connect` regardless of the underlying
+transport type. Improves features to handle issue #7. Also makes 
+`Connection.close` synchronous. Defaults to True if transport is synchronous
+or `synchronous=True` passed in constructor.
+https://github.com/agoragames/haigha/issues/7
+
+Standard and gevent socket transport will raise EnvironmentErrors that aren't
+in `(errno.EAGAIN,errno.EWOULDBLOCK,errno.EINTR)`. Fixes notifying read loops
+of potential problems and fixes #44
+https://github.com/agoragames/haigha/issues/44
+
+Immediately close connection and raise ConnectionClosed if there is a 
+FrameError in reading frames from the broker in `Connection.read_frames`.
+
+Detect frames that are larger than negotiated frame max in
+`Connection.send_frame`, immediately close connection and raise 
+ConnectionClosed.
+
+Add property `Connection.closed`
+
 0.6.2
 =====
 

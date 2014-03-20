@@ -46,9 +46,8 @@ class ProtocolClass(object):
     raise NotImplementedError('must provide a name for %s'%(self))
 
   def allow_nowait(self):
-    '''Return True if the transport allows nowait, False otherwise.'''
-    # hack: this is a function to make testing easier
-    return not self._channel.connection.synchronous
+    '''Return True if the transport or  channel allows nowait, False otherwise.'''
+    return not self._channel.synchronous
 
   def _cleanup(self):
     '''

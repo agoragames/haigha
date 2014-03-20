@@ -9,6 +9,7 @@ from haigha.transports.socket_transport import SocketTransport
 import errno
 try:
   import gevent
+  from gevent.event import Event
   try:
     # Semaphore moved here since gevent-1.0b2
     from gevent.lock import Semaphore
@@ -19,6 +20,7 @@ try:
 except ImportError:
   print 'Failed to load gevent modules'
   gevent = None
+  Event = None
   Semaphore = None
   socket = None
   pool = None
@@ -29,31 +31,15 @@ class GeventTransport(SocketTransport):
   Transport using gevent backend. It relies on gevent's implementation of
   sendall to send whole frames at a time. On the input side, it uses a gevent
   semaphore to ensure exclusive access to the socket and input buffer.
-
-  NOTE:
-  This is new to haigha and there may be integration issues with some versions
-  of RabbitMQ. In particular, what may happen when a blocking call to send a
-  frame allows another thread to queue another frame, but the frames can't be
-  interlaced due to how the protocol is defined or implemented. A lot of the
-  'synchronous' calls have very specific expectations. If this becomes a
-  problem then the quickest way to solve it would be to switch to non-blocking
-  so that the same thread of execution is allowed to send all of its frames in
-  sequence. In that case, the gevent implementation may be pushed into the
-  EventSocket as another supported concurrency lib.
-
-  Note also that the blocking nature of the sockets means that the any threads
-  running IO should actively yield with a sleep(0) to ensure other threads are
-  serviced. In a saturated environment, failure to do so will lead to
-  significant lags in signal handling or other IO. In practice, a typical
-  client is attaching to other data stores so those could be enough to yield.
   '''
 
   def __init__(self, *args, **kwargs):
     super(GeventTransport,self).__init__(*args)
 
-    self._synchronous = kwargs.get('synchronous',False)
+    self._synchronous = False
     self._read_lock = Semaphore()
     self._write_lock = Semaphore()
+    self._read_wait = Event()
 
   ###
   ### Transport API
@@ -70,11 +56,27 @@ class GeventTransport(SocketTransport):
     Read from the transport. If no data is available, should return None. If
     timeout>0, will only block for `timeout` seconds.
     '''
+    # If currently locked, another greenlet is trying to read, so yield control
+    # and then return none. Required if a Connection is configured to be
+    # synchronous, a sync callback is trying to read, and there's another read
+    # loop running read_frames. Without it, the run loop will release the lock
+    # but then immediately acquire it again. Yielding control in the reading
+    # thread after bytes are read won't fix anything, because it's quite
+    # possible the bytes read resulted in a frame that satisfied the 
+    # synchronous callback, and so this needs to return immediately to first
+    # check the current status of synchronous callbacks before attempting to
+    # read again.
+    if self._read_lock.locked():
+      self._read_wait.wait(timeout)
+      return None
+
     self._read_lock.acquire()
     try:
       return super(GeventTransport,self).read(timeout=timeout)
     finally:
       self._read_lock.release()
+      self._read_wait.set()
+      self._read_wait.clear()
 
   def buffer(self, data):
     '''

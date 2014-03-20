@@ -3,6 +3,7 @@ import sys, os
 sys.path.append(os.path.abspath("."))
 
 import gevent
+import gevent.socket
 from gevent.event import AsyncResult
 from haigha.connection import Connection
 from haigha.message import Message
@@ -26,7 +27,7 @@ else:
       haigha_version)
     from haigha.transports import socket_transport
     import gevent.socket
-  socket_transport.socket = gevent.socket
+    socket_transport.socket = gevent.socket
 
 
 def test_haigha():
@@ -40,7 +41,7 @@ def test_haigha():
   connectionCloseWaiter = AsyncResult()
 
   def handleChannel1Closed(ch, channelImpl):
-    print "CHANNEL1 CLOSED: %r" % (channelImpl.close_info,)
+    print "CHANNEL1 CLOSED: %r" % (ch.close_info,)
     channel1CloseWaiter.set()
 
   def handleConnectionClosed():

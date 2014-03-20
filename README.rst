@@ -71,6 +71,7 @@ Beyond that, there is no specific order of features to implement. Generally, the
 * Edge cases in frame management
 * Improvements to usabililty
 * SSL
+* Allow nowait when asynchronous transport but Connection put into synchronous mode.
 
 Haigha has been tested exclusively with Python 2.6 and 2.7, but we intend for it to work with the 3.x series as well. Please `report <https://github.com/agoragames/haigha/issues>`_ any issues you may have.
 

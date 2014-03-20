@@ -158,7 +158,8 @@ class SocketTransportTest(Chai):
     expect( self.transport.connection.transport_closed ).args(
       msg='error reading from server:1234' )
 
-    self.transport.read(42)
+    with assert_raises(EnvironmentError):
+      self.transport.read(42)
 
   def test_read_when_no_sock(self):
     self.transport.read()

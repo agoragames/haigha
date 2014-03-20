@@ -32,7 +32,7 @@ class Channel(object):
   class InvalidMethod(ChannelError): '''The method frame referenced an invalid method.  Non-fatal.'''
   class Inactive(ChannelError): '''Tried to send a content frame while the channel was inactive. Non-fatal.'''
 
-  def __init__(self, connection, channel_id, class_map):
+  def __init__(self, connection, channel_id, class_map, **kwargs):
     '''
     Initialize with a handle to the connection and an id. Caller must
     supply a mapping of {class_id:ProtocolClass} which defines what
@@ -72,6 +72,8 @@ class Channel(object):
     }
     self._active = True
 
+    self._synchronous = kwargs.get('synchronous', False)
+
   @property
   def connection(self):
     return self._connection
@@ -102,6 +104,14 @@ class Channel(object):
     Return True if flow control turned off, False if flow control is on.
     '''
     return self._active
+
+  @property
+  def synchronous(self):
+    '''
+    Return if this channel is acting synchronous, of its own accord or because
+    the connection is synchronous.
+    '''
+    return self._synchronous or self._connection.synchronous
 
   def add_open_listener(self, listener):
     '''
@@ -206,7 +216,10 @@ class Channel(object):
         self.dispatch( frame )
       except ProtocolClass.FrameUnderflow:
         return
-      except Exception:
+      except (ConnectionClosed,ChannelClosed):
+        # Immediately raise if connection or channel is closed
+        raise
+      except Exception as e:
         # Spec says that channel should be closed if there's a framing error.
         # Unsure if we can send close if the current exception is transport
         # level (e.g. gevent.GreenletExit)
@@ -263,7 +276,7 @@ class Channel(object):
     '''
     Add an expectation of a callback to release a synchronous transaction.
     '''
-    if self.connection.synchronous:
+    if self.connection.synchronous or self._synchronous:
       wrapper = SyncWrapper(cb)
       self._pending_events.append( wrapper )
       while wrapper._read:
