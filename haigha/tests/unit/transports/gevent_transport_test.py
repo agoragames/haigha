@@ -41,6 +41,8 @@ class GeventTransportTest(Chai):
     with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
       expect( parent.read ).args(timeout=None).returns( 'somedata' )
     expect( self.transport._read_lock.release )
+    expect( self.transport._read_wait.set )
+    expect( self.transport._read_wait.clear )
 
     assert_equals( 'somedata', self.transport.read() )
 
@@ -49,7 +51,7 @@ class GeventTransportTest(Chai):
     stub( self.transport._read_lock.acquire )
     stub( mock(gevent_transport,'super') )
     stub( self.transport._read_lock.release )
-    expect( gevent, 'sleep' )
+    expect( self.transport._read_wait.wait )
 
     assert_equals( None, self.transport.read() )
 

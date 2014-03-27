@@ -1,5 +1,5 @@
-sync-and-exception-fixes
-========================
+0.7.0
+=====
 
 Adds `synchronous` keyword argument to `Connection` constructor, which makes
 the connection behave as if it were synchronous, no matter the underlying
