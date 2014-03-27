@@ -44,6 +44,7 @@ class SocketTransport(Transport):
     Read from the transport. If timeout>0, will only block for `timeout`
     seconds.
     '''
+    e = None
     if not hasattr(self,'_sock'):
       return None
 
@@ -76,12 +77,14 @@ class SocketTransport(Transport):
 
     except EnvironmentError as e:
       # thrown if we have a timeout and no data
-      if e.errno in (errno.EAGAIN,errno.EWOULDBLOCK):
+      if e.errno in (errno.EAGAIN,errno.EWOULDBLOCK,errno.EINTR):
         return None
 
       self.connection.logger.exception( 'error reading from %s'%(self._host) )
 
     self.connection.transport_closed( msg='error reading from %s'%(self._host) )
+    if e:
+      raise
 
   def buffer(self, data):
     '''

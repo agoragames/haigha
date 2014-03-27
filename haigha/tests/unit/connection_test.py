@@ -8,7 +8,7 @@ import logging
 from chai import Chai
 
 from haigha import connection, __version__
-from haigha.connection import Connection, ConnectionChannel
+from haigha.connection import Connection, ConnectionChannel, ConnectionError, ConnectionClosed
 from haigha.channel import Channel
 from haigha.frames import *
 from haigha.classes import *
@@ -63,41 +63,44 @@ class ConnectionTest(Chai):
     self.connection._strategy = self.mock()
     self.connection._output_frame_buffer = []
     self.connection._transport = mock()
+    self.connection._synchronous = False
+    self.connection._synchronous_connect = False
 
   def test_init_without_keyword_args(self):
     conn = Connection.__new__( Connection )
     strategy = mock()
+    transport = mock()
     mock( connection, 'ConnectionChannel' )
 
     expect(connection.ConnectionChannel).args( conn, 0, {} ).returns( 'connection_channel' )
-    expect(socket_transport.SocketTransport).args( conn ).returns( 'SocketTransport' )
+    expect(socket_transport.SocketTransport).args( conn ).returns( transport )
     expect(conn.connect).args( 'localhost', 5672 )
 
     conn.__init__()
 
-    self.assertFalse( conn._debug )
-    self.assertEqual( logging.root, conn._logger )
-    self.assertEqual( 'guest', conn._user )
-    self.assertEqual( 'guest', conn._password )
-    self.assertEqual( 'localhost', conn._host )
-    self.assertEqual( 5672, conn._port )
-    self.assertEqual( '/', conn._vhost )
-    self.assertEqual( 5, conn._connect_timeout )
-    self.assertEqual( None, conn._sock_opts )
-    self.assertEqual( None, conn._sock )
-    self.assertEqual( None, conn._heartbeat )
-    self.assertEqual( None, conn._open_cb )
-    self.assertEqual( None, conn._close_cb )
-    self.assertEqual( 'AMQPLAIN', conn._login_method )
-    self.assertEqual( 'en_US', conn._locale )
-    self.assertEqual( None, conn._client_properties )
-    self.assertEqual( conn._properties, {
+    assert_false( conn._debug )
+    assert_equal( logging.root, conn._logger )
+    assert_equal( 'guest', conn._user )
+    assert_equal( 'guest', conn._password )
+    assert_equal( 'localhost', conn._host )
+    assert_equal( 5672, conn._port )
+    assert_equal( '/', conn._vhost )
+    assert_equal( 5, conn._connect_timeout )
+    assert_equal( None, conn._sock_opts )
+    assert_equal( None, conn._sock )
+    assert_equal( None, conn._heartbeat )
+    assert_equal( None, conn._open_cb )
+    assert_equal( None, conn._close_cb )
+    assert_equal( 'AMQPLAIN', conn._login_method )
+    assert_equal( 'en_US', conn._locale )
+    assert_equal( None, conn._client_properties )
+    assert_equal( conn._properties, {
       'library': 'Haigha',
       'library_version': __version__,
     } )
-    self.assertFalse( conn._closed )
-    self.assertFalse( conn._connected )
-    self.assertEqual( conn._close_info, {
+    assert_false( conn._closed )
+    assert_false( conn._connected )
+    assert_equal( conn._close_info, {
       'reply_code'    : 0,
       'reply_text'    : 'first connect',
       'class_id'      : 0,
@@ -110,32 +113,41 @@ class ConnectionTest(Chai):
       60: BasicClass,
       90: TransactionClass
     }, conn._class_map )
-    self.assertEqual( {0:'connection_channel'}, conn._channels )
-    self.assertEqual( '\x05LOGINS\x00\x00\x00\x05guest\x08PASSWORDS\x00\x00\x00\x05guest', conn._login_response )
-    self.assertEqual( 0, conn._channel_counter )
-    self.assertEqual( 65535, conn._channel_max )
-    self.assertEqual( 65535, conn._frame_max )
-    self.assertEqual( [], conn._output_frame_buffer )
-    self.assertEqual( 'SocketTransport', conn._transport )
+    assert_equal( {0:'connection_channel'}, conn._channels )
+    assert_equal( '\x05LOGINS\x00\x00\x00\x05guest\x08PASSWORDS\x00\x00\x00\x05guest', conn._login_response )
+    assert_equal( 0, conn._channel_counter )
+    assert_equal( 65535, conn._channel_max )
+    assert_equal( 65535, conn._frame_max )
+    assert_equal( [], conn._output_frame_buffer )
+    assert_equal( transport, conn._transport )
+
+    transport.synchronous = True
+    assert_false( conn._synchronous )
+    assert_true( conn.synchronous )
+    assert_true( conn._synchronous_connect )
 
   def test_init_with_event_transport(self):
     conn = Connection.__new__( Connection )
     strategy = mock()
+    transport = mock()
+    
     mock( connection, 'ConnectionChannel' )
 
     expect(connection.ConnectionChannel).args( conn, 0, {} ).returns( 'connection_channel' )
-    expect(event_transport.EventTransport).args( conn ).returns( 'EventTransport' )
+    expect(event_transport.EventTransport).args( conn ).returns( transport )
     expect(conn.connect).args( 'localhost', 5672 )
 
     conn.__init__(transport='event')
 
   def test_properties(self):
-    self.assertEqual( self.connection._logger, self.connection.logger )
-    self.assertEqual( self.connection._debug, self.connection.debug )
-    self.assertEqual( self.connection._frame_max, self.connection.frame_max )
-    self.assertEqual( self.connection._channel_max, self.connection.channel_max )
-    self.assertEqual( self.connection._frames_read, self.connection.frames_read )
-    self.assertEqual( self.connection._frames_written, self.connection.frames_written )
+    assert_equal( self.connection._logger, self.connection.logger )
+    assert_equal( self.connection._debug, self.connection.debug )
+    assert_equal( self.connection._frame_max, self.connection.frame_max )
+    assert_equal( self.connection._channel_max, self.connection.channel_max )
+    assert_equal( self.connection._frames_read, self.connection.frames_read )
+    assert_equal( self.connection._frames_written, self.connection.frames_written )
+    assert_equal( self.connection._closed, self.connection.closed )
+    # sync property tested in the test_inits
 
   def test_synchronous_when_no_transport(self):
     self.connection._transport = None
@@ -181,8 +193,9 @@ class ConnectionTest(Chai):
       } )
     assert_equals( 'host:5672', self.connection._host )
 
-  def test_connect_when_synchronous_transport(self):
-    self.connection._transport.synchronous = True
+  def test_connect_when_asynchronous_transport_but_synchronous_connect(self):
+    self.connection._transport.synchronous = False
+    self.connection._synchronous_connect = True
     self.connection._connected = 'maybe'
     self.connection._closed = 'possibly'
     self.connection._debug = 'sure'
@@ -194,6 +207,40 @@ class ConnectionTest(Chai):
 
     expect( self.connection._transport.connect ).args( ('host',5672) )
     expect( self.connection._transport.write ).args( 'AMQP\x00\x00\x09\x01' )
+    expect( self.connection._channels[0].add_synchronous_cb ).args(
+      self.connection._channels[0]._recv_start )
+
+    expect( self.connection.read_frames )
+    expect( self.connection.read_frames ).side_effect(
+      lambda: setattr(self.connection,'_connected',True) )
+
+    self.connection.connect( 'host', 5672 )
+    assert_true( self.connection._connected )
+    assert_false( self.connection._closed )
+    assert_equals( self.connection._close_info,
+      {
+      'reply_code'    : 0,
+      'reply_text'    : 'failed to connect to host:5672',
+      'class_id'      : 0,
+      'method_id'     : 0
+      } )
+    assert_equals( 'host:5672', self.connection._host )
+
+  def test_connect_when_synchronous_transport(self):
+    self.connection._transport.synchronous = True
+    self.connection._synchronous_connect = True # would have been written in ctor
+    self.connection._connected = 'maybe'
+    self.connection._closed = 'possibly'
+    self.connection._debug = 'sure'
+    self.connection._connect_timeout = 42
+    self.connection._sock_opts = {
+      ('f1','t1') : 5,
+      ('f2','t2') : 6
+    }
+
+    expect( self.connection._transport.connect ).args( ('host',5672) )
+    expect( self.connection._transport.write ).args( 'AMQP\x00\x00\x09\x01' )
+    expect( self.connection._channels[0].add_synchronous_cb )
 
     expect( self.connection.read_frames )
     expect( self.connection.read_frames ).side_effect(
@@ -253,7 +300,7 @@ class ConnectionTest(Chai):
     self.connection.transport_closed()
 
     assert_equals( 0, self.connection._close_info['reply_code'] )
-    assert_equals( 'transport to server closed : unknown cause', self.connection._close_info['reply_text'] )
+    assert_equals( 'unknown cause', self.connection._close_info['reply_text'] )
     assert_equals( 0, self.connection._close_info['class_id'] )
     assert_equals( 0, self.connection._close_info['method_id'] )
 
@@ -272,12 +319,24 @@ class ConnectionTest(Chai):
     expect( self.connection._next_channel_id ).returns( 1 )
     mock( connection, 'Channel' )
     expect( connection.Channel ).args(
-      self.connection, 1, self.connection._class_map).returns( ch )
+      self.connection, 1, self.connection._class_map, synchronous=False).returns( ch )
     expect( ch.add_close_listener ).args( self.connection._channel_closed )
     expect( ch.open )
 
-    self.assert_equals( ch, self.connection.channel() )
-    self.assert_equals( ch, self.connection._channels[1] )
+    assert_equals( ch, self.connection.channel() )
+    assert_equals( ch, self.connection._channels[1] )
+
+  def test_channel_creates_optionally_synchronous(self):
+    ch = mock()
+    expect( self.connection._next_channel_id ).returns( 1 )
+    mock( connection, 'Channel' )
+    expect( connection.Channel ).args(
+      self.connection, 1, self.connection._class_map, synchronous=True).returns( ch )
+    expect( ch.add_close_listener ).args( self.connection._channel_closed )
+    expect( ch.open )
+
+    assert_equals( ch, self.connection.channel(synchronous=True) )
+    assert_equals( ch, self.connection._channels[1] )
 
   def test_channel_finds_the_first_free_channel_id(self):
     self.connection._channels[1] = 'foo'
@@ -289,12 +348,12 @@ class ConnectionTest(Chai):
     expect( self.connection._next_channel_id ).returns( 3 )
     mock( connection, 'Channel' )
     expect( connection.Channel ).args(
-      self.connection, 3, self.connection._class_map ).returns( ch )
+      self.connection, 3, self.connection._class_map, synchronous=False ).returns( ch )
     expect( ch.add_close_listener ).args( self.connection._channel_closed )
     expect( ch.open )
 
-    self.assert_equals( ch, self.connection.channel() )
-    self.assert_equals( ch, self.connection._channels[3] )
+    assert_equals( ch, self.connection.channel() )
+    assert_equals( ch, self.connection._channels[3] )
 
   def test_channel_raises_toomanychannels(self):
     self.connection._channels[1] = 'foo'
@@ -323,13 +382,25 @@ class ConnectionTest(Chai):
 
   def test_close(self):
     self.connection._channels[0] = mock()
-    expect( self.connection._channels[0].close ).times(2)
+    expect( self.connection._channels[0].close )
 
     self.connection.close()
     assert_equals( {'reply_code':0, 'reply_text':'', 'class_id':0, 'method_id':0},
       self.connection._close_info )
 
     self.connection.close(1, 'foo', 2, 3)
+    assert_equals( {'reply_code':1, 'reply_text':'foo', 'class_id':2, 'method_id':3},
+      self.connection._close_info )
+
+  def test_close_when_disconnect(self):
+    self.connection._channels[0] = mock()
+    stub( self.connection._channels[0].close )
+
+    assert_false( self.connection._closed )
+    expect( self.connection.disconnect )
+    expect( self.connection._callback_close )
+    self.connection.close(1, 'foo', 2, 3, disconnect = True)
+    assert_true( self.connection._closed )
     assert_equals( {'reply_code':1, 'reply_text':'foo', 'class_id':2, 'method_id':3},
       self.connection._close_info )
 
@@ -415,6 +486,27 @@ class ConnectionTest(Chai):
     self.connection.read_frames()
     assert_equals( 1, self.connection._frames_read )
 
+  def test_read_frames_when_read_frame_error(self):
+    reader = mock()
+    frame = mock()
+    frame.channel_id = 42
+    channel = mock()
+    mock( connection, 'Reader' )
+    self.connection._heartbeat = 3
+
+    expect( self.connection._channels[0].send_heartbeat )
+    expect( self.connection._transport.read ).args(3).returns( 'data' )
+    expect( connection.Reader ).args( 'data' ).returns( reader )
+    expect( connection.Frame.read_frames ).args( reader ).raises( Frame.FrameError )
+    stub( self.connection.channel )
+    stub( channel.buffer_frame )
+    stub( self.connection._transport.process_channels )
+    stub( reader.tell )
+    stub( self.connection._transport.buffer )
+    expect( self.connection.close ).args( reply_code=501, reply_text=str, class_id=0, method_id=0, disconnect=True ) 
+
+    assert_raises( ConnectionError, self.connection.read_frames )
+
   def test_flush_buffered_frames(self):
     self.connection._output_frame_buffer = ['frame1', 'frame2']
     expect( self.connection.send_frame ).args( 'frame1' )
@@ -480,6 +572,17 @@ class ConnectionTest(Chai):
     assert_raises( connection.ConnectionClosed,
       self.connection.send_frame, 'frame' )
 
+  def test_send_frame_when_frame_overflow(self):
+    frame = mock()
+    self.connection._frame_max = 100
+    expect( frame.write_frame ).side_effect( lambda buf: buf.extend('a'*200) )
+    expect( self.connection.close ).args( 
+      reply_code=501, reply_text=var('reply'), class_id=0, method_id=0, disconnect=True )
+    stub( self.connection._transport.write )
+
+    self.connection._connected = True
+    with assert_raises(ConnectionClosed):
+      self.connection.send_frame( frame )
 
 class ConnectionChannelTest(Chai):
 
@@ -509,7 +612,7 @@ class ConnectionChannelTest(Chai):
   def test_dispatch_on_heartbeat_frame(self):
     frame = mock()
 
-    expect( frame.type ).at_least(1).returns( HeartbeatFrame.type() )
+    expect( frame.type ).returns( HeartbeatFrame.type() )
     expect( self.ch.send_heartbeat )
 
     self.ch.dispatch( frame )
@@ -518,10 +621,23 @@ class ConnectionChannelTest(Chai):
     frame = mock()
     frame.class_id = 10
     frame.method_id = 10
-    self.ch._method_map[10] = mock()
+    method = self.ch._method_map[10] = mock()
 
-    expect( frame.type ).at_least(1).returns( MethodFrame.type() )
-    expect( self.ch._method_map[10] ).args( frame )
+    expect( frame.type ).returns( MethodFrame.type() )
+    expect( method ).args( frame )
+
+    self.ch.dispatch( frame )
+
+  def test_dispatch_runs_callbacks(self):
+    frame = mock()
+    frame.class_id = 10
+    frame.method_id = 10
+    method = self.ch._method_map[10] = mock()
+    cb = mock()
+
+    expect( frame.type ).returns( MethodFrame.type() )
+    expect( self.ch.clear_synchronous_cb ).args(method).returns( cb )
+    expect( cb ).args( frame )
 
     self.ch.dispatch( frame )
 
@@ -530,7 +646,7 @@ class ConnectionChannelTest(Chai):
     frame.class_id = 10
     frame.method_id = 500
 
-    expect( frame.type ).at_least(1).returns( MethodFrame.type() )
+    expect( frame.type ).returns( MethodFrame.type() )
 
     with assert_raises( Channel.InvalidMethod ):
       self.ch.dispatch( frame )
@@ -540,7 +656,7 @@ class ConnectionChannelTest(Chai):
     frame.class_id = 11
     frame.method_id = 10
 
-    expect( frame.type ).at_least(1).returns( MethodFrame.type() )
+    expect( frame.type ).returns( MethodFrame.type() )
 
     with assert_raises( Channel.InvalidClass ):
       self.ch.dispatch( frame )
@@ -548,7 +664,7 @@ class ConnectionChannelTest(Chai):
   def test_dispatch_method_frame_raises_invalidframetype(self):
     frame = mock()
 
-    expect( frame.type ).at_least(1).returns( HeaderFrame.type() )
+    expect( frame.type ).returns( HeaderFrame.type() )
 
     with assert_raises( Frame.InvalidFrameType ):
       self.ch.dispatch( frame )
@@ -617,6 +733,7 @@ class ConnectionChannelTest(Chai):
 
       expect(mock(connection,'MethodFrame')).args(0,10,11,writer).returns('frame')
       expect( self.ch.send_frame ).args( 'frame' )
+    expect( self.ch.add_synchronous_cb ).args( self.ch._recv_tune )
 
     self.ch._send_start_ok()
 
@@ -701,6 +818,7 @@ class ConnectionChannelTest(Chai):
 
       expect(mock(connection,'MethodFrame')).args(0,10,40,writer).returns('frame')
       expect( self.ch.send_frame ).args( 'frame' )
+    expect( self.ch.add_synchronous_cb ).args( self.ch._recv_open_ok )
 
     self.ch._send_open()
 
@@ -728,6 +846,7 @@ class ConnectionChannelTest(Chai):
 
       expect(mock(connection,'MethodFrame')).args(0,10,50,writer).returns('frame')
       expect( self.ch.send_frame ).args( 'frame' )
+    expect( self.ch.add_synchronous_cb ).args( self.ch._recv_close_ok )
 
     self.ch._send_close()
 

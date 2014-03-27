@@ -123,6 +123,11 @@ class Connection(object):
     else:
       self._transport = transport
 
+    # Set these after the transport is initialized, so that we can access the 
+    # synchronous property
+    self._synchronous = kwargs.get('synchronous',False)
+    self._synchronous_connect = kwargs.get('synchronous_connect',False) or self.synchronous
+
     self._output_frame_buffer = []
     self.connect( self._host, self._port )
 
@@ -153,6 +158,11 @@ class Connection(object):
     return self._frames_written
 
   @property
+  def closed(self):
+    '''Return the closed state of the connection.'''
+    return self._closed
+
+  @property
   def close_info(self):
     '''Return dict with information on why this connection is closed.  Will
     return None if the connections is open.'''
@@ -165,13 +175,16 @@ class Connection(object):
 
   @property
   def synchronous(self):
-    '''True if transport is synchronous, False otherwise.'''
+    '''
+    True if transport is synchronous or the connection has been forced into
+    synchronous mode, False otherwise.
+    '''
     if self._transport==None:
       if self._close_info and len(self._close_info['reply_text'])>0:
         raise ConnectionClosed("connection is closed: %s : %s"%\
           (self._close_info['reply_code'],self._close_info['reply_text']) )
       raise ConnectionClosed("connection is closed")
-    return self.transport.synchronous
+    return self.transport.synchronous or self._synchronous
 
   def connect(self, host, port):
     '''
@@ -193,12 +206,31 @@ class Connection(object):
       'class_id'      : 0,
       'method_id'     : 0
     }
-
+ 
     self._transport.connect( (host,port) )
     self._transport.write( PROTOCOL_HEADER )
 
-    while self.synchronous and not self._connected:
-      self.read_frames()
+    if self._synchronous_connect:
+      # Have to queue this callback just after connect, it can't go into the 
+      # constructor because the channel needs to be "always there" for frame
+      # processing, but the synchronous callback can't be added until after
+      # the protocol header has been written. This SHOULD be registered before
+      # the protocol header is written, in the case where the header bytes
+      # are written, but this thread/greenlet/context does not return until
+      # after another thread/greenlet/context has read and processed the
+      # recv_start frame. Without more re-write to add_sync_cb though, it will
+      # block on reading responses that will never arrive because the protocol
+      # header isn't written yet. TBD if needs refactoring. Could encapsulate
+      # entirely here, wherein read_frames exits if protocol header not yet
+      # written. Like other synchronous behaviors, adding this callback will
+      # result in a blocking frame read and process loop until _recv_start and
+      # any subsequent synchronous callbacks have been processed. In the event
+      # that this is /not/ a synchronous transport, but the caller wants the
+      # connect to be synchronous so as to ensure that the connection is ready,
+      # then do a read frame loop here.
+      self._channels[0].add_synchronous_cb( self._channels[0]._recv_start )
+      while not self._connected:
+        self.read_frames()
 
   def disconnect(self):
     '''
@@ -230,8 +262,8 @@ class Connection(object):
 
     TODO: document args
     """
-    msg = 'transport to %s closed : unknown cause'%(self._host)
-    self.logger.warning( kwargs.get('msg', msg) )
+    msg = 'unknown cause'
+    self.logger.warning( 'transport to %s closed : %s'%(self._host, kwargs.get('msg', msg)) )
     self._close_info = {
       'reply_code'    : kwargs.get('reply_code',0),
       'reply_text'    : kwargs.get('msg', msg),
@@ -258,12 +290,16 @@ class Connection(object):
       self._channel_counter = 1
     return self._channel_counter
 
-  def channel(self, channel_id=None):
+  def channel(self, channel_id=None, synchronous=False):
     """
     Fetch a Channel object identified by the numeric channel_id, or
     create that object if it doesn't already exist.  If channel_id is not
     None but no channel exists for that id, will raise InvalidChannel.  If
     there are already too many channels open, will raise TooManyChannels.
+
+    If synchronous=True, then the channel will act synchronous in all cases
+    where a protocol method supports `nowait=False`, or where there is an
+    implied callback in the protocol.
     """
     if channel_id is None:
       # adjust for channel 0
@@ -280,7 +316,7 @@ class Connection(object):
 
     # Call open() here so that ConnectionChannel doesn't have it called.  Could
     # also solve this other ways, but it's a HACK regardless.
-    rval = Channel(self, channel_id, self._class_map)
+    rval = Channel(self, channel_id, self._class_map, synchronous=synchronous)
     self._channels[ channel_id ] = rval
     rval.add_close_listener( self._channel_closed )
     rval.open()
@@ -295,7 +331,7 @@ class Connection(object):
     except KeyError:
       pass
 
-  def close(self, reply_code=0, reply_text='', class_id=0, method_id=0):
+  def close(self, reply_code=0, reply_text='', class_id=0, method_id=0, disconnect=False):
     '''
     Close this connection.
     '''
@@ -305,7 +341,12 @@ class Connection(object):
       'class_id'      : class_id,
       'method_id'     : method_id
     }
-    self._channels[0].close()
+    if disconnect:
+      self._closed = True
+      self.disconnect()
+      self._callback_close()
+    else:
+      self._channels[0].close()
 
   def _callback_open(self):
     '''
@@ -348,13 +389,19 @@ class Connection(object):
     reader = Reader( data )
     p_channels = set()
 
-    for frame in Frame.read_frames( reader ):
-      if self._debug > 1:
-        self.logger.debug( "READ: %s", frame )
-      self._frames_read += 1
-      ch = self.channel( frame.channel_id )
-      ch.buffer_frame( frame )
-      p_channels.add( ch )
+    try:
+      for frame in Frame.read_frames( reader ):
+        if self._debug > 1:
+          self.logger.debug( "READ: %s", frame )
+        self._frames_read += 1
+        ch = self.channel( frame.channel_id )
+        ch.buffer_frame( frame )
+        p_channels.add( ch )
+    except Frame.FrameError as e:
+      # Frame error in the peer, disconnect
+      self.close(reply_code=501, reply_text='frame error from %s : %s'%(self._host, str(e)), class_id=0, method_id=0, disconnect=True)
+      raise ConnectionClosed("connection is closed: %s : %s"%\
+        (self._close_info['reply_code'],self._close_info['reply_text']) )
 
     self._transport.process_channels( p_channels )
 
@@ -399,6 +446,10 @@ class Connection(object):
 
     buf = bytearray()
     frame.write_frame(buf)
+    if len(buf) > self._frame_max:
+      self.close(reply_code=501, reply_text='attempted to send frame of %d bytes, frame max %d'%(len(buf), self._frame_max), class_id=0, method_id=0, disconnect=True)
+      raise ConnectionClosed("connection is closed: %s : %s"%\
+        (self._close_info['reply_code'],self._close_info['reply_text']) )
     self._transport.write( buf )
 
     self._frames_written += 1
@@ -437,7 +488,8 @@ class ConnectionChannel(Channel):
       if frame.class_id==10:
         cb = self._method_map.get( frame.method_id )
         if cb:
-          cb( frame )
+          method = self.clear_synchronous_cb( cb )
+          method( frame )
         else:
           raise Channel.InvalidMethod("unsupported method %d on channel %d",
             frame.method_id, self.channel_id )
@@ -484,6 +536,8 @@ class ConnectionChannel(Channel):
     args.write_shortstr(self.connection._locale)
     self.send_frame( MethodFrame(self.channel_id, 10, 11, args) )
 
+    self.add_synchronous_cb( self._recv_tune )
+
   def _recv_tune(self, method_frame):
     self.connection._channel_max = method_frame.args.read_short() or self.connection._channel_max
     self.connection._frame_max = method_frame.args.read_long() or self.connection._frame_max
@@ -521,6 +575,7 @@ class ConnectionChannel(Channel):
     args.write_bit(True)  # insist flag for older amqp, not used in 0.9.1
 
     self.send_frame( MethodFrame(self.channel_id, 10, 40, args) )
+    self.add_synchronous_cb( self._recv_open_ok )
 
   def _recv_open_ok(self, method_frame):
     self.connection._connected = True
@@ -534,6 +589,7 @@ class ConnectionChannel(Channel):
     args.write_short( self.connection._close_info['class_id'] )
     args.write_short( self.connection._close_info['method_id'] )
     self.send_frame( MethodFrame(self.channel_id, 10, 50, args) )
+    self.add_synchronous_cb( self._recv_close_ok )
 
   def _recv_close(self, method_frame):
     self.connection._close_info = {
