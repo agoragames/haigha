@@ -32,7 +32,7 @@ This file and the various files in the ``scripts`` directory serve as a simple i
 Example
 =======
 
-See the ``scripts`` directory for several examples, in particular the ``stress_test`` script which you can use to test the performance of haigha against your broker. Below is a simple example of a client that connects, processes one message and quits. ::
+See the ``scripts`` and ``examples`` directories for several examples, in particular the ``stress_test`` script which you can use to test the performance of haigha against your broker. Below is a simple example of a client that connects, processes one message and quits. ::
 
   from haigha.connection import Connection
   from haigha.message import Message
