@@ -1,5 +1,4 @@
 import haigha
-import os
 
 try:
     from setuptools import setup
@@ -14,8 +13,12 @@ setup(
     version=haigha.__version__,
     author='Vitaly Babiy, Aaron Westendorf',
     author_email="vbabiy@agoragames.com, aaron@agoragames.com",
-    packages = ['haigha', 'haigha.frames', 'haigha.classes', 'haigha.transports', 'haigha.connections'],
-    install_requires = requirements,
+    packages=['haigha',
+              'haigha.frames',
+              'haigha.classes',
+              'haigha.transports',
+              'haigha.connections'],
+    install_requires=requirements,
     url='https://github.com/agoragames/haigha',
     license="LICENSE.txt",
     description='Synchronous and asynchronous AMQP client library',
