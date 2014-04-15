@@ -91,7 +91,8 @@ class RabbitExchangeClass(ExchangeClass):
     def _recv_bind_ok(self, _method_frame):
         '''Confirm exchange bind.'''
         cb = self._bind_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()
 
     def unbind(self, exchange, source, routing_key='', nowait=True,
                arguments={}, ticket=None, cb=None):
@@ -116,7 +117,8 @@ class RabbitExchangeClass(ExchangeClass):
     def _recv_unbind_ok(self, _method_frame):
         '''Confirm exchange unbind.'''
         cb = self._unbind_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()
 
 
 class RabbitBasicClass(BasicClass):
@@ -241,4 +243,5 @@ class RabbitConfirmClass(ProtocolClass):
 
     def _recv_select_ok(self, _method_frame):
         cb = self._select_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()

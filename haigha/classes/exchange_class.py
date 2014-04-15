@@ -65,7 +65,8 @@ class ExchangeClass(ProtocolClass):
         Confirmation that exchange was declared.
         '''
         cb = self._declare_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()
 
     def delete(self, exchange, if_unused=False,
                nowait=True, ticket=None, cb=None):
@@ -89,4 +90,5 @@ class ExchangeClass(ProtocolClass):
         Confirmation that exchange was deleted.
         '''
         cb = self._delete_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()

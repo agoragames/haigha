@@ -43,7 +43,7 @@ class WriterTest(Chai):
         assert_true(w is w.write_bits(False, True))
         assert_equals(bytearray('\x02'), w._output_buffer)
         w = Writer()
-        assert_true(w is w.write_bits(False,False,True,True,True))
+        assert_true(w is w.write_bits(False, False, True, True, True))
         assert_equals(bytearray('\x1c'), w._output_buffer)
 
         assert_raises(ValueError, w.write_bits, *((True,) * 9))
@@ -145,11 +145,11 @@ class WriterTest(Chai):
     def test_write_table(self):
         w = Writer()
         expect(w._write_item).args('a', 'foo').any_order().side_effect(
-            lambda *args: (setattr(w,'_pos',20), w._output_buffer.extend('afoo')))
+            lambda *args: (setattr(w, '_pos', 20), w._output_buffer.extend('afoo')))
         expect(w._write_item).args('b', 'bar').any_order().side_effect(
-            lambda *args: (setattr(w,'_pos',20), w._output_buffer.extend('bbar')))
+            lambda *args: (setattr(w, '_pos', 20), w._output_buffer.extend('bbar')))
 
-        assert_true(w is w.write_table({'a':'foo','b':'bar'}))
+        assert_true(w is w.write_table({'a': 'foo', 'b': 'bar'}))
         assert_equals('\x00\x00\x00\x08', w._output_buffer[:4])
         assert_equals(12, len(w._output_buffer))
 
@@ -190,8 +190,8 @@ class WriterTest(Chai):
         w._field_int(-2 ** 63)
         w._field_int(2 ** 63 - 1)
         assert_equals(
-          'l\x80\x00\x00\x00\x00\x00\x00\x00l\x7f\xff\xff\xff\xff\xff\xff\xff',
-          w._output_buffer)
+            'l\x80\x00\x00\x00\x00\x00\x00\x00l\x7f\xff\xff\xff\xff\xff\xff\xff',
+            w._output_buffer)
 
     def test_field_double(self):
         w = Writer()
@@ -225,7 +225,7 @@ class WriterTest(Chai):
 
     def test_field_table(self):
         w = Writer()
-        expect(w.write_table).args({'foo':'bar'}).side_effect(
+        expect(w.write_table).args({'foo': 'bar'}).side_effect(
             lambda *args: w._output_buffer.extend('tdata'))
         w._field_table({'foo': 'bar'})
 
@@ -243,7 +243,8 @@ class WriterTest(Chai):
         assert_equals('x\x00\x00\x00\x03foo', w._output_buffer)
 
     def test_write_field_supports_subclasses(self):
-        class SubString(str): pass
+        class SubString(str):
+            pass
         w = Writer()
         w._write_field(SubString('foo'))
         assert_equals('S\x00\x00\x00\x03foo', w._output_buffer)
@@ -273,15 +274,15 @@ class WriterTest(Chai):
     def test_field_type_map(self):
         assert_equals(
             {
-                bool            : Writer._field_bool.im_func,
-                int             : Writer._field_int.im_func,
-                long            : Writer._field_int.im_func,
-                float         : Writer._field_double.im_func,
-                Decimal     : Writer._field_decimal.im_func,
-                str             : Writer._field_str.im_func,
-                unicode     : Writer._field_unicode.im_func,
-                datetime    : Writer._field_timestamp.im_func,
-                dict            : Writer._field_table.im_func,
+                bool: Writer._field_bool.im_func,
+                int: Writer._field_int.im_func,
+                long: Writer._field_int.im_func,
+                float: Writer._field_double.im_func,
+                Decimal: Writer._field_decimal.im_func,
+                str: Writer._field_str.im_func,
+                unicode: Writer._field_unicode.im_func,
+                datetime: Writer._field_timestamp.im_func,
+                dict: Writer._field_table.im_func,
                 type(None): Writer._field_none.im_func,
-                bytearray : Writer._field_bytearray.im_func,
+                bytearray: Writer._field_bytearray.im_func,
             }, Writer.field_type_map)

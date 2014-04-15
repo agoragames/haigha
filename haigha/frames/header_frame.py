@@ -16,20 +16,20 @@ class HeaderFrame(Frame):
     Header frame for content.
     '''
     PROPERTIES = [
-        ('content_type', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<15),
-        ('content_encoding', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<14),
-        ('application_headers', 'table', Reader.read_table, Writer.write_table, 1<<13),
-        ('delivery_mode', 'octet', Reader.read_octet, Writer.write_octet, 1<<12),
-        ('priority', 'octet', Reader.read_octet, Writer.write_octet, 1<<11),
-        ('correlation_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<10),
-        ('reply_to', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<9),
-        ('expiration', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<8),
-        ('message_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<7),
-        ('timestamp', 'timestamp', Reader.read_timestamp, Writer.write_timestamp, 1<<6),
-        ('type', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<5),
-        ('user_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<4),
-        ('app_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<3),
-        ('cluster_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1<<2)
+        ('content_type', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 15),
+        ('content_encoding', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 14),
+        ('application_headers', 'table', Reader.read_table, Writer.write_table, 1 << 13),
+        ('delivery_mode', 'octet', Reader.read_octet, Writer.write_octet, 1 << 12),
+        ('priority', 'octet', Reader.read_octet, Writer.write_octet, 1 << 11),
+        ('correlation_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 10),
+        ('reply_to', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 9),
+        ('expiration', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 8),
+        ('message_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 7),
+        ('timestamp', 'timestamp', Reader.read_timestamp, Writer.write_timestamp, 1 << 6),
+        ('type', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 5),
+        ('user_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 4),
+        ('app_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 3),
+        ('cluster_id', 'shortstr', Reader.read_shortstr, Writer.write_shortstr, 1 << 2)
     ]
     DEFAULT_PROPERTIES = True
 
@@ -66,7 +66,7 @@ class HeaderFrame(Frame):
         # The AMQP spec is overly-complex when it comes to handling header frames.
         # The spec says that in addition to the first 16bit field, additional ones
         # can follow which /may/ then be in the property list (because bit flags
-        # aren't in the list).    Properly implementing custom values requires the
+        # aren't in the list). Properly implementing custom values requires the
         # ability change the properties and their types, which someone is welcome
         # to do, but seriously, what's the point? Because the complexity of parsing
         # and writing this frame directly impacts the speed at which messages can

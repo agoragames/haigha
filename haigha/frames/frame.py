@@ -17,10 +17,10 @@ class Frame(object):
     '''
     # Exceptions
     class FrameError(Exception):
-      '''Base class for all frame errors'''
+        '''Base class for all frame errors'''
 
     class FormatError(FrameError):
-      '''The frame was mal-formed.'''
+        '''The frame was mal-formed.'''
 
     class InvalidFrameType(FrameError):
         '''The frame type is unknown.'''
@@ -83,7 +83,7 @@ class Frame(object):
     @classmethod
     def _read_frame(cls, reader):
         '''
-        Read a single frame from a Reader.    Will return None if there is an incomplete
+        Read a single frame from a Reader. Will return None if there is an incomplete
         frame in the stream.
 
         Raise MissingFooter if there's a problem reading the footer byte.

@@ -26,7 +26,7 @@ class Writer(object):
 
     def __str__(self):
         return ''.join(['\\x%s' % (chr(c).encode('hex'))
-                        for c in self._output_buffer] )
+                        for c in self._output_buffer])
 
     __repr__ = __str__
 
@@ -70,7 +70,7 @@ class Writer(object):
         '''
         Write a single bit. Convenience method for single bit args.
         '''
-        self._output_buffer.append(pack(True if b else False) )
+        self._output_buffer.append(pack(True if b else False))
         return self
 
     def write_octet(self, n, pack=Struct('B').pack):
@@ -184,7 +184,7 @@ class Writer(object):
         self.write_long(0)
         table_data_pos = len(self._output_buffer)
 
-        for key,value in d.iteritems():
+        for key, value in d.iteritems():
             self._write_item(key, value)
 
         table_end_pos = len(self._output_buffer)
@@ -193,11 +193,11 @@ class Writer(object):
         self.write_long_at(table_len, table_len_pos)
         return self
 
-    def _write_item(self, key, value ):
+    def _write_item(self, key, value):
         self.write_shortstr(key)
         self._write_field(value)
 
-    def _write_field(self, value ):
+    def _write_field(self, value):
         writer = self.field_type_map.get(type(value))
         if writer:
             writer(self, value)

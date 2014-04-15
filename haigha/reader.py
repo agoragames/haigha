@@ -35,7 +35,7 @@ class Reader(object):
         elif isinstance(source, Reader):
             self._input = source._input
         elif hasattr(source, 'read'):
-            self._input = buffer( source.read() )
+            self._input = buffer(source.read())
         elif isinstance(source, str):
             self._input = buffer(source)
         elif isinstance(source, unicode):
@@ -108,7 +108,8 @@ class Reader(object):
         Will raise BufferUnderflow if there's not enough bytes in the buffer.
         """
         # Perform a faster check on underflow
-        if self._pos >= self._end_pos: raise self.BufferUnderflow()
+        if self._pos >= self._end_pos:
+            raise self.BufferUnderflow()
         result = ord(self._input[self._pos]) & 1
         self._pos += 1
         return result
@@ -127,8 +128,10 @@ class Reader(object):
         Will raise ValueError if num < 0 or num > 9
         '''
         # Perform a faster check on underflow
-        if self._pos >= self._end_pos: raise self.BufferUnderflow()
-        if num < 0 or num >= 9: raise ValueError("8 bits per field")
+        if self._pos >= self._end_pos:
+            raise self.BufferUnderflow()
+        if num < 0 or num >= 9:
+            raise ValueError("8 bits per field")
         field = ord(self._input[self._pos])
         result = map(lambda x: field >> x & 1, xrange(num))
         self._pos += 1
@@ -144,8 +147,9 @@ class Reader(object):
         """
         # Technically should look at unpacker.size, but skipping that is way
         # faster and this method is the most-called of the readers
-        if self._pos >= self._end_pos: raise self.BufferUnderflow()
-        rval = unpacker(self._input, self._pos )[0]
+        if self._pos >= self._end_pos:
+            raise self.BufferUnderflow()
+        rval = unpacker(self._input, self._pos)[0]
         self._pos += size
         return rval
 
@@ -285,7 +289,7 @@ class Reader(object):
 
     def _field_long_int(self, unpacker=Struct('>i').unpack_from,
                         size=Struct('>i').size):
-        rval = unpacker( self._input, self._pos )[0]
+        rval = unpacker(self._input, self._pos)[0]
         self._pos += size
         return rval
 

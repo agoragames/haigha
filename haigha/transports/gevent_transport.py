@@ -48,7 +48,7 @@ class GeventTransport(SocketTransport):
         '''
         Connect using a host,port tuple
         '''
-        super(GeventTransport, self).connect((host,port),
+        super(GeventTransport, self).connect((host, port),
                                              klass=socket.socket)
 
     def read(self, timeout=None):

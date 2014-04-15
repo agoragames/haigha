@@ -54,7 +54,7 @@ class EventTransport(Transport):
             close_cb=self._sock_close_cb,
             error_cb=self._sock_error_cb,
             debug=self.connection.debug,
-            logger=self.connection.logger )
+            logger=self.connection.logger)
         if self.connection._sock_opts:
             for k, v in self.connection._sock_opts.iteritems():
                 family, type = k
@@ -78,7 +78,7 @@ class EventTransport(Transport):
         # That bug could be fixed by improving the message reading so that we consume
         # all possible messages and ensure that only a partial message was rebuffered,
         # so that we can rely on the next read event to read the subsequent message.
-        if not hasattr(self,'_sock'):
+        if not hasattr(self, '_sock'):
             return None
 
         # This is sort of a hack because we're faking that data is ready, but it

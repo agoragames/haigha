@@ -28,9 +28,9 @@ class TransactionClassTest(Chai):
 
         assert_equals(
             {
-                11 : klass._recv_select_ok,
-                21 : klass._recv_commit_ok,
-                31 : klass._recv_rollback_ok,
+                11: klass._recv_select_ok,
+                21: klass._recv_commit_ok,
+                31: klass._recv_rollback_ok,
             }, klass.dispatch_map)
         assert_false(klass._enabled)
         assert_equals(deque(), klass._select_cb)
@@ -114,7 +114,7 @@ class TransactionClassTest(Chai):
 
         self.klass._commit_cb = deque(['blargh'])
         self.klass.commit(cb='callback')
-        assert_equals(deque(['blargh','callback']), self.klass._commit_cb)
+        assert_equals(deque(['blargh', 'callback']), self.klass._commit_cb)
 
     def test_commit_raises_transactionsnotenabled_when_not_enabled(self):
         self.klass._enabled = False

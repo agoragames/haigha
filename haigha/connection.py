@@ -328,7 +328,7 @@ class Connection(object):
             return self._channels[channel_id]
         else:
             raise Connection.InvalidChannel("%s is not a valid channel id",
-                                            channel_id )
+                                            channel_id)
 
         # Call open() here so that ConnectionChannel doesn't have it called. Could
         # also solve this other ways, but it's a HACK regardless.
@@ -457,7 +457,7 @@ class Connection(object):
             if self._close_info and len(self._close_info['reply_text']) > 0:
                 raise ConnectionClosed("connection is closed: %s : %s" %
                                        (self._close_info['reply_code'],
-                                        self._close_info['reply_text']) )
+                                        self._close_info['reply_text']))
             raise ConnectionClosed("connection is closed")
 
         if self._transport is None or \
@@ -476,7 +476,7 @@ class Connection(object):
                        class_id=0, method_id=0, disconnect=True)
             raise ConnectionClosed("connection is closed: %s : %s" %
                                    (self._close_info['reply_code'],
-                                    self._close_info['reply_text']) )
+                                    self._close_info['reply_text']))
         self._transport.write(buf)
 
         self._frames_written += 1
@@ -512,7 +512,7 @@ class ConnectionChannel(Channel):
             self.send_heartbeat()
 
         elif frame.type() == MethodFrame.type():
-            if frame.class_id==10:
+            if frame.class_id == 10:
                 cb = self._method_map.get(frame.method_id)
                 if cb:
                     method = self.clear_synchronous_cb(cb)

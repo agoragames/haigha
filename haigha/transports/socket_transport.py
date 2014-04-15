@@ -23,7 +23,7 @@ class SocketTransport(Transport):
     ###
     ### Transport API
     ###
-    def connect(self, (host,port), klass=socket.socket):
+    def connect(self, (host, port), klass=socket.socket):
         '''
         Connect assuming a host and port tuple.
         '''
@@ -35,7 +35,7 @@ class SocketTransport(Transport):
             for k, v in self.connection._sock_opts.iteritems():
                 family, type = k
                 self._sock.setsockopt(family, type, v)
-        self._sock.connect((host,port))
+        self._sock.connect((host, port))
 
         # After connecting, switch to full-blocking mode.
         self._sock.settimeout(None)

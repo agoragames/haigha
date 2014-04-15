@@ -61,7 +61,8 @@ class TransactionClass(ProtocolClass):
 
     def _recv_select_ok(self, _method_frame):
         cb = self._select_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()
 
     def commit(self, cb=None):
         '''
@@ -69,7 +70,8 @@ class TransactionClass(ProtocolClass):
         when the transaction is committed.
         '''
         # Could call select() but spec 1.9.2.3 says to raise an exception
-        if not self.enabled: raise self.TransactionsNotEnabled()
+        if not self.enabled:
+            raise self.TransactionsNotEnabled()
 
         self.send_frame(MethodFrame(self.channel_id, 90, 20))
         self._commit_cb.append(cb)
@@ -77,7 +79,8 @@ class TransactionClass(ProtocolClass):
 
     def _recv_commit_ok(self, _method_frame):
         cb = self._commit_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()
 
     def rollback(self, cb=None):
         '''
@@ -86,7 +89,8 @@ class TransactionClass(ProtocolClass):
         aborted.
         '''
         # Could call select() but spec 1.9.2.5 says to raise an exception
-        if not self.enabled: raise self.TransactionsNotEnabled()
+        if not self.enabled:
+            raise self.TransactionsNotEnabled()
 
         self.send_frame(MethodFrame(self.channel_id, 90, 30))
         self._rollback_cb.append(cb)

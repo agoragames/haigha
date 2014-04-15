@@ -17,7 +17,7 @@ from haigha.transports.gevent_transport import *
 class GeventTransportTest(Chai):
 
   def setUp(self):
-    super(GeventTransportTest,self).setUp()
+    super(GeventTransportTest, self).setUp()
 
     self.connection = mock()
     self.transport = GeventTransport(self.connection)
@@ -25,20 +25,20 @@ class GeventTransportTest(Chai):
 
   def test_init(self):
     assert_equals( bytearray(), self.transport._buffer )
-    assert_true( isinstance(self.transport._read_lock,Semaphore) )
-    assert_true( isinstance(self.transport._write_lock,Semaphore) )
+    assert_true( isinstance(self.transport._read_lock, Semaphore) )
+    assert_true( isinstance(self.transport._write_lock, Semaphore) )
 
   def test_connect(self):
-    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
-      expect( parent.connect ).args(('host','port'), klass=is_arg(socket.socket)).returns( 'somedata' )
+    with expect( mock(gevent_transport, 'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+      expect( parent.connect ).args(('host', 'port'), klass=is_arg(socket.socket)).returns( 'somedata' )
 
-    self.transport.connect( ('host','port') )
+    self.transport.connect( ('host', 'port') )
 
   def test_read(self):
     #self.transport._read_lock = mock()
     #expect( self.transport._read_lock.locked ).returns( False )
     expect( self.transport._read_lock.acquire )
-    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+    with expect( mock(gevent_transport, 'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
       expect( parent.read ).args(timeout=None).returns( 'somedata' )
     expect( self.transport._read_lock.release )
     expect( self.transport._read_wait.set )
@@ -49,7 +49,7 @@ class GeventTransportTest(Chai):
   def test_read_when_already_locked(self):
     expect( self.transport._read_lock.locked ).returns(True)
     stub( self.transport._read_lock.acquire )
-    stub( mock(gevent_transport,'super') )
+    stub( mock(gevent_transport, 'super') )
     stub( self.transport._read_lock.release )
     expect( self.transport._read_wait.wait )
 
@@ -58,7 +58,7 @@ class GeventTransportTest(Chai):
   def test_read_when_raises_exception(self):
     #self.transport._read_lock = mock()
     expect( self.transport._read_lock.acquire )
-    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+    with expect( mock(gevent_transport, 'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
       expect( parent.read ).args(timeout='5').raises(Exception('fail'))
     expect( self.transport._read_lock.release )
 
@@ -67,7 +67,7 @@ class GeventTransportTest(Chai):
   def test_buffer(self):
     #self.transport._read_lock = mock()
     expect( self.transport._read_lock.acquire )
-    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+    with expect( mock(gevent_transport, 'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
       expect( parent.buffer ).args('datas')
     expect( self.transport._read_lock.release )
 
@@ -76,7 +76,7 @@ class GeventTransportTest(Chai):
   def test_buffer_when_raises_exception(self):
     #self.transport._read_lock = mock()
     expect( self.transport._read_lock.acquire )
-    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+    with expect( mock(gevent_transport, 'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
       expect( parent.buffer ).args('datas').raises(Exception('fail'))
     expect( self.transport._read_lock.release )
 
@@ -85,7 +85,7 @@ class GeventTransportTest(Chai):
   def test_write(self):
     #self.transport._write_lock = mock()
     expect( self.transport._write_lock.acquire )
-    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+    with expect( mock(gevent_transport, 'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
       expect( parent.write ).args('datas')
     expect( self.transport._write_lock.release )
 
@@ -94,7 +94,7 @@ class GeventTransportTest(Chai):
   def test_write_when_raises_an_exception(self):
     #self.transport._write_lock = mock()
     expect( self.transport._write_lock.acquire )
-    with expect( mock(gevent_transport,'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
+    with expect( mock(gevent_transport, 'super') ).args(is_arg(GeventTransport), GeventTransport).returns(mock()) as parent:
       expect( parent.write ).args('datas').raises(Exception('fail'))
     expect( self.transport._write_lock.release )
 
@@ -103,7 +103,7 @@ class GeventTransportTest(Chai):
 class GeventPoolTransportTest(Chai):
 
   def setUp(self):
-    super(GeventPoolTransportTest,self).setUp()
+    super(GeventPoolTransportTest, self).setUp()
 
     self.connection = mock()
     self.transport = GeventPoolTransport(self.connection)
@@ -111,7 +111,7 @@ class GeventPoolTransportTest(Chai):
 
   def test_init(self):
     assert_equals( bytearray(), self.transport._buffer )
-    assert_true( isinstance(self.transport._read_lock,Semaphore) )
+    assert_true( isinstance(self.transport._read_lock, Semaphore) )
     assert_true( isinstance(self.transport.pool, Pool) )
 
     trans = GeventPoolTransport(self.connection, pool='inground')

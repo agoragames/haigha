@@ -60,7 +60,8 @@ class ChannelPool(object):
             self._free_channels.add(channel)
             if channel.active and not channel.closed:
                 self._process_queue()
-            if user_cb is not None: user_cb()
+            if user_cb is not None:
+                user_cb()
 
         if channel:
             channel.publish_synchronous(*args, cb=committed, **kwargs)

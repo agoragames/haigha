@@ -103,7 +103,8 @@ class ChannelClass(ProtocolClass):
         occurred.    If in the event of an exception, the channel will be marked
         as immediately closed.    If channel is already closed, call is ignored.
         '''
-        if not getattr(self, 'channel', None) or self.channel._closed: return
+        if not getattr(self, 'channel', None) or self.channel._closed:
+            return
 
         self.channel._close_info = {
             'reply_code': reply_code,

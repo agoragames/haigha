@@ -14,7 +14,7 @@ from collections import deque
 class QueueClassTest(Chai):
 
     def setUp(self):
-        super(QueueClassTest,self).setUp()
+        super(QueueClassTest, self).setUp()
         ch = mock()
         ch.channel_id = 42
         ch.logger = mock()
@@ -74,15 +74,18 @@ class QueueClassTest(Chai):
         expect(w.write_short).args('ticket').returns(w)
         expect(w.write_shortstr).args('queue').returns(w)
         expect(w.write_bits).args('p', 'd', 'e', 'a', False).returns(w)
-        expect(w.write_table).args({'foo':'bar'})
+        expect(w.write_table).args({'foo': 'bar'})
         expect(mock(queue_class, 'MethodFrame')).args(42, 50, 10, w).returns('frame')
         expect(self.klass.send_frame).args('frame')
         expect(self.klass.channel.add_synchronous_cb).args(self.klass._recv_declare_ok).\
             returns('stuffs')
 
         assert_equals(deque(), self.klass._declare_cb)
-        assert_equals('stuffs', self.klass.declare('queue', passive='p', durable='d', exclusive='e',
-            auto_delete='a', nowait=False, arguments={'foo':'bar'}, ticket='ticket'))
+        assert_equals('stuffs',
+                      self.klass.declare(
+                          'queue', passive='p', durable='d', exclusive='e',
+                          auto_delete='a', nowait=False,
+                          arguments={'foo': 'bar'}, ticket='ticket'))
         assert_equals(deque([None]), self.klass._declare_cb)
 
     def test_declare_with_args_and_cb(self):
@@ -92,7 +95,7 @@ class QueueClassTest(Chai):
         expect(w.write_short).args('ticket').returns(w)
         expect(w.write_shortstr).args('queue').returns(w)
         expect(w.write_bits).args('p', 'd', 'e', 'a', False).returns(w)
-        expect(w.write_table).args({'foo':'bar'})
+        expect(w.write_table).args({'foo': 'bar'})
         expect(mock(queue_class, 'MethodFrame')).args(42, 50, 10, w).returns('frame')
         expect(self.klass.send_frame).args('frame')
         expect(self.klass.channel.add_synchronous_cb).args(self.klass._recv_declare_ok).\
@@ -100,23 +103,25 @@ class QueueClassTest(Chai):
 
         # assert it's put in the right spot too
         self.klass._declare_cb = deque(['blargh'])
-        assert_equals('stuffs', self.klass.declare('queue', passive='p', durable='d', exclusive='e',
-            auto_delete='a', nowait=True, arguments={'foo':'bar'}, ticket='ticket',
-            cb='callback'))
-        assert_equals(deque(['blargh','callback']), self.klass._declare_cb)
+        assert_equals('stuffs',
+                      self.klass.declare('queue', passive='p', durable='d', exclusive='e',
+                                         auto_delete='a', nowait=True,
+                                         arguments={'foo': 'bar'}, ticket='ticket',
+                                         cb='callback'))
+        assert_equals(deque(['blargh', 'callback']), self.klass._declare_cb)
 
     def test_recv_declare_ok_with_callback(self):
         rframe = mock()
         cb = mock()
         self.klass._declare_cb.append(cb)
-        self.klass._declare_cb.append(mock()) # assert not called
+        self.klass._declare_cb.append(mock())  # assert not called
 
         expect(rframe.args.read_shortstr).returns('queue')
         expect(rframe.args.read_long).returns(32)
         expect(rframe.args.read_long).returns(5)
         expect(cb).args('queue', 32, 5)
 
-        assert_equals(('queue',32,5), self.klass._recv_declare_ok(rframe))
+        assert_equals(('queue', 32, 5), self.klass._recv_declare_ok(rframe))
         assert_equals(1, len(self.klass._declare_cb))
         assert_false(cb in self.klass._declare_cb)
 
@@ -130,7 +135,7 @@ class QueueClassTest(Chai):
         expect(rframe.args.read_long).returns(32)
         expect(rframe.args.read_long).returns(5)
 
-        assert_equals(('queue',32,5), self.klass._recv_declare_ok(rframe))
+        assert_equals(('queue', 32, 5), self.klass._recv_declare_ok(rframe))
         assert_equals(1, len(self.klass._declare_cb))
         assert_false(None in self.klass._declare_cb)
 
@@ -161,14 +166,14 @@ class QueueClassTest(Chai):
         expect(w.write_shortstr).args('exchange').returns(w)
         expect(w.write_shortstr).args('route').returns(w)
         expect(w.write_bit).args(False).returns(w)
-        expect(w.write_table).args({'foo':'bar'})
+        expect(w.write_table).args({'foo': 'bar'})
         expect(mock(queue_class, 'MethodFrame')).args(42, 50, 20, w).returns('frame')
         expect(self.klass.send_frame).args('frame')
         expect(self.klass.channel.add_synchronous_cb).args(self.klass._recv_bind_ok)
 
         assert_equals(deque(), self.klass._bind_cb)
         self.klass.bind('queue', 'exchange', routing_key='route', nowait=False,
-            arguments={'foo':'bar'}, ticket='ticket')
+                        arguments={'foo': 'bar'}, ticket='ticket')
         assert_equals(deque([None]), self.klass._bind_cb)
 
     def test_bind_with_args_and_cb(self):
@@ -180,20 +185,20 @@ class QueueClassTest(Chai):
         expect(w.write_shortstr).args('exchange').returns(w)
         expect(w.write_shortstr).args('route').returns(w)
         expect(w.write_bit).args(False).returns(w)
-        expect(w.write_table).args({'foo':'bar'})
+        expect(w.write_table).args({'foo': 'bar'})
         expect(mock(queue_class, 'MethodFrame')).args(42, 50, 20, w).returns('frame')
         expect(self.klass.send_frame).args('frame')
         expect(self.klass.channel.add_synchronous_cb).args(self.klass._recv_bind_ok)
 
         self.klass._bind_cb = deque(['blargh'])
         self.klass.bind('queue', 'exchange', routing_key='route', nowait=True,
-            arguments={'foo':'bar'}, ticket='ticket', cb='callback')
-        assert_equals(deque(['blargh','callback']), self.klass._bind_cb)
+                        arguments={'foo': 'bar'}, ticket='ticket', cb='callback')
+        assert_equals(deque(['blargh', 'callback']), self.klass._bind_cb)
 
     def test_recv_bind_ok_with_cb(self):
         cb = mock()
         self.klass._bind_cb.append(cb)
-        self.klass._bind_cb.append(mock()) # assert not called
+        self.klass._bind_cb.append(mock())  # assert not called
 
         expect(cb)
 
@@ -203,7 +208,7 @@ class QueueClassTest(Chai):
 
     def test_recv_bind_ok_without_cb(self):
         self.klass._bind_cb.append(None)
-        self.klass._bind_cb.append(mock()) # assert not called
+        self.klass._bind_cb.append(mock())  # assert not called
 
         self.klass._recv_bind_ok('frame')
         assert_equals(1, len(self.klass._bind_cb))
@@ -232,20 +237,21 @@ class QueueClassTest(Chai):
         expect(w.write_shortstr).args('queue').returns(w)
         expect(w.write_shortstr).args('exchange').returns(w)
         expect(w.write_shortstr).args('route').returns(w)
-        expect(w.write_table).args({'foo':'bar'})
+        expect(w.write_table).args({'foo': 'bar'})
         expect(mock(queue_class, 'MethodFrame')).args(42, 50, 50, w).returns('frame')
         expect(self.klass.send_frame).args('frame')
         expect(self.klass.channel.add_synchronous_cb).args(self.klass._recv_unbind_ok)
 
         self.klass._unbind_cb = deque(['blargh'])
         self.klass.unbind('queue', 'exchange', routing_key='route',
-            arguments={'foo':'bar'}, ticket='ticket', cb='callback')
-        assert_equals(deque(['blargh','callback']), self.klass._unbind_cb)
+                          arguments={'foo': 'bar'}, ticket='ticket',
+                          cb='callback')
+        assert_equals(deque(['blargh', 'callback']), self.klass._unbind_cb)
 
     def test_recv_unbind_ok_with_cb(self):
         cb = mock()
         self.klass._unbind_cb.append(cb)
-        self.klass._unbind_cb.append(mock()) # assert not called
+        self.klass._unbind_cb.append(mock())  # assert not called
 
         expect(cb)
 
@@ -255,7 +261,7 @@ class QueueClassTest(Chai):
 
     def test_recv_unbind_ok_without_cb(self):
         self.klass._unbind_cb.append(None)
-        self.klass._unbind_cb.append(mock()) # assert not called
+        self.klass._unbind_cb.append(mock())  # assert not called
 
         self.klass._recv_unbind_ok('frame')
         assert_equals(1, len(self.klass._unbind_cb))
@@ -306,13 +312,13 @@ class QueueClassTest(Chai):
 
         self.klass._purge_cb = deque(['blargh'])
         assert_equals('fifty', self.klass.purge('queue', nowait=True, ticket='ticket', cb='callback'))
-        assert_equals(deque(['blargh','callback']), self.klass._purge_cb)
+        assert_equals(deque(['blargh', 'callback']), self.klass._purge_cb)
 
     def test_recv_purge_ok_with_cb(self):
         rframe = mock()
         cb = mock()
         self.klass._purge_cb.append(cb)
-        self.klass._purge_cb.append(mock()) # assert not called
+        self.klass._purge_cb.append(mock())  # assert not called
 
         expect(rframe.args.read_long).returns(42)
         expect(cb).args(42)
@@ -324,7 +330,7 @@ class QueueClassTest(Chai):
     def test_recv_purge_ok_without_cb(self):
         rframe = mock()
         self.klass._purge_cb.append(None)
-        self.klass._purge_cb.append(mock()) # assert not called
+        self.klass._purge_cb.append(mock())  # assert not called
 
         expect(rframe.args.read_long).returns(42)
 
@@ -360,8 +366,9 @@ class QueueClassTest(Chai):
             self.klass._recv_delete_ok).returns('five')
 
         assert_equals(deque(), self.klass._delete_cb)
-        assert_equals('five', self.klass.delete('queue', if_unused='yes', if_empty='no', nowait=False,
-            ticket='ticket'))
+        assert_equals('five', self.klass.delete('queue', if_unused='yes',
+                                                if_empty='no', nowait=False,
+                                                ticket='ticket'))
         assert_equals(deque([None]), self.klass._delete_cb)
 
     def test_delete_with_args_and_cb(self):
@@ -377,14 +384,14 @@ class QueueClassTest(Chai):
 
         self.klass._delete_cb = deque(['blargh'])
         self.klass.delete('queue', if_unused='yes', if_empty='no', nowait=True,
-            ticket='ticket', cb='callback')
-        assert_equals(deque(['blargh','callback']), self.klass._delete_cb)
+                          ticket='ticket', cb='callback')
+        assert_equals(deque(['blargh', 'callback']), self.klass._delete_cb)
 
     def test_recv_delete_ok_with_cb(self):
         rframe = mock()
         cb = mock()
         self.klass._delete_cb.append(cb)
-        self.klass._delete_cb.append(mock()) # assert not called
+        self.klass._delete_cb.append(mock())  # assert not called
 
         expect(rframe.args.read_long).returns(42)
         expect(cb).args(42)
@@ -396,7 +403,7 @@ class QueueClassTest(Chai):
     def test_recv_delete_ok_without_cb(self):
         rframe = mock()
         self.klass._delete_cb.append(None)
-        self.klass._delete_cb.append(mock()) # assert not called
+        self.klass._delete_cb.append(mock())  # assert not called
 
         expect(rframe.args.read_long).returns(42)
 

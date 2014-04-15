@@ -52,4 +52,4 @@ class Message(object):
         return "Message[body: %s, delivery_info: %s, properties: %s]" % \
             (str(self._body).encode('string_escape'),
              self._delivery_info,
-             self._properties )
+             self._properties)

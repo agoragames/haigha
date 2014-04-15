@@ -26,7 +26,7 @@ def fib(n):
 def on_request(msg):
     n = int(msg.body)
 
-    print " [.] fib(%s)"  % (n,)
+    print " [.] fib(%s)" % (n,)
     result = fib(n)
 
     reply_to = msg.properties["reply_to"]

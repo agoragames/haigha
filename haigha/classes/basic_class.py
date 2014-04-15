@@ -99,7 +99,7 @@ class BasicClass(ProtocolClass):
         self.send_frame(MethodFrame(self.channel_id, 60, 20, args))
 
         if not nowait:
-            self._pending_consumers.append((consumer,cb))
+            self._pending_consumers.append((consumer, cb))
             self.channel.add_synchronous_cb(self._recv_consume_ok)
         else:
             self._consumer_cb[consumer_tag] = consumer
@@ -109,7 +109,8 @@ class BasicClass(ProtocolClass):
         consumer, cb = self._pending_consumers.popleft()
 
         self._consumer_cb[consumer_tag] = consumer
-        if cb: cb()
+        if cb:
+            cb()
 
     def cancel(self, consumer_tag='', nowait=True, consumer=None, cb=None):
         '''
@@ -151,7 +152,8 @@ class BasicClass(ProtocolClass):
                 consumer_tag)
 
         cb = self._cancel_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()
 
     def publish(self, msg, exchange, routing_key,
                 mandatory=False, immediate=False, ticket=None):
@@ -165,7 +167,8 @@ class BasicClass(ProtocolClass):
             write_bits(mandatory, immediate)
 
         self.send_frame(MethodFrame(self.channel_id, 60, 40, args))
-        self.send_frame(HeaderFrame(self.channel_id, 60, 0, len(msg), msg.properties))
+        self.send_frame(HeaderFrame(self.channel_id, 60, 0, len(msg),
+                                    msg.properties))
 
         frame_max = self.channel.connection.frame_max
         for frame in ContentFrame.create_frames(self.channel_id,
@@ -195,7 +198,8 @@ class BasicClass(ProtocolClass):
                              with_consumer_tag=True, with_message_count=False)
 
         func = self._consumer_cb.get(msg.delivery_info['consumer_tag'], None)
-        if func: func(msg)
+        if func:
+            func(msg)
 
     def get(self, queue, consumer=None, no_ack=True, ticket=None):
         '''
@@ -288,7 +292,8 @@ class BasicClass(ProtocolClass):
 
     def _recv_recover_ok(self, _method_frame):
         cb = self._recover_cb.popleft()
-        if cb: cb()
+        if cb:
+            cb()
 
     def _read_msg(self, method_frame,
                   with_consumer_tag=False, with_message_count=False):
