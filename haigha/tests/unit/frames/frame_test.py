@@ -125,8 +125,8 @@ class FrameTest(Chai):
         reader = self.mock()
         payload = self.mock()
 
-        expect(reader.read_octet).returns(54) # frame type
-        expect(reader.read_short).returns(32) # channel id
+        expect(reader.read_octet).returns(54)   # frame type
+        expect(reader.read_short).returns(32)   # channel id
         expect(reader.read_long).returns(42)    # size
 
         expect(reader.tell).returns(5)

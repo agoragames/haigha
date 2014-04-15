@@ -8,6 +8,7 @@ from chai import Chai
 
 from haigha.transports import Transport
 
+
 class TransportTest(Chai):
 
     def test_init_and_connection_property(self):
