@@ -5,7 +5,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 from haigha.frames.frame import Frame
-import haigha.writer
+from haigha.writer import Writer
 
 
 class HeartbeatFrame(Frame):
@@ -29,7 +29,7 @@ class HeartbeatFrame(Frame):
         return HeartbeatFrame(channel_id)
 
     def write_frame(self, buf):
-        writer = haigha.writer.Writer(buf)
+        writer = Writer(buf)
         writer.write_octet(self.type())
         writer.write_short(self.channel_id)
         writer.write_long(0)

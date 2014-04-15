@@ -4,7 +4,7 @@ Copyright (c) 2011-2014, Agora Games, LLC All rights reserved.
 https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
-import haigha.writer
+from haigha.writer import Writer
 from haigha.frames.frame import Frame
 
 
@@ -61,7 +61,7 @@ class ContentFrame(Frame):
         '''
         Write the frame into an existing buffer.
         '''
-        writer = haigha.writer.Writer(buf)
+        writer = Writer(buf)
 
         writer.write_octet(self.type()).\
             write_short(self.channel_id).\
