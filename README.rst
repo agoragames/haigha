@@ -51,22 +51,15 @@ See the ``scripts`` and ``examples`` directories for several examples, in partic
   print ch.basic.get('test_queue')
   connection.close()
 
+To use protocol extensions for RabbitMQ, initialize the connection with the ``haigha.connections.rabbit_connection.RabbitConnection`` class.
+
 Roadmap
 =======
-
-The 0.5 series will focus on the following areas:
-
-* RabbitMQ extensions to the protocol
-* Support and bug fixes for synchronous transport
-* Documentation
-
-Beyond that, there is no specific order of features to implement. Generally, the following areas need to be addressed.
 
 * Documentation (there's always more)
 * Improved error handling
 * Implementation of error codes in the spec
 * Testing and integration with brokers other than RabbitMQ
-* Flow control
 * Identify and improve inefficient code
 * Edge cases in frame management
 * Improvements to usabililty
