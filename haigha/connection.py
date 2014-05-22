@@ -124,7 +124,7 @@ class Connection(object):
             elif transport == 'gevent_pool':
                 from haigha.transports.gevent_transport import \
                     GeventPoolTransport
-                self._transport = GeventPoolTransport(self)
+                self._transport = GeventPoolTransport(self, **kwargs)
             elif transport == 'socket':
                 from haigha.transports.socket_transport import SocketTransport
                 self._transport = SocketTransport(self)
