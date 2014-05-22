@@ -1,7 +1,11 @@
-master
-======
+0.7.1
+=====
 
 PEP8 styling fixes
+
+Merge https://github.com/agoragames/haigha/pull/55 from @dizpers
+Adds keyword argument passing to GeventPoolTransport constructor
+from the Connection constructor.
 
 0.7.0
 =====
