@@ -1,6 +1,6 @@
 include *.txt
 include README.rst
 include MANIFEST.in
-recursive-include scripts/ *
-recursive-include haigha/ *.py
+recursive-include scripts *
+recursive-include haigha *.py
 prune *.pyc
