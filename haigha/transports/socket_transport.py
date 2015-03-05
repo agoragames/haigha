@@ -36,7 +36,16 @@ class SocketTransport(Transport):
             for k, v in self.connection._sock_opts.iteritems():
                 family, type = k
                 self._sock.setsockopt(family, type, v)
-        self._sock.connect((host, port))
+        infos = socket.getaddrinfo(host, port, 0, 0, socket.IPPROTO_TCP)
+        exc = socket.error("getaddrinfo returns an empty list")
+        for _family, _socktype, _proto, _canonname, sockaddr in infos:
+            try:
+                self._sock.connect(sockaddr)
+                break
+            except socket.error as exc:
+                continue
+        else:
+            raise exc
 
         # After connecting, switch to full-blocking mode.
         self._sock.settimeout(None)
