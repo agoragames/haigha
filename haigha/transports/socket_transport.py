@@ -25,30 +25,43 @@ class SocketTransport(Transport):
     # Transport API
     ###
     def connect(self, (host, port), klass=socket.socket):
-        '''
-        Connect assuming a host and port tuple.
+        '''Connect assuming a host and port tuple.
+
+        :param tuple: A tuple containing host and port for a connection.
+        :param klass: A implementation of socket.socket.
+        :raises socket.gaierror: If no address can be resolved.
+        :raises socket.error: If no connection can be made.
         '''
         self._host = "%s:%s" % (host, port)
-        self._sock = klass()
-        self._sock.setblocking(True)
-        self._sock.settimeout(self.connection._connect_timeout)
-        if self.connection._sock_opts:
-            for k, v in self.connection._sock_opts.iteritems():
-                family, type = k
-                self._sock.setsockopt(family, type, v)
-        infos = socket.getaddrinfo(host, port, 0, 0, socket.IPPROTO_TCP)
-        exc = socket.error("getaddrinfo returns an empty list")
-        for _family, _socktype, _proto, _canonname, sockaddr in infos:
-            try:
-                self._sock.connect(sockaddr)
-                break
-            except socket.error as exc:
-                continue
-        else:
-            raise exc
 
-        # After connecting, switch to full-blocking mode.
-        self._sock.settimeout(None)
+        for info in socket.getaddrinfo(host, port, 0, 0, socket.IPPROTO_TCP):
+
+            family, socktype, proto, _, sockaddr = info
+            self._sock = klass(family, socktype, proto)
+            self._sock.settimeout(self.connection._connect_timeout)
+            if self.connection._sock_opts:
+                _sock_opts = self.connection._sock_opts
+                for (level, optname), value in _sock_opts.iteritems():
+                    self._sock.setsockopt(level, optname, value)
+            try:
+
+                self._sock.connect(sockaddr)
+
+            except socket.error:
+
+                self.connection.logger.exception(
+                    "Failed to connect to %s:",
+                    sockaddr,
+                )
+                continue
+
+            # After connecting, switch to full-blocking mode.
+            self._sock.settimeout(None)
+            break
+
+        else:
+
+            raise
 
     def read(self, timeout=None):
         '''
