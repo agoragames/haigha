@@ -10,6 +10,15 @@ from datetime import datetime
 from decimal import Decimal
 from operator import xor
 
+# Test python3 compatibility
+try:
+  x = long(1)
+except NameError:
+  long = int
+try:
+  x = unicode('foo')
+except NameError:
+  unicode = str
 
 class Writer(object):
 

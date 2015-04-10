@@ -9,6 +9,7 @@ import sys
 from collections import deque
 from haigha.reader import Reader
 
+import six
 
 class Frame(object):
 
@@ -71,9 +72,9 @@ class Frame(object):
                 frame = None
             except Reader.ReaderError as e:
                 # Some other format error
-                raise Frame.FormatError, str(e), sys.exc_info()[-1]
+                six.reraise(Frame.FormatError, str(e), sys.exc_info()[-1])
             except struct.error as e:
-                raise Frame.FormatError, str(e), sys.exc_info()[-1]
+                six.reraise(Frame.FormatError, str(e), sys.exc_info()[-1])
 
             if frame is None:
                 reader.seek(frame_start_pos)
