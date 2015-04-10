@@ -2,6 +2,10 @@
  Haigha - Synchronous and asynchronous AMQP client library
 ==========================================================
 
+.. image:: https://travis-ci.org/agoragames/haigha.svg?branch=master
+    :target: https://travis-ci.org/agoragames/haigha
+
+
 :Version: 0.7.3
 :Download: http://pypi.python.org/pypi/haigha
 :Source: https://github.com/agoragames/haigha
