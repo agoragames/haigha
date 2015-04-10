@@ -26,7 +26,6 @@ except ImportError:
     socket = None
     pool = None
 
-
 class GeventTransport(SocketTransport):
 
     '''

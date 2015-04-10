@@ -6,15 +6,22 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 
 from chai import Chai
 import errno
-import gevent
-from gevent.coros import Semaphore
-from gevent import socket
-from gevent.pool import Pool
+import unittest
 
-from haigha.transports import gevent_transport
-from haigha.transports.gevent_transport import *
+try:
+    import gevent
+    from gevent.coros import Semaphore
+    from gevent import socket
+    from gevent.pool import Pool
 
+    from haigha.transports import gevent_transport
+    from haigha.transports.gevent_transport import *
+except ImportError:
+    import warnings
+    warnings.warn('Failed to load gevent modules')
+    gevent = None
 
+@unittest.skipIf(gevent is None, 'skipping gevent tests')
 class GeventTransportTest(Chai):
 
     def setUp(self):
@@ -102,7 +109,7 @@ class GeventTransportTest(Chai):
 
         assert_raises(Exception, self.transport.write, 'datas')
 
-
+@unittest.skipIf(gevent is None, 'skipping gevent tests')
 class GeventPoolTransportTest(Chai):
 
     def setUp(self):
