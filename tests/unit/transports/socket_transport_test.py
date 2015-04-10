@@ -25,12 +25,10 @@ class SocketTransportTest(Chai):
         assert_equals(bytearray(), self.transport._buffer)
         assert_true(self.transport._synchronous)
 
-    def test_connect_with_no_klass_arg(self):
-        klass = mock()
+    def test_connect_with_no_klass_arg_ipv4(self):
         sock = mock()
-        orig_defaults = self.transport.connect.im_func.func_defaults
-        self.transport.connect.im_func.func_defaults = (klass,)
-        expect(klass).returns(sock)
+        expect(socket.socket).returns(sock)
+
         self.connection._connect_timeout = 4.12
         self.connection._sock_opts = {
             ('family', 'tcp'): 34,
@@ -43,16 +41,18 @@ class SocketTransportTest(Chai):
             'family', 'tcp', 34).any_order()
         expect(sock.setsockopt).any_order().args(
             'range', 'ipv6', 'hex').any_order()
-        expect(sock.connect).args(('host', 5309))
+        expect(socket,'getaddrinfo').args('host',5309,0,0,socket.IPPROTO_TCP).returns(
+            [('family','socktype','proto', 'canon',('host.net',5309))] )
+        expect(sock.connect).args(('host.net', 5309))
         expect(sock.settimeout).args(None)
 
         self.transport.connect(('host', 5309))
-        self.transport.connect.im_func.func_defaults = orig_defaults
 
-    def test_connect_with_klass_arg(self):
+    def test_connect_with_klass_arg_ipv4(self):
         klass = mock()
         sock = mock()
         expect(klass).returns(sock)
+
         self.connection._connect_timeout = 4.12
         self.connection._sock_opts = {
             ('family', 'tcp'): 34,
@@ -65,7 +65,9 @@ class SocketTransportTest(Chai):
             'family', 'tcp', 34).any_order()
         expect(sock.setsockopt).any_order().args(
             'range', 'ipv6', 'hex').any_order()
-        expect(sock.connect).args(('host', 5309))
+        expect(socket,'getaddrinfo').args('host',5309,0,0,socket.IPPROTO_TCP).returns(
+            [('family','socktype','proto', 'canon',('host.net',5309))] )
+        expect(sock.connect).args(('host.net', 5309))
         expect(sock.settimeout).args(None)
 
         self.transport.connect(('host', 5309), klass=klass)
