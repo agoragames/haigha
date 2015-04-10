@@ -23,7 +23,7 @@ class MessageTest(Chai):
         self.assertEquals('delivery', m._delivery_info)
         self.assertEquals({'foo': 'bar'}, m._properties)
 
-        m = Message(u'D\xfcsseldorf')
+        m = Message('D\xfcsseldorf')
         self.assertEquals('D\xc3\xbcsseldorf', m._body)
         self.assertEquals({'content_encoding': 'utf-8'}, m._properties)
 

@@ -40,7 +40,7 @@ class HeaderFrameTest(Chai):
 
         # strip ms because amqp doesn't include it
         now = datetime.utcfromtimestamp(
-            long(time.mktime(datetime.now().timetuple())))
+            int(time.mktime(datetime.now().timetuple())))
 
         bit_field = 0
         for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
@@ -91,7 +91,7 @@ class HeaderFrameTest(Chai):
 
         # strip ms because amqp doesn't include it
         now = datetime.utcfromtimestamp(
-            long(time.mktime(datetime.now().timetuple())))
+            int(time.mktime(datetime.now().timetuple())))
 
         bit_field = 0
         for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
@@ -140,7 +140,7 @@ class HeaderFrameTest(Chai):
         bit_field = 0
         properties = {}
         now = datetime.utcfromtimestamp(
-            long(time.mktime(datetime.now().timetuple())))
+            int(time.mktime(datetime.now().timetuple())))
         for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
             bit_field |= mask
 
@@ -186,7 +186,7 @@ class HeaderFrameTest(Chai):
         bit_field = 0
         properties = {}
         now = datetime.utcfromtimestamp(
-            long(time.mktime(datetime.now().timetuple())))
+            int(time.mktime(datetime.now().timetuple())))
         for pname, ptype, reader, writer, mask in HeaderFrame.PROPERTIES:
             bit_field |= mask
 

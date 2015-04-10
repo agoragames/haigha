@@ -24,16 +24,17 @@ class SocketTransport(Transport):
     ###
     # Transport API
     ###
-    def connect(self, (host, port), klass=socket.socket):
+    def connect(self, xxx_todo_changeme, klass=socket.socket):
         '''
         Connect assuming a host and port tuple.
         '''
+        (host, port) = xxx_todo_changeme
         self._host = "%s:%s" % (host, port)
         self._sock = klass()
         self._sock.setblocking(True)
         self._sock.settimeout(self.connection._connect_timeout)
         if self.connection._sock_opts:
-            for k, v in self.connection._sock_opts.iteritems():
+            for k, v in self.connection._sock_opts.items():
                 family, type = k
                 self._sock.setsockopt(family, type, v)
         infos = socket.getaddrinfo(host, port, 0, 0, socket.IPPROTO_TCP)

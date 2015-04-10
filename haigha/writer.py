@@ -9,16 +9,17 @@ from calendar import timegm
 from datetime import datetime
 from decimal import Decimal
 from operator import xor
+from functools import reduce
 
 # Test python3 compatibility
 try:
-  x = long(1)
+  x = int(1)
 except NameError:
   long = int
 try:
-  x = unicode('foo')
+  x = str('foo')
 except NameError:
-  unicode = str
+  str = str
 
 class Writer(object):
 
@@ -71,7 +72,7 @@ class Writer(object):
             raise ValueError("Can only write 8 bits at a time")
 
         self._output_buffer.append(chr(
-            reduce(lambda x, y: xor(x, args[y] << y), xrange(len(args)), 0)))
+            reduce(lambda x, y: xor(x, args[y] << y), range(len(args)), 0)))
 
         return self
 
@@ -150,7 +151,7 @@ class Writer(object):
         Write a string up to 255 bytes long after encoding.  If passed
         a unicode string, encode as UTF-8.
         """
-        if isinstance(s, unicode):
+        if isinstance(s, str):
             s = s.encode('utf-8')
         self.write_octet(len(s))
         self.write(s)
@@ -161,7 +162,7 @@ class Writer(object):
         Write a string up to 2**32 bytes long after encoding.  If passed
         a unicode string, encode as UTF-8.
         """
-        if isinstance(s, unicode):
+        if isinstance(s, str):
             s = s.encode('utf-8')
         self.write_long(len(s))
         self.write(s)
@@ -173,7 +174,7 @@ class Writer(object):
         representing seconds since the Unix UTC epoch.
         """
         # Double check timestamp, can't imagine why it would be signed
-        self._output_buffer.extend(pack(long(timegm(t.timetuple()))))
+        self._output_buffer.extend(pack(int(timegm(t.timetuple()))))
         return self
 
     # NOTE: coding to http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3 and
@@ -194,7 +195,7 @@ class Writer(object):
         self.write_long(0)
         table_data_pos = len(self._output_buffer)
 
-        for key, value in d.iteritems():
+        for key, value in d.items():
             self._write_item(key, value)
 
         table_end_pos = len(self._output_buffer)
@@ -212,7 +213,7 @@ class Writer(object):
         if writer:
             writer(self, value)
         else:
-            for kls, writer in self.field_type_map.items():
+            for kls, writer in list(self.field_type_map.items()):
                 if isinstance(value, kls):
                     writer(self, value)
                     break
@@ -286,11 +287,11 @@ class Writer(object):
     field_type_map = {
         bool: _field_bool,
         int: _field_int,
-        long: _field_int,
+        int: _field_int,
         float: _field_double,
         Decimal: _field_decimal,
         str: _field_str,
-        unicode: _field_unicode,
+        str: _field_unicode,
         datetime: _field_timestamp,
         dict: _field_table,
         type(None): _field_none,

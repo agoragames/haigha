@@ -28,7 +28,7 @@ class ReaderTest(Chai):
         assert_true(isinstance(s._input, buffer))
         assert_equals('foo', str(s._input))
 
-        u = Reader(u'D\xfcsseldorf')
+        u = Reader('D\xfcsseldorf')
         assert_true(isinstance(u._input, buffer))
         assert_equals('D\xc3\xbcsseldorf', str(u._input))
 
@@ -158,7 +158,7 @@ class ReaderTest(Chai):
 
     def test_read_longlong(self):
         b = Reader('\xff\x00\xff\x00\xff\x00\xff\x00')
-        assert_equals(18374966859414961920L, b.read_longlong())
+        assert_equals(18374966859414961920, b.read_longlong())
         assert_raises(Reader.BufferUnderflow, b.read_longlong)
 
     def test_read_shortstr(self):
@@ -321,20 +321,20 @@ class ReaderTest(Chai):
         # http://dev.rabbitmq.com/wiki/Amqp091Errata#section_3
         assert_equals(
             {
-                't': Reader._field_bool.im_func,
-                'b': Reader._field_short_short_int.im_func,
-                's': Reader._field_short_int.im_func,
-                'I': Reader._field_long_int.im_func,
-                'l': Reader._field_long_long_int.im_func,
-                'f': Reader._field_float.im_func,
-                'd': Reader._field_double.im_func,
-                'D': Reader._field_decimal.im_func,
-                'S': Reader._field_longstr.im_func,
-                'A': Reader._field_array.im_func,
-                'T': Reader._field_timestamp.im_func,
-                'F': Reader.read_table.im_func,
-                'V': Reader._field_none.im_func,
-                'x': Reader._field_bytearray.im_func,
+                't': Reader._field_bool.__func__,
+                'b': Reader._field_short_short_int.__func__,
+                's': Reader._field_short_int.__func__,
+                'I': Reader._field_long_int.__func__,
+                'l': Reader._field_long_long_int.__func__,
+                'f': Reader._field_float.__func__,
+                'd': Reader._field_double.__func__,
+                'D': Reader._field_decimal.__func__,
+                'S': Reader._field_longstr.__func__,
+                'A': Reader._field_array.__func__,
+                'T': Reader._field_timestamp.__func__,
+                'F': Reader.read_table.__func__,
+                'V': Reader._field_none.__func__,
+                'x': Reader._field_bytearray.__func__,
             }, Reader.field_type_map)
 
     # def test_field_type_map_091_spec(self):

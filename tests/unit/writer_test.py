@@ -279,15 +279,15 @@ class WriterTest(Chai):
     def test_field_type_map(self):
         assert_equals(
             {
-                bool: Writer._field_bool.im_func,
-                int: Writer._field_int.im_func,
-                long: Writer._field_int.im_func,
-                float: Writer._field_double.im_func,
-                Decimal: Writer._field_decimal.im_func,
-                str: Writer._field_str.im_func,
-                unicode: Writer._field_unicode.im_func,
-                datetime: Writer._field_timestamp.im_func,
-                dict: Writer._field_table.im_func,
-                type(None): Writer._field_none.im_func,
-                bytearray: Writer._field_bytearray.im_func,
+                bool: Writer._field_bool.__func__,
+                int: Writer._field_int.__func__,
+                int: Writer._field_int.__func__,
+                float: Writer._field_double.__func__,
+                Decimal: Writer._field_decimal.__func__,
+                str: Writer._field_str.__func__,
+                str: Writer._field_unicode.__func__,
+                datetime: Writer._field_timestamp.__func__,
+                dict: Writer._field_table.__func__,
+                type(None): Writer._field_none.__func__,
+                bytearray: Writer._field_bytearray.__func__,
             }, Writer.field_type_map)

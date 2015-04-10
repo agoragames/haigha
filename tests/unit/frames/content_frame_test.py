@@ -29,17 +29,17 @@ class ContentFrameTest(Chai):
     def test_create_frames(self):
         itr = ContentFrame.create_frames(42, 'helloworld', 13)
 
-        frame = itr.next()
+        frame = next(itr)
         assert_true(isinstance(frame, ContentFrame))
         assert_equals(42, frame.channel_id)
         assert_equals('hello', frame.payload)
 
-        frame = itr.next()
+        frame = next(itr)
         assert_true(isinstance(frame, ContentFrame))
         assert_equals(42, frame.channel_id)
         assert_equals('world', frame.payload)
 
-        assert_raises(StopIteration, itr.next)
+        assert_raises(StopIteration, itr.__next__)
 
     def test_init(self):
         expect(Frame.__init__).args(is_a(ContentFrame), 42)

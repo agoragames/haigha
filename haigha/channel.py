@@ -59,7 +59,7 @@ class Channel(object):
         self._channel_id = channel_id
 
         self._class_map = {}
-        for _id, _class in class_map.iteritems():
+        for _id, _class in class_map.items():
             impl = _class(self)
             setattr(self, impl.name, impl)
             self._class_map[_id] = impl
@@ -375,7 +375,7 @@ class Channel(object):
             self._frame_buffer = deque()
 
             # clear out other references for faster cleanup
-            for protocol_class in self._class_map.values():
+            for protocol_class in list(self._class_map.values()):
                 protocol_class._cleanup()
                 delattr(self, protocol_class.name)
             self._connection = None

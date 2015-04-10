@@ -46,11 +46,12 @@ class EventTransport(Transport):
     ###
     # Transport API
     ###
-    def connect(self, (host, port)):
+    def connect(self, xxx_todo_changeme):
         '''
         Connect assuming a host and port tuple. Implemented as non-blocking,
         and will close the transport if there's an error
         '''
+        (host, port) = xxx_todo_changeme
         self._host = "%s:%s" % (host, port)
         self._sock = EventSocket(
             read_cb=self._sock_read_cb,
@@ -59,7 +60,7 @@ class EventTransport(Transport):
             debug=self.connection.debug,
             logger=self.connection.logger)
         if self.connection._sock_opts:
-            for k, v in self.connection._sock_opts.iteritems():
+            for k, v in self.connection._sock_opts.items():
                 family, type = k
                 self._sock.setsockopt(family, type, v)
         self._sock.setblocking(False)

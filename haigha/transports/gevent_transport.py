@@ -46,10 +46,11 @@ class GeventTransport(SocketTransport):
     # Transport API
     ###
 
-    def connect(self, (host, port)):
+    def connect(self, xxx_todo_changeme):
         '''
         Connect using a host,port tuple
         '''
+        (host, port) = xxx_todo_changeme
         super(GeventTransport, self).connect((host, port), klass=socket.socket)
 
     def read(self, timeout=None):

@@ -41,7 +41,7 @@ class Reader(object):
             self._input = buffer(source.read())
         elif isinstance(source, str):
             self._input = buffer(source)
-        elif isinstance(source, unicode):
+        elif isinstance(source, str):
             self._input = buffer(source.encode('utf8'))
         else:
             raise ValueError(
@@ -140,7 +140,7 @@ class Reader(object):
         if num < 0 or num >= 9:
             raise ValueError("8 bits per field")
         field = ord(self._input[self._pos])
-        result = map(lambda x: field >> x & 1, xrange(num))
+        result = [field >> x & 1 for x in range(num)]
         self._pos += 1
         return result
 

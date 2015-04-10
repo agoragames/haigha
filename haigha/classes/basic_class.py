@@ -122,7 +122,7 @@ class BasicClass(ProtocolClass):
         to only use a consumer once per channel.
         '''
         if consumer:
-            for (tag, func) in self._consumer_cb.iteritems():
+            for (tag, func) in self._consumer_cb.items():
                 if func == consumer:
                     consumer_tag = tag
                     break

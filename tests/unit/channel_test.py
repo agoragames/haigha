@@ -339,7 +339,7 @@ class ChannelTest(Chai):
     def test_requeue_frames(self):
         c = Channel(None, None, {})
         ch_id, c_id, m_id = 0, 1, 2
-        f = [MethodFrame(ch_id, c_id, m_id) for i in xrange(4)]
+        f = [MethodFrame(ch_id, c_id, m_id) for i in range(4)]
         c._frame_buffer = deque(f[:2])
 
         c.requeue_frames(f[2:])
@@ -521,7 +521,7 @@ class ChannelTest(Chai):
         c._pending_events = 'foo'
         c._frame_buffer = 'foo'
 
-        for val in c._class_map.values():
+        for val in list(c._class_map.values()):
             expect(val._cleanup)
         expect(c._notify_close_listeners)
 
@@ -542,7 +542,7 @@ class ChannelTest(Chai):
         c = Channel(conn, None, {})
 
         expect(conn.send_frame).args('final')
-        for val in c._class_map.values():
+        for val in list(c._class_map.values()):
             expect(val._cleanup)
 
         c._closed_cb('final')

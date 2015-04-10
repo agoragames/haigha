@@ -16,7 +16,7 @@ from haigha.classes.transaction_class import TransactionClass
 from haigha.writer import Writer
 from haigha.reader import Reader
 from haigha.transports.transport import Transport
-from exceptions import ConnectionError, ConnectionClosed
+from .exceptions import ConnectionError, ConnectionClosed
 
 import haigha
 import time
