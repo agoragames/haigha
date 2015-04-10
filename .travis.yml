@@ -6,3 +6,6 @@ python:
   - "2.7"
   - "pypy"
 script: nosetests
+install:
+  - "pip install -r development.txt"
+  - "pip install nose"
