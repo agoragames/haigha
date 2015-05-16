@@ -50,6 +50,7 @@ class BasicClassTest(Chai):
         assert_equals(deque(), klass._get_cb)
         assert_equals(deque(), klass._recover_cb)
         assert_equals(deque(), klass._cancel_cb)
+        assert_equals(None, klass._return_listener)
 
     def test_cleanup(self):
         self.klass._cleanup()
@@ -60,6 +61,11 @@ class BasicClassTest(Chai):
         assert_equals(None, self.klass._cancel_cb)
         assert_equals(None, self.klass._channel)
         assert_equals(None, self.klass.dispatch_map)
+        assert_equals(None, self.klass._return_listener)
+
+    def test_set_return_listener(self):
+        self.klass.set_return_listener('foo')
+        assert_equals('foo', self.klass._return_listener)
 
     def test_generate_consumer_tag(self):
         assert_equals(0, self.klass._consumer_tag_id)
@@ -356,7 +362,40 @@ class BasicClassTest(Chai):
         expect(self.klass.send_frame).args('frame')
         self.klass.return_msg(3, 'reply_text', 'exchange', 'routing_key')
 
-    def test_recv_return(self):
+    def test_recv_return_with_cb(self):
+        msg = mock()
+        msg.return_info = {
+            'channel': self.klass.channel,
+            'reply_code': 312,
+            'reply_text': 'NO_ROUTE',
+            'routing_key': 'unroutable-no-such-queue-blah',
+            'exchange': ''
+        }
+        cb = mock()
+        self.klass._return_listener = cb
+
+        expect(self.klass._read_returned_msg).args('frame').returns(msg)
+        expect(cb).args(msg)
+
+        self.klass._recv_return('frame')
+
+    def test_recv_return_without_cb(self):
+        msg = mock()
+        msg.properties = dict()
+        msg.return_info = {
+            'channel': self.klass.channel,
+            'reply_code': 312,
+            'reply_text': 'NO_ROUTE',
+            'routing_key': 'unroutable-no-such-queue-blah',
+            'exchange': ''
+        }
+
+        expect(self.klass._read_returned_msg).args('frame').returns(msg)
+        expect(self.klass.logger.error).args(
+            "Published message returned by broker: info=%s, properties=%s",
+            msg.return_info,
+            msg.properties)
+
         self.klass._recv_return('frame')
 
     def test_recv_deliver_with_cb(self):
@@ -638,3 +677,80 @@ class BasicClassTest(Chai):
 
         assert_equals('message', self.klass._read_msg(
             method_frame, with_message_count=True))
+
+    def test_read_returned_msg_raises_frameunderflow(self):
+        expect(self.klass.channel.next_frame).returns(None)
+        expect(self.klass.channel.requeue_frames).args(['method_frame'])
+        assert_raises(
+            self.klass.FrameUnderflow, self.klass._read_returned_msg,
+            'method_frame')
+
+    def test_read_returned_msg(self):
+        method_frame = mock()
+        header_frame = mock()
+        header_frame.properties = {}
+        return_info = {
+            'channel': self.klass.channel,
+            'reply_code': 500,
+            'reply_text': 'reply-text',
+            'exchange': 'exchange-name',
+            'routing_key': 'routing-key'
+        }
+
+        expect(self.klass._reap_msg_frames).args(method_frame).returns(
+            (header_frame, bytearray('x' * 100)))
+        expect(method_frame.args.read_short).returns(500)
+        expect(method_frame.args.read_shortstr).returns('reply-text')
+        expect(method_frame.args.read_shortstr).returns('exchange-name')
+        expect(method_frame.args.read_shortstr).returns('routing-key')
+        expect(Message).args(
+            body=bytearray('x' * 100),
+            return_info=return_info).returns('message')
+
+        assert_equals('message', self.klass._read_returned_msg(method_frame))
+
+    def test_reap_msg_frames_raises_frameunderflow_when_no_header_frame(self):
+        expect(self.klass.channel.next_frame).returns(None)
+        expect(self.klass.channel.requeue_frames).args(['method_frame'])
+        assert_raises(
+            self.klass.FrameUnderflow, self.klass._reap_msg_frames,
+            'method_frame')
+
+    def test_reap_msg_frames_raises_frameunderflow_when_no_content_frames(self):
+        header_frame = mock()
+        header_frame.size = 1000000
+        expect(self.klass.channel.next_frame).returns(header_frame)
+        expect(self.klass.channel.next_frame).returns(None)
+        expect(self.klass.channel.requeue_frames).args(
+            deque([header_frame, 'method_frame']))
+        assert_raises(
+            self.klass.FrameUnderflow, self.klass._reap_msg_frames,
+            'method_frame')
+
+    def test_reap_msg_frames_when_body_length_0(self):
+        method_frame = mock()
+        header_frame = mock()
+        header_frame.size = 0
+        header_frame.properties = {'foo': 'bar'}
+
+        expect(self.klass.channel.next_frame).returns(header_frame)
+
+        assert_equals((header_frame, bytearray()), self.klass._reap_msg_frames(
+            method_frame))
+
+    def test_reap_msg_frames_when_body_length_greater_than_0(self):
+        method_frame = mock()
+        header_frame = mock()
+        header_frame.size = 100
+        header_frame.properties = {}
+        cframe1 = mock()
+        cframe2 = mock()
+
+        expect(self.klass.channel.next_frame).returns(header_frame)
+        expect(self.klass.channel.next_frame).returns(cframe1)
+        expect(cframe1.payload.buffer).returns('x' * 50)
+        expect(self.klass.channel.next_frame).returns(cframe2)
+        expect(cframe2.payload.buffer).returns('x' * 50)
+
+        assert_equals((header_frame, 'x' * 100), self.klass._reap_msg_frames(
+            method_frame))

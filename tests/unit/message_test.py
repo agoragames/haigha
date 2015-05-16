@@ -15,9 +15,10 @@ class MessageTest(Chai):
         m = Message()
         self.assertEquals('', m._body)
         self.assertEquals(None, m._delivery_info)
+        self.assertEquals(None, m.return_info)
         self.assertEquals({}, m._properties)
 
-    def test_init_with_args(self):
+    def test_init_with_delivery_and_args(self):
         m = Message('foo', 'delivery', foo='bar')
         self.assertEquals('foo', m._body)
         self.assertEquals('delivery', m._delivery_info)
@@ -27,10 +28,25 @@ class MessageTest(Chai):
         self.assertEquals('D\xc3\xbcsseldorf', m._body)
         self.assertEquals({'content_encoding': 'utf-8'}, m._properties)
 
-    def test_properties(self):
+    def test_with_body_and_properties(self):
+        m = Message('foo', foo='bar')
+        self.assertEquals('foo', m.body)
+        self.assertEquals(None, m.delivery_info)
+        self.assertEquals(None, m.return_info)
+        self.assertEquals({'foo': 'bar'}, m.properties)
+
+    def test_with_delivery_and_properties(self):
         m = Message('foo', 'delivery', foo='bar')
         self.assertEquals('foo', m.body)
         self.assertEquals('delivery', m.delivery_info)
+        self.assertEquals(None, m.return_info)
+        self.assertEquals({'foo': 'bar'}, m.properties)
+
+    def test_with_return_and_properties(self):
+        m = Message('foo', return_info='return', foo='bar')
+        self.assertEquals('foo', m.body)
+        self.assertEquals('return', m.return_info)
+        self.assertEquals(None, m.delivery_info)
         self.assertEquals({'foo': 'bar'}, m.properties)
 
     def test_len(self):
@@ -76,6 +92,10 @@ class MessageTest(Chai):
 
         self.assertNotEquals(Message(), object())
 
-    def test_str(self):
+    def test_str_with_delivery_info(self):
         m = Message('foo', 'delivery', foo='bar')
+        str(m)
+
+    def test_str_with_return_info(self):
+        m = Message('foo', return_info='returned', foo='bar')
         str(m)
