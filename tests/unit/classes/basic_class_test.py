@@ -64,8 +64,17 @@ class BasicClassTest(Chai):
         assert_equals(None, self.klass._return_listener)
 
     def test_set_return_listener(self):
-        self.klass.set_return_listener('foo')
-        assert_equals('foo', self.klass._return_listener)
+        cb = lambda *args: None
+        self.klass.set_return_listener(cb)
+        assert_is(cb, self.klass._return_listener)
+
+        # Now test resetting it
+        self.klass.set_return_listener(None)
+        assert_is(None, self.klass._return_listener)
+
+    def test_set_invalid_listener_raises_valueerror(self):
+        assert_raises(ValueError, self.klass.set_return_listener, 'foo')
+        assert_is(None, self.klass._return_listener)
 
     def test_generate_consumer_tag(self):
         assert_equals(0, self.klass._consumer_tag_id)

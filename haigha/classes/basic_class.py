@@ -76,6 +76,9 @@ class BasicClass(ProtocolClass):
 
         :param cb: callable cb(Message); pass None to reset
         '''
+        if cb is not None and not callable(cb):
+            raise ValueError('return_listener callback must either be None or '
+                             'a callable, but got: %r' % (cb,))
         self._return_listener = cb
 
     def _generate_consumer_tag(self):
@@ -223,7 +226,7 @@ class BasicClass(ProtocolClass):
         '''
         msg = self._read_returned_msg(method_frame)
 
-        if self._return_listener is not None:
+        if callable(self._return_listener):
             self._return_listener(msg)
         else:
             self.logger.error(
