@@ -5,6 +5,7 @@ https://github.com/agoragames/haigha/blob/master/LICENSE.txt
 '''
 
 from collections import deque
+import copy
 
 from haigha.connection import Connection
 from haigha.classes.basic_class import BasicClass
@@ -29,6 +30,24 @@ class RabbitConnection(Connection):
         class_map.setdefault(60, RabbitBasicClass)
         class_map.setdefault(85, RabbitConfirmClass)
         kwargs['class_map'] = class_map
+
+        # Indicate RabbitMQ-specific consumer_cancel_notify capability per
+        # www.rabbitmq.com/consumer-cancel.html
+        if "client_properties" in kwargs:
+            client_properties = copy.deepcopy(kwargs["client_properties"])
+        else:
+            client_properties = dict()
+
+        if "capabilities" not in client_properties:
+            client_properties["capabilities"] = dict()
+
+        client_capabilities = client_properties["capabilities"]
+
+        if "consumer_cancel_notify" not in client_capabilities:
+            client_capabilities["consumer_cancel_notify"] = True
+
+        kwargs["client_properties"] = client_properties
+
 
         super(RabbitConnection, self).__init__(**kwargs)
 
@@ -133,6 +152,7 @@ class RabbitBasicClass(BasicClass):
 
     def __init__(self, *args, **kwargs):
         super(RabbitBasicClass, self).__init__(*args, **kwargs)
+        self.dispatch_map[30] = self._recv_cancel
         self.dispatch_map[80] = self._recv_ack
         self.dispatch_map[120] = self._recv_nack
 
@@ -141,6 +161,18 @@ class RabbitBasicClass(BasicClass):
 
         self._msg_id = 0
         self._last_ack_id = 0
+
+        # Mapping of active consumer tags to user's consumer cancel callbacks
+        self._broker_cancel_cb_map = dict()
+
+    def _cleanup(self):
+        '''
+        Cleanup all the local data.
+        '''
+        self._ack_listener = None
+        self._nack_listener = None
+        self._broker_cancel_cb_map = None
+        super(RabbitBasicClass, self)._cleanup()
 
     def set_ack_listener(self, cb):
         '''
@@ -207,6 +239,91 @@ class RabbitBasicClass(BasicClass):
             else:
                 self._last_ack_id = delivery_tag
                 self._nack_listener(self._last_ack_id, requeue)
+
+    def consume(self, *args, **kwargs):
+        '''Start a queue consumer.
+
+        Accepts the following kwarg in addition to those of BasicClass.consume:
+
+        :param cancel_cb: a callable to be called when the broker cancels the
+          consumer; e.g., when the consumer's queue is deleted. See
+          www.rabbitmq.com/consumer-cancel.html.
+        :type cancel_cb: callable with the signature cancel_cb(consumer_tag)
+        '''
+        # Register the consumer's broker-cancel-cb entry
+        if "cancel_cb" in kwargs:
+            cancel_cb = kwargs.pop("cancel_cb")
+        else:
+            cancel_cb = None
+
+        if cancel_cb is not None:
+            if not callable(cancel_cb):
+                raise ValueError('cancel_cb is not callable: %r' % (cancel_cb,))
+
+        consumer_tag = args[2] if len(args) > 2 else kwargs.get('consumer_tag')
+        if not consumer_tag:
+            consumer_tag = self._generate_consumer_tag()
+
+        self._broker_cancel_cb_map[consumer_tag] = cancel_cb
+
+        # Start consumer
+        super(RabbitBasicClass, self).consume(*args, **kwargs)
+
+    def cancel(self, *args, **kwargs):
+        '''
+        Cancel a consumer. Can choose to delete based on a consumer tag or
+        the function which is consuming.  If deleting by function, take care
+        to only use a consumer once per channel.
+        '''
+        consumer_tag = args[0] if len(args) > 0 else kwargs.get('consumer_tag')
+        consumer = args[2] if len(args) > 2 else kwargs.get('consumer')
+
+        # Remove the consumer's broker-cancel-cb entry
+        if consumer:
+            tag = self._lookup_consumer_tag_by_consumer(consumer)
+            if tag:
+                consumer_tag = tag
+
+        try:
+            del self._broker_cancel_cb_map[tag]
+        except KeyError:
+            self.logger.warning(
+                'cancel: no broker-cancel-cb entry for consumer tag %r '
+                '(consumer %r)', tag, consumer)
+
+        # Cancel consumer
+        super(RabbitBasicClass, self).cancel(*args, **kwargs)
+
+    def _recv_cancel(self, method_frame):
+        '''Handle Basic.Cancel from broker
+
+        :param MethodFrame method_frame: Basic.Cancel method frame from broker
+        '''
+        self.logger.warning("consumer cancelled by broker: %r", method_frame)
+
+        consumer_tag = method_frame.args.read_shortstr()
+        nowait = method_frame.args.read_bit()
+        if not nowait:
+            # This should never happen coming from RabbitMQ broker
+            self.logger.critical(
+                'unexpected no-wait=False in basic.cancel from broker: %r',
+                method_frame)
+
+        # Remove consumer from this basic instance
+        try:
+            cancel_cb = self._broker_cancel_cb_map.pop(consumer_tag)
+        except KeyError:
+            # Must be a race condition between user's cancel and broker's cancel
+            self.logger.warning(
+                '_recv_cancel: no broker-cancel-cb entry for consumer tag %r',
+                consumer_tag)
+        else:
+            if callable(cancel_cb):
+                # Purge from base class only when user supplies cancel_cb
+                self._purge_consumer_by_tag(consumer_tag)
+
+                # Notify user
+                cancel_cb(consumer_tag)
 
 
 class RabbitConfirmClass(ProtocolClass):
