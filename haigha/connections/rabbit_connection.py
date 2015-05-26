@@ -285,11 +285,11 @@ class RabbitBasicClass(BasicClass):
                 consumer_tag = tag
 
         try:
-            del self._broker_cancel_cb_map[tag]
+            del self._broker_cancel_cb_map[consumer_tag]
         except KeyError:
             self.logger.warning(
                 'cancel: no broker-cancel-cb entry for consumer tag %r '
-                '(consumer %r)', tag, consumer)
+                '(consumer %r)', consumer_tag, consumer)
 
         # Cancel consumer
         super(RabbitBasicClass, self).cancel(*args, **kwargs)
