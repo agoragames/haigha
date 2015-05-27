@@ -98,6 +98,8 @@ class Connection(object):
             0: ConnectionChannel(self, 0, {})
         }
 
+        self._missed_heartbeat_intervals = 0
+
         # Login response seems a total hack of protocol
         # Skip the length at the beginning
         login_response = Writer()
@@ -404,13 +406,23 @@ class Connection(object):
         # Send a heartbeat (if needed)
         self._channels[0].send_heartbeat()
 
-        # Wait for 2 heartbeat intervals before giving up. See AMQP 4.2.7:
-        # "If a peer detects no incoming traffic (i.e. received octets) for two heartbeat intervals or longer,
-        # it should close the connection"
-        data = self._transport.read(self._heartbeat*2)
+        data = self._transport.read(self._heartbeat)
         if data is None:
+            if not self._heartbeat:
+                return
+            # Wait for 2 heartbeat intervals before giving up. See AMQP 4.2.7:
+            # "If a peer detects no incoming traffic (i.e. received octets) for two heartbeat intervals or longer,
+            # it should close the connection"
+            self._missed_heartbeat_intervals += 1
+            if self._missed_heartbeat_intervals == 2:
+                self.close(reply_code=501,
+                           reply_text='Heartbeats not received for %d seconds' % 2*self._heartbeat,
+                           class_id=0, method_id=0, disconnect=False)
+                raise ConnectionClosed("connection is closed: %s : %s" %
+                                       (self._close_info['reply_code'],
+                                        self._close_info['reply_text']))
             return
-
+        self._missed_heartbeat_intervals = 0
         reader = Reader(data)
         p_channels = set()
 
