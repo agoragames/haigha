@@ -404,7 +404,10 @@ class Connection(object):
         # Send a heartbeat (if needed)
         self._channels[0].send_heartbeat()
 
-        data = self._transport.read(self._heartbeat)
+        # Wait for 2 heartbeat intervals before giving up. See AMQP 4.2.7:
+        # "If a peer detects no incoming traffic (i.e. received octets) for two heartbeat intervals or longer,
+        # it should close the connection"
+        data = self._transport.read(self._heartbeat*2)
         if data is None:
             return
 
