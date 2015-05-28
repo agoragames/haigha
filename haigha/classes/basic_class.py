@@ -39,6 +39,7 @@ class BasicClass(ProtocolClass):
         self._get_cb = deque()
         self._recover_cb = deque()
         self._cancel_cb = deque()
+        self._return_listener = None
 
     @property
     def name(self):
@@ -53,7 +54,32 @@ class BasicClass(ProtocolClass):
         self._get_cb = None
         self._recover_cb = None
         self._cancel_cb = None
+        self._return_listener = None
         super(BasicClass, self)._cleanup()
+
+    def set_return_listener(self, cb):
+        '''
+        Set a callback for basic.return listening. Will be called with a single
+        Message argument.
+
+        The return_info attribute of the Message will have the following
+        properties:
+            'channel': Channel instance
+            'reply_code': reply code (int)
+            'reply_text': reply text
+            'exchange': exchange name
+            'routing_key': routing key
+
+        RabbitMQ NOTE: if the channel was in confirmation mode when the message
+        was published, then basic.return will still be followed by basic.ack
+        later.
+
+        :param cb: callable cb(Message); pass None to reset
+        '''
+        if cb is not None and not callable(cb):
+            raise ValueError('return_listener callback must either be None or '
+                             'a callable, but got: %r' % (cb,))
+        self._return_listener = cb
 
     def _generate_consumer_tag(self):
         '''
@@ -189,10 +215,23 @@ class BasicClass(ProtocolClass):
 
         self.send_frame(MethodFrame(self.channel_id, 60, 50, args))
 
-    def _recv_return(self, _method_frame):
-        # This seems like the right place to callback that the operation has
-        # completed.
-        pass
+    def _recv_return(self, method_frame):
+        '''
+        Handle basic.return method. If we have a complete message, will call the
+        user's return listener callabck (if any). If there are not enough
+        frames, will re-queue current frames and raise a FrameUnderflow
+
+        NOTE: if the channel was in confirmation mode when the message was
+        published, then this will still be followed by basic.ack later
+        '''
+        msg = self._read_returned_msg(method_frame)
+
+        if callable(self._return_listener):
+            self._return_listener(msg)
+        else:
+            self.logger.error(
+                "Published message returned by broker: info=%s, properties=%s",
+                msg.return_info, msg.properties)
 
     def _recv_deliver(self, method_frame):
         msg = self._read_msg(method_frame,
@@ -304,26 +343,7 @@ class BasicClass(ProtocolClass):
         FrameUnderflow. Takes an optional argument on whether to read the
         consumer tag so it can be used for both deliver and get-ok.
         '''
-        # No need to assert that is instance of Header or Content frames
-        # because failure to access as such will result in exception that
-        # channel will pick up and handle accordingly.
-        header_frame = self.channel.next_frame()
-        if header_frame:
-            size = header_frame.size
-            body = bytearray()
-            rbuf_frames = deque([header_frame, method_frame])
-
-            while len(body) < size:
-                content_frame = self.channel.next_frame()
-                if content_frame:
-                    rbuf_frames.appendleft(content_frame)
-                    body.extend(content_frame.payload.buffer())
-                else:
-                    self.channel.requeue_frames(rbuf_frames)
-                    raise self.FrameUnderflow()
-        else:
-            self.channel.requeue_frames([method_frame])
-            raise self.FrameUnderflow()
+        header_frame, body = self._reap_msg_frames(method_frame)
 
         if with_consumer_tag:
             consumer_tag = method_frame.args.read_shortstr()
@@ -348,3 +368,63 @@ class BasicClass(ProtocolClass):
 
         return Message(body=body, delivery_info=delivery_info,
                        **header_frame.properties)
+
+    def _read_returned_msg(self, method_frame):
+        '''
+        Support method to read a returned (basic.return) Message from the
+        current frame buffer. Will return a Message with return_info, or
+        re-queue current frames and raise a FrameUnderflow.
+
+        :returns: Message with the return_info attribute set, where return_info
+          is a dict with the following properties:
+            'channel': Channel instance
+            'reply_code': reply code (int)
+            'reply_text': reply text
+            'exchange': exchange name
+            'routing_key': routing key
+        '''
+        header_frame, body = self._reap_msg_frames(method_frame)
+
+        return_info = {
+            'channel': self.channel,
+            'reply_code': method_frame.args.read_short(),
+            'reply_text': method_frame.args.read_shortstr(),
+            'exchange': method_frame.args.read_shortstr(),
+            'routing_key': method_frame.args.read_shortstr()
+        }
+
+        return Message(body=body, return_info=return_info,
+                       **header_frame.properties)
+
+    def _reap_msg_frames(self, method_frame):
+        '''
+        Support method to reap header frame and body from current frame buffer.
+        Used in processing of basic.return, basic.deliver, and basic.get_ok.
+        Will return a pair (<header frame>, <body>), or re-queue current frames
+        and raise a FrameUnderflow.
+
+        :returns: pair (<header frame>, <body>)
+        :rtype: tuple of (HeaderFrame, bytearray)
+        '''
+        # No need to assert that is instance of Header or Content frames
+        # because failure to access as such will result in exception that
+        # channel will pick up and handle accordingly.
+        header_frame = self.channel.next_frame()
+        if header_frame:
+            size = header_frame.size
+            body = bytearray()
+            rbuf_frames = deque([header_frame, method_frame])
+
+            while len(body) < size:
+                content_frame = self.channel.next_frame()
+                if content_frame:
+                    rbuf_frames.appendleft(content_frame)
+                    body.extend(content_frame.payload.buffer())
+                else:
+                    self.channel.requeue_frames(rbuf_frames)
+                    raise self.FrameUnderflow()
+        else:
+            self.channel.requeue_frames([method_frame])
+            raise self.FrameUnderflow()
+
+        return (header_frame, body)
