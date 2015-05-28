@@ -98,7 +98,7 @@ class Connection(object):
             0: ConnectionChannel(self, 0, {})
         }
 
-        self._missed_heartbeat_intervals = 0
+        self._last_octet_time = None
 
         # Login response seems a total hack of protocol
         # Skip the length at the beginning
@@ -224,6 +224,8 @@ class Connection(object):
 
         self._transport.connect((host, port))
         self._transport.write(PROTOCOL_HEADER)
+
+        self._last_octet_time = time.time()
 
         if self._synchronous_connect:
             # Have to queue this callback just after connect, it can't go
@@ -407,22 +409,18 @@ class Connection(object):
         self._channels[0].send_heartbeat()
 
         data = self._transport.read(self._heartbeat)
+        current_time = time.time()
+
         if data is None:
-            if not self._heartbeat:
-                return
             # Wait for 2 heartbeat intervals before giving up. See AMQP 4.2.7:
             # "If a peer detects no incoming traffic (i.e. received octets) for two heartbeat intervals or longer,
             # it should close the connection"
-            self._missed_heartbeat_intervals += 1
-            if self._missed_heartbeat_intervals == 2:
-                self.close(reply_code=501,
-                           reply_text='Heartbeats not received for %d seconds' % 2*self._heartbeat,
-                           class_id=0, method_id=0, disconnect=False)
-                raise ConnectionClosed("connection is closed: %s : %s" %
-                                       (self._close_info['reply_code'],
-                                        self._close_info['reply_text']))
+            if self._heartbeat and self._last_octet_time and (current_time-self._last_octet_time > 2*self._heartbeat):
+                msg = 'Heartbeats not received from %s for %d seconds' % (self._host, 2*self._heartbeat)
+                self.transport_closed(msg=msg)
+                raise ConnectionClosed('Connection is closed: ' + msg)
             return
-        self._missed_heartbeat_intervals = 0
+        self._last_octet_time = time.time()
         reader = Reader(data)
         p_channels = set()
 
