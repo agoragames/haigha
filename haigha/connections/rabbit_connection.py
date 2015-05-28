@@ -240,22 +240,20 @@ class RabbitBasicClass(BasicClass):
                 self._last_ack_id = delivery_tag
                 self._nack_listener(self._last_ack_id, requeue)
 
-    def consume(self, *args, **kwargs):
+    def consume(self, queue, consumer, consumer_tag='', no_local=False,
+                no_ack=True, exclusive=False, nowait=True, ticket=None,
+                cb=None, cancel_cb=None):
         '''Start a queue consumer.
 
-        Accepts the following kwarg in addition to those of BasicClass.consume:
+        Accepts the following optional arg in addition to those of
+        `BasicClass.consume()`:
 
         :param cancel_cb: a callable to be called when the broker cancels the
           consumer; e.g., when the consumer's queue is deleted. See
           www.rabbitmq.com/consumer-cancel.html.
-        :type cancel_cb: callable with the signature cancel_cb(consumer_tag)
+        :type cancel_cb: None or callable with signature cancel_cb(consumer_tag)
         '''
-        # Register the consumer's broker-cancel-cb entry
-        if "cancel_cb" in kwargs:
-            cancel_cb = kwargs.pop("cancel_cb")
-        else:
-            cancel_cb = None
-
+        # Register the consumer's broker-cancel callback entry
         if cancel_cb is not None:
             if not callable(cancel_cb):
                 raise ValueError('cancel_cb is not callable: %r' % (cancel_cb,))
@@ -269,16 +267,13 @@ class RabbitBasicClass(BasicClass):
         # Start consumer
         super(RabbitBasicClass, self).consume(*args, **kwargs)
 
-    def cancel(self, *args, **kwargs):
+    def cancel(self, consumer_tag='', nowait=True, consumer=None, cb=None):
         '''
         Cancel a consumer. Can choose to delete based on a consumer tag or
         the function which is consuming.  If deleting by function, take care
         to only use a consumer once per channel.
         '''
-        consumer_tag = args[0] if len(args) > 0 else kwargs.get('consumer_tag')
-        consumer = args[2] if len(args) > 2 else kwargs.get('consumer')
-
-        # Remove the consumer's broker-cancel-cb entry
+        # Remove the consumer's broker-cancel callback entry
         if consumer:
             tag = self._lookup_consumer_tag_by_consumer(consumer)
             if tag:
