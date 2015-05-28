@@ -415,12 +415,12 @@ class Connection(object):
             # Wait for 2 heartbeat intervals before giving up. See AMQP 4.2.7:
             # "If a peer detects no incoming traffic (i.e. received octets) for two heartbeat intervals or longer,
             # it should close the connection"
-            if self._heartbeat and self._last_octet_time and (current_time-self._last_octet_time > 2*self._heartbeat):
+            if self._heartbeat and (current_time-self._last_octet_time > 2*self._heartbeat):
                 msg = 'Heartbeats not received from %s for %d seconds' % (self._host, 2*self._heartbeat)
                 self.transport_closed(msg=msg)
                 raise ConnectionClosed('Connection is closed: ' + msg)
             return
-        self._last_octet_time = time.time()
+        self._last_octet_time = current_time
         reader = Reader(data)
         p_channels = set()
 
