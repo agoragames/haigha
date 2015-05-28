@@ -258,14 +258,15 @@ class RabbitBasicClass(BasicClass):
             if not callable(cancel_cb):
                 raise ValueError('cancel_cb is not callable: %r' % (cancel_cb,))
 
-        consumer_tag = args[2] if len(args) > 2 else kwargs.get('consumer_tag')
         if not consumer_tag:
             consumer_tag = self._generate_consumer_tag()
 
         self._broker_cancel_cb_map[consumer_tag] = cancel_cb
 
         # Start consumer
-        super(RabbitBasicClass, self).consume(*args, **kwargs)
+        super(RabbitBasicClass, self).consume(queue, consumer, consumer_tag,
+                                              no_local, no_ack, exclusive,
+                                              nowait, ticket, cb)
 
     def cancel(self, consumer_tag='', nowait=True, consumer=None, cb=None):
         '''
@@ -287,7 +288,7 @@ class RabbitBasicClass(BasicClass):
                 '(consumer %r)', consumer_tag, consumer)
 
         # Cancel consumer
-        super(RabbitBasicClass, self).cancel(*args, **kwargs)
+        super(RabbitBasicClass, self).cancel(consumer_tag, nowait, consumer, cb)
 
     def _recv_cancel(self, method_frame):
         '''Handle Basic.Cancel from broker
