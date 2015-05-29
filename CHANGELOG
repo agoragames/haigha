@@ -1,3 +1,14 @@
+0.8.0
+=====
+
+Merge https://github.com/agoragames/haigha/pull/73 from @vitaly-krugl
+Adds listener support for basic.return, fixes protocol errors when not
+correctly reading the list of frames upon a basic.return.
+
+Merge https://github.com/agoragames/haigha/pull/78 from @liorn
+Correctly handle heartbeat intervals and disconnect when no traffic according
+to 0.9.1 spec section 4.2.7
+
 0.7.3
 =====
 
