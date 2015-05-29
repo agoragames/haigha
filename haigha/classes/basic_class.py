@@ -87,6 +87,8 @@ class BasicClass(ProtocolClass):
 
         The consumer tag is local to a channel, so two clients can use the
         same consumer tags.
+
+        NOTE: this protected method may be called by derived classes
         '''
         self._consumer_tag_id += 1
         return "channel-%d-%d" % (self.channel_id, self._consumer_tag_id)
@@ -148,10 +150,9 @@ class BasicClass(ProtocolClass):
         to only use a consumer once per channel.
         '''
         if consumer:
-            for (tag, func) in self._consumer_cb.iteritems():
-                if func == consumer:
-                    consumer_tag = tag
-                    break
+            tag = self._lookup_consumer_tag_by_consumer(consumer)
+            if tag:
+                consumer_tag = tag
 
         nowait = nowait and self.allow_nowait() and not cb
 
@@ -164,20 +165,41 @@ class BasicClass(ProtocolClass):
             self._cancel_cb.append(cb)
             self.channel.add_synchronous_cb(self._recv_cancel_ok)
         else:
-            try:
-                del self._consumer_cb[consumer_tag]
-            except KeyError:
-                self.logger.warning(
-                    'no callback registered for consumer tag " %s "',
-                    consumer_tag)
+            self._purge_consumer_by_tag(consumer_tag)
 
-    def _recv_cancel_ok(self, method_frame):
-        consumer_tag = method_frame.args.read_shortstr()
+    def _lookup_consumer_tag_by_consumer(self, consumer):
+        '''Look up consumer tag given its consumer function
+
+        NOTE: this protected method may be called by derived classes
+
+        :param callable consumer: consumer function
+
+        :returns: matching consumer tag or None
+        :rtype: str or None
+        '''
+        for (tag, func) in self._consumer_cb.iteritems():
+            if func == consumer:
+                return tag
+
+    def _purge_consumer_by_tag(self, consumer_tag):
+        '''Purge consumer entry from this basic instance
+
+        NOTE: this protected method may be called by derived classes
+
+        :param str consumer_tag:
+        '''
         try:
             del self._consumer_cb[consumer_tag]
         except KeyError:
             self.logger.warning(
                 'no callback registered for consumer tag " %s "', consumer_tag)
+        else:
+            self.logger.info('purged consumer with tag " %s "', consumer_tag)
+
+
+    def _recv_cancel_ok(self, method_frame):
+        consumer_tag = method_frame.args.read_shortstr()
+        self._purge_consumer_by_tag(consumer_tag)
 
         cb = self._cancel_cb.popleft()
         if cb:
