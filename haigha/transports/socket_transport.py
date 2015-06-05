@@ -27,28 +27,71 @@ class SocketTransport(Transport):
     def connect(self, (host, port), klass=socket.socket):
         '''
         Connect assuming a host and port tuple.
-        '''
-        self._host = "%s:%s" % (host, port)
-        self._sock = klass()
-        self._sock.setblocking(True)
-        self._sock.settimeout(self.connection._connect_timeout)
-        if self.connection._sock_opts:
-            for k, v in self.connection._sock_opts.iteritems():
-                family, type = k
-                self._sock.setsockopt(family, type, v)
-        infos = socket.getaddrinfo(host, port, 0, 0, socket.IPPROTO_TCP)
-        exc = socket.error("getaddrinfo returns an empty list")
-        for _family, _socktype, _proto, _canonname, sockaddr in infos:
-            try:
-                self._sock.connect(sockaddr)
-                break
-            except socket.error as exc:
-                continue
-        else:
-            raise exc
 
-        # After connecting, switch to full-blocking mode.
-        self._sock.settimeout(None)
+        :raises socket.gaierror: address resolution error
+        :raises socket.error: socket connection error
+        '''
+        def apply_sock_opts(sock):
+            if self.connection._sock_opts:
+                for (level, opt), v in self.connection._sock_opts.iteritems():
+                    sock.setsockopt(level, opt, v)
+
+
+        infos = socket.getaddrinfo(host,
+                                   port,
+                                   0, # family
+                                   0, # socktype
+                                   socket.IPPROTO_TCP,
+                                   0) # flags
+
+        for count, res in enumerate(infos, 1):
+            family, socktype, proto, _canonname, address = res
+
+            # Attempt to create a socket
+            try:
+                sock = klass(family, socktype, proto)
+            except socket.error:
+                if count < len(infos):
+                    self.connection.logger.debug(
+                        "klass(%r, %r, %r) failed",
+                        family, socktype, proto, exc_info=True)
+                    continue
+                else:
+                    raise
+
+            # Set socket options, if any
+            try:
+                apply_sock_opts(sock)
+            except socket.error:
+                sock.close()
+                del sock
+
+                if count < len(infos):
+                    self.connection.logger.debug("apply_sock_opts failed",
+                                                 exc_info=True)
+                    continue
+                else:
+                    raise
+
+            # Attempt to connect
+            try:
+                sock.connect(address)
+            except socket.error:
+                sock.close()
+                del sock
+
+                if count < len(infos):
+                    self.connection.logger.debug("sock.connect(%r) failed",
+                                                 address, exc_info=True)
+                    continue
+                else:
+                    raise
+            else:
+                # Success at last!
+                break
+
+        sock.settimeout(None)
+        self._sock = sock
 
     def read(self, timeout=None):
         '''
