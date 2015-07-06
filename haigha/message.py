@@ -49,6 +49,17 @@ class Message(object):
                 self._body == other._body
         return False
 
+    def __getitem__(self, key):
+      if key == 'delivery_info':
+        return self._delivery_info
+      elif key == 'return_info':
+        return self._return_info
+      elif key == 'properties':
+        return self._properties
+      elif key == 'body':
+        return self._body
+      raise AttributeError("No message attribute %s" % key)
+
     @property
     def delivery_info(self):
         '''delivery_info dict if message was received via basic.deliver or

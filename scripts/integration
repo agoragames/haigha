@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for FILE in `find integration/*/test*.py -executable -type f | sort`; do
+  echo $FILE
+  PYTHONPATH=./:$PYTHONPATH ./$FILE
+done
