@@ -394,6 +394,8 @@ class Connection(object):
         '''
         Read frames from the transport and process them. Some transports may
         choose to do this in the background, in several threads, and so on.
+
+        Returns the number of frames read.
         '''
         # It's possible in a concurrent environment that our transport handle
         # has gone away, so handle that cleanly.
@@ -410,13 +412,14 @@ class Connection(object):
 
         data = self._transport.read(self._heartbeat)
         current_time = time.time()
+        frames_read = 0
 
         if data is None:
             # Wait for 2 heartbeat intervals before giving up. See AMQP 4.2.7:
             # "If a peer detects no incoming traffic (i.e. received octets) for two heartbeat intervals or longer,
             # it should close the connection"
-            if self._heartbeat and (current_time-self._last_octet_time > 2*self._heartbeat):
-                msg = 'Heartbeats not received from %s for %d seconds' % (self._host, 2*self._heartbeat)
+            if self._heartbeat and (current_time - self._last_octet_time > 2 * self._heartbeat):
+                msg = 'Heartbeats not received from %s for %d seconds' % (self._host, 2 * self._heartbeat)
                 self.transport_closed(msg=msg)
                 raise ConnectionClosed('Connection is closed: ' + msg)
             return
@@ -429,6 +432,7 @@ class Connection(object):
                 if self._debug > 1:
                     self.logger.debug("READ: %s", frame)
                 self._frames_read += 1
+                frames_read += 1
                 ch = self.channel(frame.channel_id)
                 ch.buffer_frame(frame)
                 p_channels.add(ch)
@@ -451,6 +455,8 @@ class Connection(object):
         # awesome if we could free that memory without a new allocation.
         if reader.tell() < len(data):
             self._transport.buffer(data[reader.tell():])
+
+        return frames_read
 
     def _flush_buffered_frames(self):
         '''
