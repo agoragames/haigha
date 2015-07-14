@@ -25,52 +25,196 @@ class SocketTransportTest(Chai):
         assert_equals(bytearray(), self.transport._buffer)
         assert_true(self.transport._synchronous)
 
-    def test_connect_with_no_klass_arg_ipv4(self):
-        sock = mock()
-        expect(socket.socket).returns(sock)
-
+    def _set_up_connect_test(self, sock):
+        """Set up common options and expects for connect() related tests."""
         self.connection._connect_timeout = 4.12
         self.connection._sock_opts = {
             ('family', 'tcp'): 34,
             ('range', 'ipv6'): 'hex'
         }
+        expect(sock.settimeout).args(4.12).at_least_once()
+        expect(sock.setsockopt).any_order().args(
+            'family', 'tcp', 34).any_order().at_least_once()
+        expect(sock.setsockopt).any_order().args(
+            'range', 'ipv6', 'hex').any_order().at_least_once()
+        expect(sock.settimeout).args(None).at_least_once()
 
-        expect(sock.setblocking).args(True)
-        expect(sock.settimeout).args(4.12)
+    def _set_up_connect_test_fail(self, sock):
+        """Set up common options and expects for connect() tests that fail."""
+        self.connection._connect_timeout = 4.12
+        self.connection._sock_opts = {
+            ('family', 'tcp'): 34,
+            ('range', 'ipv6'): 'hex'
+        }
+        expect(sock.settimeout).args(4.12).at_least_once()
         expect(sock.setsockopt).any_order().args(
-            'family', 'tcp', 34).any_order()
+            'family', 'tcp', 34).any_order().at_least_once()
         expect(sock.setsockopt).any_order().args(
-            'range', 'ipv6', 'hex').any_order()
-        expect(socket,'getaddrinfo').args('host',5309,0,0,socket.IPPROTO_TCP).returns(
-            [('family','socktype','proto', 'canon',('host.net',5309))] )
+            'range', 'ipv6', 'hex').any_order().at_least_once()
+
+    def test_connect_with_no_klass_arg_ipv4(self):
+        sock = mock()
+        expect(socket.socket).returns(sock)
+        self._set_up_connect_test(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [(socket.AF_INET, socket.SOCK_STREAM, 0, 'canon', ('host.net', 5309))]
+        )
         expect(sock.connect).args(('host.net', 5309))
-        expect(sock.settimeout).args(None)
-
         self.transport.connect(('host', 5309))
+
+    def test_connect_with_no_klass_arg_ipv6(self):
+        sock = mock()
+        expect(socket.socket).returns(sock)
+        self._set_up_connect_test(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [
+                (
+                    socket.AF_INET6, socket.SOCK_STREAM, 0, 'canon',
+                    ('::1', 5309, 0, 0),
+                ),
+            ]
+        )
+        expect(sock.connect).args(('::1', 5309, 0, 0))
+        self.transport.connect(('host', 5309))
+
+    def test_connect_with_no_klass_arg_first_fail(self):
+        """Test that failed connections are bypassed until a success."""
+        sock = mock()
+        expect(socket.socket).returns(sock)
+        self._set_up_connect_test(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [
+                (
+                    socket.AF_INET, socket.SOCK_STREAM, 0, 'canon',
+                    ('host.net', 5309),
+                ),
+                (
+                    socket.AF_INET6, socket.SOCK_STREAM, 0, 'canon',
+                    ('::1', 5309, 0, 0),
+                ),
+            ]
+        )
+        expect(sock.connect).args(('host.net', 5309)).raises(socket.error)
+        expect(self.transport.connection.logger.exception).any_args()
+        expect(sock.connect).args(('::1', 5309, 0, 0))
+        self.transport.connect(('host', 5309))
+
+    def test_connect_with_no_klass_arg_all_fail(self):
+        """Test that exception is raised when all connections fail."""
+        sock = mock()
+        expect(socket.socket).returns(sock)
+        self._set_up_connect_test_fail(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [
+                (
+                    socket.AF_INET, socket.SOCK_STREAM, 0, 'canon',
+                    ('host.net', 5309),
+                ),
+                (
+                    socket.AF_INET6, socket.SOCK_STREAM, 0, 'canon',
+                    ('::1', 5309, 0, 0),
+                ),
+            ]
+        )
+        expect(sock.connect).args(('host.net', 5309)).raises(socket.error)
+        expect(sock.connect).args(('::1', 5309, 0, 0)).raises(socket.error)
+        expect(
+            self.transport.connection.logger.exception,
+        ).any_args().at_least_once()
+        self.assert_raises(
+            socket.error, self.transport.connect, ('host', 5309),
+        )
 
     def test_connect_with_klass_arg_ipv4(self):
         klass = mock()
         sock = mock()
         expect(klass).returns(sock)
-
-        self.connection._connect_timeout = 4.12
-        self.connection._sock_opts = {
-            ('family', 'tcp'): 34,
-            ('range', 'ipv6'): 'hex'
-        }
-
-        expect(sock.setblocking).args(True)
-        expect(sock.settimeout).args(4.12)
-        expect(sock.setsockopt).any_order().args(
-            'family', 'tcp', 34).any_order()
-        expect(sock.setsockopt).any_order().args(
-            'range', 'ipv6', 'hex').any_order()
-        expect(socket,'getaddrinfo').args('host',5309,0,0,socket.IPPROTO_TCP).returns(
-            [('family','socktype','proto', 'canon',('host.net',5309))] )
+        self._set_up_connect_test(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [(socket.AF_INET, socket.SOCK_STREAM, 0, 'canon', ('host.net', 5309))]
+        )
         expect(sock.connect).args(('host.net', 5309))
-        expect(sock.settimeout).args(None)
-
         self.transport.connect(('host', 5309), klass=klass)
+
+    def test_connect_with_klass_arg_ipv6(self):
+        klass = mock()
+        sock = mock()
+        expect(klass).returns(sock)
+        self._set_up_connect_test(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [
+                (
+                    socket.AF_INET6, socket.SOCK_STREAM, 0, 'canon',
+                    ('::1', 5309, 0, 0),
+                ),
+            ]
+        )
+        expect(sock.connect).args(('::1', 5309, 0, 0))
+        self.transport.connect(('host', 5309), klass=klass)
+
+    def test_connect_with_klass_arg_first_fail(self):
+        klass = mock()
+        sock = mock()
+        expect(klass).returns(sock)
+        self._set_up_connect_test(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [
+                (
+                    socket.AF_INET, socket.SOCK_STREAM, 0, 'canon',
+                    ('host.net', 5309),
+                ),
+                (
+                    socket.AF_INET6, socket.SOCK_STREAM, 0, 'canon',
+                    ('::1', 5309, 0, 0),
+                ),
+            ]
+        )
+        expect(sock.connect).args(('host.net', 5309)).raises(socket.error)
+        expect(self.transport.connection.logger.exception).any_args()
+        expect(sock.connect).args(('::1', 5309, 0, 0))
+        self.transport.connect(('host', 5309), klass=klass)
+
+    def test_connect_with_klass_arg_all_fail(self):
+        klass = mock()
+        sock = mock()
+        expect(klass).returns(sock)
+        self._set_up_connect_test_fail(sock)
+        expect(socket, 'getaddrinfo').args(
+            'host', 5309, 0, 0, socket.IPPROTO_TCP,
+        ).returns(
+            [
+                (
+                    socket.AF_INET, socket.SOCK_STREAM, 0, 'canon',
+                    ('host.net', 5309),
+                ),
+                (
+                    socket.AF_INET6, socket.SOCK_STREAM, 0, 'canon',
+                    ('::1', 5309, 0, 0),
+                ),
+            ]
+        )
+        expect(sock.connect).args(('host.net', 5309)).raises(socket.error)
+        expect(sock.connect).args(('::1', 5309, 0, 0)).raises(socket.error)
+        expect(
+            self.transport.connection.logger.exception,
+        ).any_args().at_least_once()
+        self.assert_raises(
+            socket.error, self.transport.connect, ('host', 5309), klass=klass,
+        )
 
     def test_read(self):
         self.transport._sock = mock()

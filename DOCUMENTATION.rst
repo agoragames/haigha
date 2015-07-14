@@ -77,7 +77,7 @@ Exchange
 The exchange accepts messages from applications. There are several different exchange types, the standard ones defined in the `specification <AMQPSpec>`_ and possibly some additional ones supplied by your broker. The common types of exchanges are:
 
 * **direct** The routing key and binding key must exactly match
-* **topic** The routing key must match the pattern defined by the binding keu
+* **topic** The routing key must match the pattern defined by the binding key
 * **fanout** All queues will receive a copy of the message.
 
 Haigha implements exchange declaration and deletion in the `ExchangeClass`_.
