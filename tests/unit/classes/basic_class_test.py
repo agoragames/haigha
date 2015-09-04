@@ -209,6 +209,8 @@ class BasicClassTest(Chai):
         expect(mock(basic_class, 'MethodFrame')).args(
             42, 60, 30, w).returns('frame')
         expect(self.klass.send_frame).args('frame')
+        expect(self.klass.logger.info).args(
+            'purged consumer with tag " %s "', '')
 
         self.klass._consumer_cb[''] = 'foo'
         assert_equals(deque(), self.klass._cancel_cb)
@@ -283,9 +285,12 @@ class BasicClassTest(Chai):
         expect(mock(basic_class, 'MethodFrame')).args(
             42, 60, 30, w).returns('frame')
         expect(self.klass.send_frame).args('frame')
+        expect(self.klass.logger.info).args(
+            'purged consumer with tag " %s "', 'ctag')
 
         self.klass._consumer_cb['ctag'] = 'consumer'
         assert_equals(deque(), self.klass._cancel_cb)
+
         self.klass.cancel(consumer='consumer')
         assert_equals(deque(), self.klass._cancel_cb)
         assert_equals({}, self.klass._consumer_cb)
@@ -296,6 +301,8 @@ class BasicClassTest(Chai):
         expect(frame.args.read_shortstr).returns('ctag')
         self.klass._consumer_cb['ctag'] = 'foo'
         self.klass._cancel_cb = deque([cancel_cb, mock()])
+        expect(self.klass.logger.info).args(
+            'purged consumer with tag " %s "', 'ctag')
         expect(cancel_cb)
 
         self.klass._recv_cancel_ok(frame)
@@ -312,6 +319,33 @@ class BasicClassTest(Chai):
         self.klass._recv_cancel_ok(frame)
         assert_equals(1, len(self.klass._cancel_cb))
         assert_false(None in self.klass._cancel_cb)
+
+    def test_lookup_consumer_tag_by_consumer_with_match_found(self):
+        consumer = mock()
+        self.klass._consumer_cb['ctag'] = consumer
+
+        consumer_tag = self.klass._lookup_consumer_tag_by_consumer(consumer)
+        assert_equals('ctag', consumer_tag)
+
+    def test_lookup_consumer_tag_by_consumer_with_match_not_found(self):
+        consumer = mock()
+        consumer_tag = self.klass._lookup_consumer_tag_by_consumer(consumer)
+        assert_is(None, consumer_tag)
+
+    def test_purge_consumer_by_tag_with_match_found(self):
+        self.klass._consumer_cb['ctag'] = mock()
+        expect(self.klass.logger.info).args(
+            'purged consumer with tag " %s "', 'ctag')
+
+        self.klass._purge_consumer_by_tag('ctag')
+        assert_equals({}, self.klass._consumer_cb)
+
+    def test_purge_consumer_by_tag_with_match_not_found(self):
+        expect(self.klass.logger.warning).args(
+            'no callback registered for consumer tag " %s "', 'ctag')
+
+        self.klass._purge_consumer_by_tag('ctag')
+
 
     def test_publish_default_args(self):
         args = Writer()

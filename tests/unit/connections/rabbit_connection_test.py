@@ -20,14 +20,48 @@ class RabbitConnectionTest(Chai):
 
     def test_init(self):
         with expect(mock(rabbit_connection, 'super')).args(is_arg(RabbitConnection), RabbitConnection).returns(mock()) as c:
-            expect(c.__init__).args(class_map=var('classes'), foo='bar')
+            expect(c.__init__).args(
+                class_map=var('classes'),
+                foo='bar',
+                client_properties=var('client_props'))
 
         rc = RabbitConnection(foo='bar')
+
         assert_equals(var('classes').value, {
             40: RabbitExchangeClass,
             60: RabbitBasicClass,
             85: RabbitConfirmClass
         })
+
+        assert_equals(
+            var('client_props').value,
+            {'capabilities': {'consumer_cancel_notify': True}})
+
+    def test_init_with_user_supplied_client_capabilities(self):
+        with expect(mock(rabbit_connection, 'super')).args(is_arg(RabbitConnection), RabbitConnection).returns(mock()) as c:
+            expect(c.__init__).args(
+                class_map=var('classes'),
+                foo='bar',
+                client_properties=var('client_props'))
+
+        user_client_properties = {'my_app_version': '1.9'}
+
+        rc = RabbitConnection(foo='bar',
+                              client_properties=user_client_properties)
+
+        assert_equals(var('classes').value, {
+            40: RabbitExchangeClass,
+            60: RabbitBasicClass,
+            85: RabbitConfirmClass
+        })
+
+        assert_equals(
+            var('client_props').value,
+            {'my_app_version': '1.9',
+             'capabilities': {'consumer_cancel_notify': True}})
+
+        # Check that user's client_capabilities dict was not altered
+        assert_equals({'my_app_version': '1.9'}, user_client_properties)
 
 
 class RabbitExchangeClassTest(Chai):
@@ -263,6 +297,15 @@ class RabbitBasicClassTest(Chai):
         assert_equals(0, self.klass._msg_id)
         assert_equals(0, self.klass._last_ack_id)
 
+    def test_cleanup(self):
+        with expect(mock(rabbit_connection, 'super')).args(is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as c:
+            expect(c._cleanup).args()
+
+        self.klass._cleanup()
+        assert_equals(None, self.klass._ack_listener)
+        assert_equals(None, self.klass._nack_listener)
+        assert_equals(None, self.klass._broker_cancel_cb_map)
+
     def test_set_ack_listener(self):
         self.klass.set_ack_listener('foo')
         assert_equals('foo', self.klass._ack_listener)
@@ -361,6 +404,161 @@ class RabbitBasicClassTest(Chai):
         self.klass._recv_nack(frame)
         assert_equals(42, self.klass._last_ack_id)
 
+    def test_consume_with_default_args(self):
+        consumer = mock()
+        with expect(mock(rabbit_connection, 'super')).args(
+                is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.consume).args(
+                'queue', consumer, 'ctag', False, True, False, True, None, None)
+
+        expect(self.klass._generate_consumer_tag).args().returns('ctag')
+
+        self.klass.consume('queue', consumer)
+        assert_equals({'ctag': None}, self.klass._broker_cancel_cb_map)
+
+    def test_consume_with_cancel_cb(self):
+        consumer = mock()
+        cancel_cb = mock()
+        with expect(mock(rabbit_connection, 'super')).args(
+                is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.consume).args(
+                'queue', consumer, 'ctag', False, True, False, True, None, None)
+
+        expect(self.klass._generate_consumer_tag).args().returns('ctag')
+
+        self.klass.consume('queue', consumer, cancel_cb=cancel_cb)
+        assert_equals({'ctag': cancel_cb}, self.klass._broker_cancel_cb_map)
+
+    def test_consume_with_consumer_tag(self):
+        consumer = mock()
+        with expect(mock(rabbit_connection, 'super')).args(
+                is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.consume).args(
+                'queue', consumer, 'user-ctag',
+                False, True, False, True, None, None)
+
+        expect(self.klass._generate_consumer_tag).times(0)
+
+        self.klass.consume('queue', consumer, 'user-ctag')
+
+    def test_consume_with_invalid_cancel_cb(self):
+        assert_raises(
+            ValueError,
+            self.klass.consume, 'queue', mock(), cancel_cb='not-callable')
+        assert_equals({}, self.klass._broker_cancel_cb_map)
+
+    def test_cancel_with_default_args(self):
+        with expect(mock(rabbit_connection, 'super')).args(
+            is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.cancel).args(
+                '', True, None, None)
+
+        expect(self.klass.logger.warning).args(
+            'cancel: no broker-cancel-cb entry for consumer tag %r '
+            '(consumer %r)', '', None)
+
+        self.klass.cancel()
+
+    def test_cancel_by_consumer_cb(self):
+        consumer = mock()
+        with expect(mock(rabbit_connection, 'super')).args(
+            is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.cancel).args(
+                'ctag', True, consumer, None)
+
+        self.klass._broker_cancel_cb_map['ctag'] = mock(name='cancel_cb')
+
+        expect(self.klass._lookup_consumer_tag_by_consumer).args(consumer).returns('ctag')
+
+        self.klass.cancel(consumer=consumer)
+
+    def test_cancel_by_consumer_cb_not_found(self):
+        consumer = mock()
+        with expect(mock(rabbit_connection, 'super')).args(
+            is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.cancel).args(
+                '', True, consumer, None)
+
+        expect(self.klass._lookup_consumer_tag_by_consumer).args(consumer).returns(None)
+        expect(self.klass.logger.warning).args(
+            'cancel: no broker-cancel-cb entry for consumer tag %r '
+            '(consumer %r)', '', consumer)
+
+        self.klass.cancel(consumer=consumer)
+
+    def test_cancel_by_consumer_tag(self):
+        with expect(mock(rabbit_connection, 'super')).args(
+            is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.cancel).args(
+                'ctag', True, None, None)
+
+        self.klass._broker_cancel_cb_map['ctag'] = mock(name='cancel_cb')
+
+        expect(self.klass._lookup_consumer_tag_by_consumer).times(0)
+
+        self.klass.cancel(consumer_tag='ctag')
+
+    def test_cancel_by_consumer_tag_with_cancel_cb_not_found(self):
+        with expect(mock(rabbit_connection, 'super')).args(
+            is_arg(RabbitBasicClass), RabbitBasicClass).returns(mock()) as klass:
+            expect(klass.cancel).args(
+                'ctag', True, None, None)
+
+        expect(self.klass._lookup_consumer_tag_by_consumer).times(0)
+        expect(self.klass.logger.warning).args(
+            'cancel: no broker-cancel-cb entry for consumer tag %r '
+            '(consumer %r)', 'ctag', None)
+
+        self.klass.cancel(consumer_tag='ctag')
+
+    def test_recv_cancel(self):
+        cancel_cb = mock()
+        self.klass._broker_cancel_cb_map['ctag'] = cancel_cb
+        frame = mock()
+
+        expect(self.klass.logger.warning).args(
+            'consumer cancelled by broker: %r', frame)
+
+        expect(frame.args.read_shortstr).returns('ctag')
+
+        expect(self.klass._purge_consumer_by_tag).args('ctag')
+
+        expect(cancel_cb).args('ctag')
+
+        self.klass._recv_cancel(frame)
+
+        assert_equals({}, self.klass._broker_cancel_cb_map)
+
+    def test_recv_cancel_with_cancel_cb_not_found(self):
+        frame = mock()
+
+        expect(self.klass.logger.warning).args(
+            'consumer cancelled by broker: %r', frame)
+
+        expect(frame.args.read_shortstr).returns('ctag')
+
+        expect(self.klass.logger.warning).args(
+            '_recv_cancel: no broker-cancel-cb entry for consumer tag %r',
+            'ctag')
+
+        expect(self.klass._purge_consumer_by_tag).times(0)
+
+        self.klass._recv_cancel(frame)
+
+    def test_recv_cancel_with_cancel_cb_not_callable(self):
+        self.klass._broker_cancel_cb_map['ctag'] = None
+        frame = mock()
+
+        expect(self.klass.logger.warning).args(
+            'consumer cancelled by broker: %r', frame)
+
+        expect(frame.args.read_shortstr).returns('ctag')
+
+        expect(self.klass._purge_consumer_by_tag).times(0)
+
+        self.klass._recv_cancel(frame)
+
+        assert_equals({}, self.klass._broker_cancel_cb_map)
 
 class RabbitConfirmClassTest(Chai):
 

@@ -9,3 +9,5 @@ script: nosetests
 install:
   - "pip install -r development.txt"
   - "pip install nose"
+services:
+  - rabbitmq
