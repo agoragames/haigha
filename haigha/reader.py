@@ -232,7 +232,7 @@ class Reader(object):
         Will raise BufferUnderflow if there's not enough bytes in the buffer.
         Will raise struct.error if the data is malformed
         """
-        return datetime.utcfromtimestamp(self.read_longlong())
+        return datetime.utcfromtimestamp(self.read_longlong() / 1e6)
 
     def read_table(self):
         """
