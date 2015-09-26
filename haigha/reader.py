@@ -238,15 +238,15 @@ class Reader(object):
         try:
             # Try to parse the timestamp in seconds
             return datetime.utcfromtimestamp(ts)
-        except:
+        except ValueError:
             try:
                 # Try to parse the timestamp in milliseconds
                 return datetime.utcfromtimestamp(ts / 1e3)
-            except:
+            except ValueError:
                 try:
                     # Try to parse the timestamp in microseconds
                     return datetime.utcfromtimestamp(ts / 1e6)
-                except:
+                except ValueError:
                     # Failed to parse the timestamp
                     raise
 
