@@ -593,13 +593,7 @@ class ChannelTest(Chai):
         assert_equals(deque(['cb', f3]), c._pending_events)
 
     def test_closed_cb_without_final_frame(self):
-        c = Channel(mock(), None, {
-            20: ChannelClass,
-            40: ExchangeClass,
-            50: QueueClass,
-            60: BasicClass,
-            90: TransactionClass,
-        })
+        c = Channel(mock(), None, self._CLASS_MAP)
         c._pending_events = 'foo'
         c._frame_buffer = 'foo'
 
