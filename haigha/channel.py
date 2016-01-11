@@ -248,8 +248,9 @@ class Channel(object):
                 # the "emergency close" scenario to avoid potential adverse
                 # side-effect during normal user-initiated close
                 if (not isinstance(frame, MethodFrame) or
-                      frame.class_id != 20 or
-                      frame.method_id not in (40, 41)):
+                      frame.class_id != self.channel.CLASS_ID or
+                      frame.method_id not in (self.channel.CLOSE_METHOD_ID,
+                                              self.channel.CLOSE_OK_METHOD_ID)):
                     self.logger.warn("Emergency channel close: dropping input "
                                      "frame %.255s", frame)
                     continue

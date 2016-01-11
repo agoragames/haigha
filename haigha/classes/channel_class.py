@@ -15,6 +15,12 @@ class ChannelClass(ProtocolClass):
     Implements the AMQP Channel class
     '''
 
+    CLASS_ID = 20
+
+    # Channel method ids for error-recovery code in Channel
+    CLOSE_METHOD_ID = 40
+    CLOSE_OK_METHOD_ID = 41
+
     def __init__(self, *args, **kwargs):
         super(ChannelClass, self).__init__(*args, **kwargs)
         self.dispatch_map = {

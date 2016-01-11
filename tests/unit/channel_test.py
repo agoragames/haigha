@@ -54,15 +54,18 @@ class SyncWrapperTest(Chai):
 
 class ChannelTest(Chai):
 
+    _CLASS_MAP = {
+        20: ChannelClass,
+        40: ExchangeClass,
+        50: QueueClass,
+        60: BasicClass,
+        90: TransactionClass,
+    }
+
+
     def test_init(self):
         connection = mock()
-        c = Channel(connection, 'id', {
-            20: ChannelClass,
-            40: ExchangeClass,
-            50: QueueClass,
-            60: BasicClass,
-            90: TransactionClass,
-        })
+        c = Channel(connection, 'id', self._CLASS_MAP)
         assert_equals(connection, c._connection)
         assert_equals('id', c._channel_id)
         assert_true(isinstance(c.channel, ChannelClass))
@@ -90,13 +93,7 @@ class ChannelTest(Chai):
             }, c._close_info)
         assert_true(c._active)
 
-        c = Channel(connection, 'id', {
-            20: ChannelClass,
-            40: ExchangeClass,
-            50: QueueClass,
-            60: BasicClass,
-            90: TransactionClass,
-        }, synchronous=True)
+        c = Channel(connection, 'id', self._CLASS_MAP, synchronous=True)
         assert_true(c._synchronous)
 
     def test_properties(self):
@@ -376,7 +373,7 @@ class ChannelTest(Chai):
         assert_equals(f1, c._frame_buffer[0])
 
     def test_process_frames_drops_non_close_methods_when_emergency_closing(self):
-        c = Channel(mock(), None, {})
+        c = Channel(mock(), None, self._CLASS_MAP)
         c._emergency_close_pending = True
         c._connection = mock()
         c._connection.logger = mock()
@@ -386,9 +383,16 @@ class ChannelTest(Chai):
         f2 = ContentFrame(1, "payload")
         f3_basic_close = MethodFrame(1, 20, 40)
         f4_basic_close_ok = MethodFrame(1, 20, 41)
-        f5 = MethodFrame('ch_id', 'c_id', 'm_id')
+        f5 = MethodFrame(1, 90, 11)
         c._frame_buffer = deque(
-            [f0, f1, f2, f3_basic_close, f4_basic_close_ok, f5])
+            [
+                f0,
+                f1,
+                f2,
+                f3_basic_close,
+                f4_basic_close_ok,
+                f5
+            ])
 
         expect(c.dispatch).args(f0).times(0)
         expect(c.dispatch).args(f1).times(0)
