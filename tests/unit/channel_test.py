@@ -54,15 +54,19 @@ class SyncWrapperTest(Chai):
 
 class ChannelTest(Chai):
 
+    _CLASS_MAP = {
+        20: ChannelClass,
+        40: ExchangeClass,
+        50: QueueClass,
+        60: BasicClass,
+        90: TransactionClass,
+    }
+
+
     def test_init(self):
-        c = Channel('connection', 'id', {
-            20: ChannelClass,
-            40: ExchangeClass,
-            50: QueueClass,
-            60: BasicClass,
-            90: TransactionClass,
-        })
-        assert_equals('connection', c._connection)
+        connection = mock()
+        c = Channel(connection, 'id', self._CLASS_MAP)
+        assert_equals(connection, c._connection)
         assert_equals('id', c._channel_id)
         assert_true(isinstance(c.channel, ChannelClass))
         assert_true(isinstance(c.exchange, ExchangeClass))
@@ -89,13 +93,7 @@ class ChannelTest(Chai):
             }, c._close_info)
         assert_true(c._active)
 
-        c = Channel('connection', 'id', {
-            20: ChannelClass,
-            40: ExchangeClass,
-            50: QueueClass,
-            60: BasicClass,
-            90: TransactionClass,
-        }, synchronous=True)
+        c = Channel(connection, 'id', self._CLASS_MAP, synchronous=True)
         assert_true(c._synchronous)
 
     def test_properties(self):
@@ -132,19 +130,19 @@ class ChannelTest(Chai):
         assert_true(c.synchronous)
 
     def test_add_open_listener(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c.add_open_listener('foo')
         assert_equals(set(['foo']), c._open_listeners)
 
     def test_remove_open_listener(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c.add_open_listener('foo')
         c.remove_open_listener('foo')
         c.remove_open_listener('bar')
         assert_equals(set([]), c._open_listeners)
 
     def test_notify_open_listeners(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         cb1 = mock()
         cb2 = mock()
         c._open_listeners = set([cb1, cb2])
@@ -153,19 +151,46 @@ class ChannelTest(Chai):
         c._notify_open_listeners()
 
     def test_add_close_listener(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c.add_close_listener('foo')
         assert_equals(set(['foo']), c._close_listeners)
 
     def test_remove_close_listener(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c.add_close_listener('foo')
         c.remove_close_listener('foo')
         c.remove_close_listener('bar')
         assert_equals(set([]), c._close_listeners)
 
+    def test_process_frames_passes_through_exception_from_close_listener(self):
+        class MyError(Exception):
+            pass
+
+        connection = mock()
+        ch = Channel(connection, channel_id=1, class_map={20: ChannelClass})
+        rframe = mock(channel_id=ch.channel_id, class_id=20, method_id=40)
+        ch._frame_buffer = deque([rframe])
+        on_channel_closed = mock()
+        ch.add_close_listener(on_channel_closed)
+
+        expect(rframe.args.read_short).returns('rcode')
+        expect(rframe.args.read_shortstr).returns('reason')
+        expect(rframe.args.read_short).returns('cid')
+        expect(rframe.args.read_short).returns('mid')
+
+        expect(connection.send_frame).once()
+
+        expect(on_channel_closed).args(ch).raises(MyError)
+
+        expect(ch.logger.exception).args(
+            'Closing on failed dispatch of frame %.255s', rframe)
+
+        with assert_raises(MyError):
+            ch.process_frames()
+
+
     def test_notify_close_listeners(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         cb1 = mock()
         cb2 = mock()
         c._close_listeners = set([cb1, cb2])
@@ -174,23 +199,23 @@ class ChannelTest(Chai):
         c._notify_close_listeners()
 
     def test_open(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         expect(mock(c, 'channel').open)
         c.open()
 
     def test_active(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         expect(mock(c, 'channel').open)
         c.open()
         assertTrue(c.active)
 
     def test_close_with_no_args(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         expect(mock(c, 'channel').close).args(0, '', 0, 0)
         c.close()
 
     def test_close_with_args(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         expect(mock(c, 'channel').close).args(1, 'two', 3, 4)
         expect(c.channel.close).args(1, 'two', 3, 4)
 
@@ -198,17 +223,17 @@ class ChannelTest(Chai):
         c.close(reply_code=1, reply_text='two', class_id=3, method_id=4)
 
     def test_close_when_channel_attr_cleared(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         assert_false(hasattr(c, 'channel'))
         c.close()
 
     def test_publish(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         expect(mock(c, 'basic').publish).args('arg1', 'arg2', foo='bar')
         c.publish('arg1', 'arg2', foo='bar')
 
     def test_publish_synchronous(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         expect(mock(c, 'tx').select)
         expect(mock(c, 'basic').publish).args('arg1', 'arg2', foo='bar')
         expect(c.tx.commit).args(cb='a_cb')
@@ -216,7 +241,7 @@ class ChannelTest(Chai):
         c.publish_synchronous('arg1', 'arg2', foo='bar', cb='a_cb')
 
     def test_dispatch(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         frame = mock()
         frame.class_id = 32
         klass = mock()
@@ -229,19 +254,19 @@ class ChannelTest(Chai):
         assert_raises(Channel.InvalidClass, c.dispatch, frame)
 
     def test_buffer_frame(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c.buffer_frame('f1')
         c.buffer_frame('f2')
         assert_equals(deque(['f1', 'f2']), c._frame_buffer)
 
     def test_process_frames_when_no_frames(self):
         # Not that this should ever happen, but to be sure
-        c = Channel(None, None, {})
-        stub(c.dispatch)
+        c = Channel(mock(), None, {})
+        expect(c.dispatch).times(0)
         c.process_frames()
 
     def test_process_frames_stops_when_buffer_is_empty(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         f0 = MethodFrame('ch_id', 'c_id', 'm_id')
         f1 = MethodFrame('ch_id', 'c_id', 'm_id')
         c._frame_buffer = deque([f0, f1])
@@ -253,7 +278,7 @@ class ChannelTest(Chai):
         assert_equals(deque(), c._frame_buffer)
 
     def test_process_frames_stops_when_frameunderflow_raised(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         f0 = MethodFrame('ch_id', 'c_id', 'm_id')
         f1 = MethodFrame('ch_id', 'c_id', 'm_id')
         c._frame_buffer = deque([f0, f1])
@@ -264,7 +289,7 @@ class ChannelTest(Chai):
         assert_equals(f1, c._frame_buffer[0])
 
     def test_process_frames_when_connectionclosed_on_dispatch(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c._connection = mock()
         c._connection.logger = mock()
 
@@ -274,12 +299,12 @@ class ChannelTest(Chai):
 
         expect(c.dispatch).args(f0).raises(
             ConnectionClosed('something darkside'))
-        stub(c.close)  # assert not called
+        expect(c.close).times(0)
 
         assert_raises(ConnectionClosed, c.process_frames)
 
     def test_process_frames_logs_and_closes_when_dispatch_error_raised(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c._connection = mock()
         c._connection.logger = mock()
 
@@ -288,13 +313,16 @@ class ChannelTest(Chai):
         c._frame_buffer = deque([f0, f1])
 
         expect(c.dispatch).args(f0).raises(RuntimeError("zomg it broked"))
+        expect(c.logger.exception).args(
+            'Closing on failed dispatch of frame %.255s', f0)
         expect(c.close).args(500, 'Failed to dispatch %s' % (str(f0)))
 
         assert_raises(RuntimeError, c.process_frames)
         assert_equals(f1, c._frame_buffer[0])
 
-    def test_process_frames_logs_and_closes_when_dispatch_error_raised_even_when_exception_on_close(self):
-        c = Channel(None, None, {})
+    def test_process_frames_logs_and_preserves_original_exception_when_dispatch_and_close_fail(self):
+        # fix it, too.
+        c = Channel(mock(), 20, {})
         c._connection = mock()
         c._connection.logger = mock()
 
@@ -303,13 +331,34 @@ class ChannelTest(Chai):
         c._frame_buffer = deque([f0, f1])
 
         expect(c.dispatch).args(f0).raises(RuntimeError("zomg it broked"))
+        expect(c.logger.exception).args(
+            'Closing on failed dispatch of frame %.255s', f0)
         expect(c.close).raises(ValueError())
+        expect(c.logger.exception).args('Channel close failed')
 
         assert_raises(RuntimeError, c.process_frames)
         assert_equals(f1, c._frame_buffer[0])
 
-    def test_process_frames_logs_and_closes_when_systemexit_raised(self):
-        c = Channel(None, None, {})
+    def test_process_frames_raises_systemexit_when_close_raises_systemexit(self):
+        c = Channel(mock(), 20, {})
+        c._connection = mock()
+        c._connection.logger = mock()
+
+        f0 = MethodFrame(20, 30, 40)
+        f1 = MethodFrame('ch_id', 'c_id', 'm_id')
+        c._frame_buffer = deque([f0, f1])
+
+        expect(c.dispatch).args(f0).raises(RuntimeError("zomg it broked"))
+        expect(c.logger.exception).args(
+            'Closing on failed dispatch of frame %.255s', f0)
+        expect(c.close).raises(SystemExit())
+
+        assert_raises(SystemExit, c.process_frames)
+        assert_equals(f1, c._frame_buffer[0])
+
+
+    def test_process_frames_does_not_close_and_raises_systemexit_when_dispatch_raises_systemexit(self):
+        c = Channel(mock(), None, {})
         c._connection = mock()
         c._connection.logger = mock()
 
@@ -318,13 +367,46 @@ class ChannelTest(Chai):
         c._frame_buffer = deque([f0, f1])
 
         expect(c.dispatch).args(f0).raises(SystemExit())
-        stub(c.close)
+        expect(c.close).times(0)
 
         assert_raises(SystemExit, c.process_frames)
         assert_equals(f1, c._frame_buffer[0])
 
+    def test_process_frames_drops_non_close_methods_when_emergency_closing(self):
+        c = Channel(mock(), None, self._CLASS_MAP)
+        c._emergency_close_pending = True
+        c._connection = mock()
+        c._connection.logger = mock()
+
+        f0 = MethodFrame(1, 30, 40)
+        f1 = HeaderFrame(1, 30, 0, 0)
+        f2 = ContentFrame(1, "payload")
+        f3_basic_close = MethodFrame(1, 20, 40)
+        f4_basic_close_ok = MethodFrame(1, 20, 41)
+        f5 = MethodFrame(1, 90, 11)
+        c._frame_buffer = deque(
+            [
+                f0,
+                f1,
+                f2,
+                f3_basic_close,
+                f4_basic_close_ok,
+                f5
+            ])
+
+        expect(c.dispatch).args(f0).times(0)
+        expect(c.dispatch).args(f1).times(0)
+        expect(c.dispatch).args(f2).times(0)
+        expect(c.dispatch).args(f3_basic_close).times(1)
+        expect(c.dispatch).args(f4_basic_close_ok).times(1)
+        expect(c.dispatch).args(f5).times(0)
+        expect(c.logger.warn).times(4)
+
+        c.process_frames()
+        assert_equals(0, len(c._frame_buffer))
+
     def test_next_frame_with_a_frame(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         ch_id, c_id, m_id = 0, 1, 2
         f0 = MethodFrame(ch_id, c_id, m_id)
         f1 = MethodFrame(ch_id, c_id, m_id)
@@ -332,12 +414,12 @@ class ChannelTest(Chai):
         assert_equals(c.next_frame(), f0)
 
     def test_next_frame_with_no_frames(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c._frame_buffer = deque()
         assert_equals(c.next_frame(), None)
 
     def test_requeue_frames(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         ch_id, c_id, m_id = 0, 1, 2
         f = [MethodFrame(ch_id, c_id, m_id) for i in xrange(4)]
         c._frame_buffer = deque(f[:2])
@@ -464,14 +546,14 @@ class ChannelTest(Chai):
             c.add_synchronous_cb('foo')
 
     def test_clear_synchronous_cb_when_no_pending(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         stub(c._flush_pending_events)
 
         assert_equals(deque([]), c._pending_events)
         assert_equals('foo', c.clear_synchronous_cb('foo'))
 
     def test_clear_synchronous_cb_when_pending_cb_matches(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c._pending_events = deque(['foo'])
 
         expect(c._flush_pending_events)
@@ -480,16 +562,16 @@ class ChannelTest(Chai):
         assert_equals(deque([]), c._pending_events)
 
     def test_clear_synchronous_cb_when_pending_cb_doesnt_match_but_isnt_in_list(self):
-        c = Channel(None, None, {})
+        c = Channel(mock(), None, {})
         c._pending_events = deque(['foo'])
 
-        expect(c._flush_pending_events)
+        expect(c._flush_pending_events).times(0)
 
         assert_equals('bar', c.clear_synchronous_cb('bar'))
         assert_equals(deque(['foo']), c._pending_events)
 
-    def test_clear_synchronous_cb_when_pending_cb_doesnt_match_but_isnt_in_list(self):
-        c = Channel(None, None, {})
+    def test_clear_synchronous_cb_raises_when_pending_cb_doesnt_match_but_is_in_list(self):
+        c = Channel(mock(), None, {})
         stub(c._flush_pending_events)
         c._pending_events = deque(['foo', 'bar'])
 
@@ -499,9 +581,9 @@ class ChannelTest(Chai):
     def test_flush_pending_events_flushes_all_leading_frames(self):
         conn = mock()
         c = Channel(conn, 42, {})
-        f1 = MethodFrame(1, 2, 3)
-        f2 = MethodFrame(1, 2, 3)
-        f3 = MethodFrame(1, 2, 3)
+        f1 = MethodFrame(42, 2, 3)
+        f2 = MethodFrame(42, 2, 3)
+        f3 = MethodFrame(42, 2, 3)
         c._pending_events = deque([f1, f2, 'cb', f3])
 
         expect(conn.send_frame).args(f1)
@@ -511,13 +593,7 @@ class ChannelTest(Chai):
         assert_equals(deque(['cb', f3]), c._pending_events)
 
     def test_closed_cb_without_final_frame(self):
-        c = Channel('connection', None, {
-            20: ChannelClass,
-            40: ExchangeClass,
-            50: QueueClass,
-            60: BasicClass,
-            90: TransactionClass,
-        })
+        c = Channel(mock(), None, self._CLASS_MAP)
         c._pending_events = 'foo'
         c._frame_buffer = 'foo'
 

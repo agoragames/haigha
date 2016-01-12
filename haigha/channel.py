@@ -10,6 +10,7 @@ from haigha.classes.protocol_class import ProtocolClass
 from haigha.frames.frame import Frame
 from haigha.frames.content_frame import ContentFrame
 from haigha.frames.header_frame import HeaderFrame
+from haigha.frames.method_frame import MethodFrame
 from haigha.exceptions import ChannelError, ChannelClosed, ConnectionClosed
 
 # Defined here so it's easier to test
@@ -57,6 +58,8 @@ class Channel(object):
         '''
         self._connection = connection
         self._channel_id = channel_id
+        # Save logger so that we have access to it even after _closed_cb
+        self._logger = connection.logger
 
         self._class_map = {}
         for _id, _class in class_map.iteritems():
@@ -75,6 +78,11 @@ class Channel(object):
 
         # Listeners for when channel closes
         self._close_listeners = set()
+
+        # Set when we initiate channel.close following framing error; when set,
+        # we drop all incoming frames except basic.close and basic.close_ok per
+        # AMQP 0.9.1 stability rule; see `Channel.process_frames()`
+        self._emergency_close_pending = False
 
         # Moving state out of protocol class so that it's accessible even
         # after we've closed and deleted references to the protocol classes.
@@ -102,7 +110,7 @@ class Channel(object):
     @property
     def logger(self):
         '''Return a shared logger handle for the channel.'''
-        return self._connection.logger
+        return self._logger
 
     @property
     def closed(self):
@@ -227,10 +235,26 @@ class Channel(object):
         Process the input buffer.
         '''
         while len(self._frame_buffer):
+            # It would make sense to call next_frame, but it's
+            # technically faster to repeat the code here.
+            frame = self._frame_buffer.popleft()
+
+            if self._emergency_close_pending:
+                # Implement stability rule from AMQP 0.9.1 section 1.5.2.5.
+                # Method channel.close: "After sending this method, any
+                # received methods except Close and Close-OK MUST be discarded."
+                #
+                # NOTE: presently, we limit our implementation of the rule to
+                # the "emergency close" scenario to avoid potential adverse
+                # side-effect during normal user-initiated close
+                if (not isinstance(frame, MethodFrame) or
+                      frame.class_id != self.channel.CLASS_ID or
+                      frame.method_id not in (self.channel.CLOSE_METHOD_ID,
+                                              self.channel.CLOSE_OK_METHOD_ID)):
+                    self.logger.warn("Emergency channel close: dropping input "
+                                     "frame %.255s", frame)
+                    continue
             try:
-                # It would make sense to call next_frame, but it's
-                # technically faster to repeat the code here.
-                frame = self._frame_buffer.popleft()
                 self.dispatch(frame)
             except ProtocolClass.FrameUnderflow:
                 return
@@ -238,13 +262,27 @@ class Channel(object):
                 # Immediately raise if connection or channel is closed
                 raise
             except Exception:
+                self.logger.exception(
+                    "Closing on failed dispatch of frame %.255s", frame)
+
                 # Spec says that channel should be closed if there's a framing
                 # error. Unsure if we can send close if the current exception
                 # is transport level (e.g. gevent.GreenletExit)
+                self._emergency_close_pending = True
+
+                # Preserve the original exception and traceback during cleanup,
+                # only allowing system-exiting exceptions (e.g., SystemExit,
+                # KeyboardInterrupt) to override it
                 try:
-                    self.close(500, "Failed to dispatch %s" % (str(frame)))
-                finally:
                     raise
+                finally:
+                    try:
+                        self.close(500, "Failed to dispatch %s" % (str(frame)))
+                    except Exception:
+                        # Suppress secondary non-system-exiting exception in
+                        # favor of the original exception
+                        self.logger.exception("Channel close failed")
+                        pass
 
     def next_frame(self):
         '''

@@ -442,8 +442,11 @@ class Connection(object):
                                    (self._close_info['reply_code'],
                                     self._close_info['reply_text']))
 
-        self._transport.process_channels(p_channels)
-
+        # NOTE: we process channels after buffering unused data in order to
+        # preserve the integrity of the input stream in case a channel needs to
+        # read input, such as when a channel framing error necessitates the use
+        # of the synchronous channel.close method. See `Channel.process_frames`.
+        #
         # HACK: read the buffer contents and re-buffer.  Would prefer to pass
         # buffer back, but there's no good way of asking the total size of the
         # buffer, comparing to tell(), and then re-buffering.  There's also no
@@ -451,6 +454,8 @@ class Connection(object):
         # awesome if we could free that memory without a new allocation.
         if reader.tell() < len(data):
             self._transport.buffer(data[reader.tell():])
+
+        self._transport.process_channels(p_channels)
 
     def _flush_buffered_frames(self):
         '''
