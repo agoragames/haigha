@@ -8,6 +8,7 @@ python:
 script: nosetests
 install:
   - "pip install -r development.txt"
+  - "if [ ${TRAVIS_PYTHON_VERSION} != 'pypy' ]; then pip install gevent; fi"
   - "pip install nose"
 services:
   - rabbitmq
