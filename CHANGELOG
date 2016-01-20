@@ -1,3 +1,19 @@
+0.9.0
+=====
+
+Merge https://github.com/agoragames/haigha/pull/69 from @kevinconway
+Add support for IPv6 connections. Cycle through all available addresses
+from socket.getaddrinfo() in their natural order.
+
+Merge https://github.com/agoragames/haigha/pull/74 from @vitaly-krugl
+Significant cleanup of channel frame processing and error handling.
+
+Merge https://github.com/agoragames/haigha/pull/82 from @vitaly-krugl
+Implemented support for RabbitMQ broker-initiated Basic.Cancel.
+
+Integration test framework. Integration tests running on Travis CI.
+
+
 0.8.0
 =====
 

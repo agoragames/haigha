@@ -6,7 +6,7 @@
     :target: https://travis-ci.org/agoragames/haigha
 
 
-:Version: 0.8.0
+:Version: 0.9.0
 :Download: http://pypi.python.org/pypi/haigha
 :Source: https://github.com/agoragames/haigha
 :Keywords: python, amqp, rabbitmq, event, libevent, gevent
