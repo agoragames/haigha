@@ -331,7 +331,7 @@ The constructor takes many keyword arguments that will affect its behavior.
 * ``vhost`` Default "/".
 * ``connect_timeout`` Default 5 seconds. Time before socket connection fails.
 * ``sock_opts`` Default None. Recommend at least ``{(socket.IPPROTO_TCP, socket.TCP_NODELAY) : 1}``
-* ``hearbeat`` Default None (disabled). If 0, broker assigned. If >0, negotiated with broker.
+* ``heartbeat`` Default None (disabled). If 0, broker assigned. If >0, negotiated with broker.
 * ``open_cb`` Default None. A no-arg method to be called after connection fully negotiated and pending frames written.
 * ``close_cb`` Default None. A no-arg method to be called when connection closes due to protocol handshake or transport closure.
 * ``login_method`` Defaults to "AMQPLAIN".
