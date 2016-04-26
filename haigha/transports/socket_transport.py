@@ -49,7 +49,7 @@ class SocketTransport(Transport):
 
             except socket.error:
 
-                self.connection.logger.exception(
+                self.connection.logger.warning(
                     "Failed to connect to %s:",
                     sockaddr,
                 )
