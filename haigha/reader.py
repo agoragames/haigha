@@ -231,8 +231,24 @@ class Reader(object):
 
         Will raise BufferUnderflow if there's not enough bytes in the buffer.
         Will raise struct.error if the data is malformed
+
+        To support different RabbitMQ constructs, the timestamp is parsed in different basis from seconds to microseconds.
         """
-        return datetime.utcfromtimestamp(self.read_longlong())
+        ts = self.read_longlong()
+        try:
+            # Try to parse the timestamp in seconds
+            return datetime.utcfromtimestamp(ts)
+        except ValueError:
+            try:
+                # Try to parse the timestamp in milliseconds
+                return datetime.utcfromtimestamp(ts / 1e3)
+            except ValueError:
+                try:
+                    # Try to parse the timestamp in microseconds
+                    return datetime.utcfromtimestamp(ts / 1e6)
+                except ValueError:
+                    # Failed to parse the timestamp
+                    raise
 
     def read_table(self):
         """
