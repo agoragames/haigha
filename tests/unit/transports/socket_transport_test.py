@@ -85,6 +85,7 @@ class SocketTransportTest(Chai):
         """Test that failed connections are bypassed until a success."""
         sock = mock()
         expect(socket.socket).returns(sock)
+        expect(sock.close)
         self._set_up_connect_test(sock)
         expect(socket, 'getaddrinfo').args(
             'host', 5309, 0, 0, socket.IPPROTO_TCP,
@@ -109,6 +110,7 @@ class SocketTransportTest(Chai):
         """Test that exception is raised when all connections fail."""
         sock = mock()
         expect(socket.socket).returns(sock)
+        expect(sock.close)
         self._set_up_connect_test_fail(sock)
         expect(socket, 'getaddrinfo').args(
             'host', 5309, 0, 0, socket.IPPROTO_TCP,
@@ -167,6 +169,7 @@ class SocketTransportTest(Chai):
     def test_connect_with_klass_arg_first_fail(self):
         klass = mock()
         sock = mock()
+        expect(sock.close)
         expect(klass).returns(sock)
         self._set_up_connect_test(sock)
         expect(socket, 'getaddrinfo').args(
@@ -191,6 +194,7 @@ class SocketTransportTest(Chai):
     def test_connect_with_klass_arg_all_fail(self):
         klass = mock()
         sock = mock()
+        expect(sock.close)
         expect(klass).returns(sock)
         self._set_up_connect_test_fail(sock)
         expect(socket, 'getaddrinfo').args(

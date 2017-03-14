@@ -53,6 +53,7 @@ class SocketTransport(Transport):
                     "Failed to connect to %s:",
                     sockaddr,
                 )
+                self._sock.close()
                 continue
 
             # After connecting, switch to full-blocking mode.
